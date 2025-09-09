@@ -1,0 +1,315 @@
+---
+alwaysApply: true
+description: "Next.js 데이터 처리 패턴 및 서버 컴포넌트/액션 사용 규칙"
+---
+
+# Next.js 데이터 처리 패턴 규칙
+
+이 프로젝트의 모든 데이터 처리는 Next.js App Router의 **Server Components**와 **Server Actions** 패턴을 엄격히 준수해야 합니다.
+
+## 핵심 원칙
+
+### 1. 데이터 조회는 Server Components에서만
+**모든 데이터베이스 조회는 Server Components에서 수행해야 합니다.**
+
+#### ✅ 올바른 패턴:
+```typescript
+import { db } from '@/db';
+import { articles } from '@/db/schema';
+import { auth } from '@clerk/nextjs';
+import { eq } from 'drizzle-orm';
+
+// Server Component
+export default async function ArticlesPage() {
+  const { userId } = auth();
+  
+  if (!userId) {
+    return <div>로그인이 필요합니다</div>;
+  }
+  
+  // 서버에서 직접 데이터 조회
+  const userArticles = await db
+    .select()
+    .from(articles)
+    .where(eq(articles.userId, userId));
+    
+  return (
+    <div>
+      {userArticles.map(article => (
+        <ArticleCard key={article.id} article={article} />
+      ))}
+    </div>
+  );
+}
+```
+
+#### ❌ 금지된 패턴:
+```typescript
+// Client Component에서 데이터 조회 금지
+'use client';
+import { useEffect, useState } from 'react';
+
+export default function ArticlesPage() {
+  const [articles, setArticles] = useState([]);
+  
+  useEffect(() => {
+    // ❌ 클라이언트에서 API 호출로 데이터 조회 금지
+    fetch('/api/articles')
+      .then(res => res.json())
+      .then(setArticles);
+  }, []);
+  
+  return <div>{/* ... */}</div>;
+}
+```
+
+### 2. 데이터 변경은 Server Actions에서만
+**모든 데이터베이스 생성/수정/삭제는 Server Actions를 통해서만 수행해야 합니다.**
+
+#### ✅ 올바른 패턴:
+```typescript
+'use server';
+
+import { db } from '@/db';
+import { articles } from '@/db/schema';
+import { auth } from '@clerk/nextjs';
+import { z } from 'zod';
+import { eq } from 'drizzle-orm';
+
+// Zod 스키마 정의
+const createArticleSchema = z.object({
+  title: z.string().min(1, '제목은 필수입니다'),
+  content: z.string().min(1, '내용은 필수입니다'),
+  url: z.string().url('유효한 URL을 입력하세요'),
+  publishedAt: z.date(),
+});
+
+// TypeScript 타입 추출
+type CreateArticleInput = z.infer<typeof createArticleSchema>;
+
+export async function createArticle(input: CreateArticleInput) {
+  const { userId } = auth();
+  
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+  
+  // Zod로 데이터 검증
+  const validatedData = createArticleSchema.parse(input);
+  
+  // 데이터베이스에 삽입
+  const result = await db.insert(articles).values({
+    ...validatedData,
+    userId,
+    id: crypto.randomUUID(),
+  });
+  
+  return result;
+}
+
+export async function updateArticle(id: string, input: Partial<CreateArticleInput>) {
+  const { userId } = auth();
+  
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+  
+  // 부분 업데이트용 스키마
+  const updateSchema = createArticleSchema.partial();
+  const validatedData = updateSchema.parse(input);
+  
+  // 소유권 확인 후 업데이트
+  const result = await db
+    .update(articles)
+    .set(validatedData)
+    .where(eq(articles.id, id) && eq(articles.userId, userId));
+    
+  return result;
+}
+
+export async function deleteArticle(id: string) {
+  const { userId } = auth();
+  
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+  
+  // 소유권 확인 후 삭제
+  const result = await db
+    .delete(articles)
+    .where(eq(articles.id, id) && eq(articles.userId, userId));
+    
+  return result;
+}
+```
+
+#### ❌ 금지된 패턴:
+```typescript
+// API 라우트를 통한 데이터 변경 금지
+export async function POST(request: NextRequest) {
+  // ❌ 이런 패턴 사용 금지
+  const body = await request.json();
+  // ... 데이터베이스 작업
+}
+
+// FormData 타입 사용 금지
+export async function createArticle(formData: FormData) {
+  // ❌ FormData 타입 금지
+  const title = formData.get('title');
+  // ...
+}
+```
+
+### 3. 필수 Zod 데이터 검증
+**모든 Server Actions의 입력 데이터는 Zod로 검증되어야 합니다.**
+
+#### 필수 패턴:
+```typescript
+// 1. Zod 스키마 정의
+const userProfileSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  age: z.number().min(18).max(120),
+});
+
+// 2. TypeScript 타입 추출
+type UserProfileInput = z.infer<typeof userProfileSchema>;
+
+// 3. Server Action에서 검증
+export async function updateProfile(input: UserProfileInput) {
+  // 반드시 검증 수행
+  const validatedData = userProfileSchema.parse(input);
+  
+  // 검증된 데이터만 사용
+  // ...
+}
+```
+
+### 4. Client Component에서 Server Actions 사용
+```typescript
+'use client';
+
+import { createArticle } from '@/actions/articles';
+import { useState } from 'react';
+
+export function CreateArticleForm() {
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    
+    try {
+      // Server Action 호출 (타입 안전)
+      await createArticle({
+        title,
+        content,
+        url: 'https://example.com',
+        publishedAt: new Date(),
+      });
+      
+      // 성공 처리
+    } catch (error) {
+      // 에러 처리
+    }
+  }
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* 폼 요소들 */}
+    </form>
+  );
+}
+```
+
+## 파일 구조 가이드
+
+### Server Actions 파일 위치
+```
+src/
+  actions/           # Server Actions 전용 디렉토리
+    articles.ts      # 기사 관련 Server Actions
+    users.ts         # 사용자 관련 Server Actions
+    comments.ts      # 댓글 관련 Server Actions
+```
+
+### 스키마 파일 위치
+```
+src/
+  lib/
+    schemas/         # Zod 스키마 전용 디렉토리
+      article.ts     # 기사 관련 스키마
+      user.ts        # 사용자 관련 스키마
+      comment.ts     # 댓글 관련 스키마
+```
+
+## 보안 체크리스트
+
+### Server Actions 개발 시 확인사항:
+- [ ] `'use server'` 지시문 사용
+- [ ] Zod 스키마로 입력 데이터 검증
+- [ ] TypeScript 타입 정의 및 사용
+- [ ] `auth()`로 사용자 인증 확인
+- [ ] 사용자 권한 및 소유권 확인
+- [ ] FormData 타입 사용 금지
+
+### Server Components 개발 시 확인사항:
+- [ ] `async` 함수로 정의
+- [ ] 서버에서 직접 데이터베이스 접근
+- [ ] 클라이언트 상태 관리 없이 데이터 표시
+- [ ] `'use client'` 지시문 없음
+
+## 공통 실수 방지
+
+### 1. API 라우트 남용
+```typescript
+// ❌ 불필요한 API 라우트
+// pages/api/articles.ts 또는 app/api/articles/route.ts
+export async function GET() {
+  // Server Component에서 직접 하면 됨
+}
+
+// ✅ Server Component에서 직접 조회
+export default async function ArticlesPage() {
+  const articles = await db.select().from(articlesTable);
+  return <div>{/* ... */}</div>;
+}
+```
+
+### 2. 클라이언트에서 데이터 페칭
+```typescript
+// ❌ useEffect + fetch 패턴
+'use client';
+export function ArticlesList() {
+  const [articles, setArticles] = useState([]);
+  
+  useEffect(() => {
+    fetch('/api/articles').then(/* ... */);
+  }, []);
+}
+
+// ✅ Server Component 패턴
+export default async function ArticlesList() {
+  const articles = await db.select().from(articlesTable);
+  return <div>{/* ... */}</div>;
+}
+```
+
+### 3. 타입 안전성 무시
+```typescript
+// ❌ any 타입 사용
+export async function createArticle(data: any) {
+  // 타입 안전성 없음
+}
+
+// ✅ Zod + TypeScript 타입
+const schema = z.object({ /* ... */ });
+type Input = z.infer<typeof schema>;
+
+export async function createArticle(data: Input) {
+  const validated = schema.parse(data);
+  // 타입 안전함
+}
+```
+
+이 규칙들을 엄격히 준수하여 Next.js App Router의 최신 패턴을 활용하고 타입 안전성을 보장하세요.

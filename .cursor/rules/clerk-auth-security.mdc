@@ -1,0 +1,229 @@
+---
+alwaysApply: true
+description: "Clerk 인증 및 데이터 접근 보안 규칙"
+---
+
+# Clerk 인증 및 데이터 접근 보안 규칙
+
+이 프로젝트의 모든 인증은 **Clerk**를 통해 처리되며, 사용자는 **자신의 데이터에만 접근**할 수 있어야 합니다.
+
+## 핵심 원칙
+
+### 1. 인증은 Clerk가 전담
+- 모든 사용자 인증, 세션 관리, 로그인/로그아웃은 Clerk를 통해 처리
+- 자체 인증 로직 구현 금지
+- [src/middleware.ts](mdc:src/middleware.ts)에서 Clerk 미들웨어 사용
+
+### 2. 데이터 접근 권한 제어
+**사용자는 오직 자신의 데이터에만 접근 가능해야 합니다.**
+
+#### 필수 패턴:
+```typescript
+import { auth } from '@clerk/nextjs';
+import { db } from '@/db';
+import { eq, and } from 'drizzle-orm';
+
+// ✅ 올바른 패턴: 사용자 ID로 데이터 필터링
+export async function getUserArticles() {
+  const { userId } = auth();
+  
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+  
+  return await db
+    .select()
+    .from(articles)
+    .where(eq(articles.userId, userId)); // 중요: 사용자 ID로 필터링
+}
+
+// ✅ 올바른 패턴: 업데이트/삭제 시 소유권 확인
+export async function updateUserProfile(profileId: string, data: any) {
+  const { userId } = auth();
+  
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+  
+  // 먼저 해당 데이터가 사용자 소유인지 확인
+  const profile = await db
+    .select()
+    .from(userProfiles)
+    .where(and(
+      eq(userProfiles.id, profileId),
+      eq(userProfiles.clerkUserId, userId)
+    ));
+    
+  if (!profile.length) {
+    throw new Error('Forbidden: Not your data');
+  }
+  
+  return await db
+    .update(userProfiles)
+    .set(data)
+    .where(and(
+      eq(userProfiles.id, profileId),
+      eq(userProfiles.clerkUserId, userId) // 이중 체크
+    ));
+}
+```
+
+#### 금지 패턴:
+```typescript
+// ❌ 잘못된 패턴: 사용자 ID 확인 없이 데이터 접근
+export async function getArticle(articleId: string) {
+  return await db
+    .select()
+    .from(articles)
+    .where(eq(articles.id, articleId)); // 위험: 다른 사용자 데이터 접근 가능
+}
+
+// ❌ 잘못된 패턴: 클라이언트에서 받은 userId 신뢰
+export async function getUserData(userId: string) {
+  // 클라이언트에서 받은 userId는 신뢰할 수 없음
+  return await db
+    .select()
+    .from(userProfiles)
+    .where(eq(userProfiles.clerkUserId, userId));
+}
+```
+
+## API 라우트 보안
+
+### Next.js App Router API 라우트
+```typescript
+import { auth } from '@clerk/nextjs';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(request: NextRequest) {
+  const { userId } = auth();
+  
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  // userId를 사용하여 데이터 필터링
+  const userSpecificData = await db
+    .select()
+    .from(someTable)
+    .where(eq(someTable.userId, userId));
+    
+  return NextResponse.json(userSpecificData);
+}
+
+export async function POST(request: NextRequest) {
+  const { userId } = auth();
+  
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  const body = await request.json();
+  
+  // 데이터 생성 시 userId 자동 포함
+  const newRecord = await db.insert(someTable).values({
+    ...body,
+    userId: userId, // 서버에서 설정한 userId 사용
+  });
+  
+  return NextResponse.json(newRecord);
+}
+```
+
+## 데이터베이스 스키마 요구사항
+
+### 사용자 데이터 테이블 구조
+모든 사용자별 데이터 테이블은 다음 중 하나를 포함해야 합니다:
+
+```typescript
+// 방법 1: clerkUserId 필드 (권장)
+export const userSpecificTable = pgTable('user_specific_table', {
+  id: text('id').primaryKey(),
+  clerkUserId: text('clerk_user_id').notNull(),
+  // ... 기타 필드
+});
+
+// 방법 2: userId 필드 (Clerk UserId 참조)
+export const anotherTable = pgTable('another_table', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(), // Clerk userId
+  // ... 기타 필드
+});
+```
+
+## 클라이언트 사이드 보안
+
+### React 컴포넌트에서 인증 상태 확인
+```typescript
+import { useAuth, useUser } from '@clerk/nextjs';
+
+export function UserSpecificComponent() {
+  const { isLoaded, userId } = useAuth();
+  const { user } = useUser();
+  
+  if (!isLoaded) {
+    return <div>Loading...</div>;
+  }
+  
+  if (!userId) {
+    return <div>Please sign in</div>;
+  }
+  
+  // 이제 안전하게 사용자별 컴포넌트 렌더링
+  return <div>Welcome, {user?.firstName}!</div>;
+}
+```
+
+## 보안 체크리스트
+
+### API 개발 시 확인사항:
+- [ ] `auth()`를 통해 `userId` 획득
+- [ ] `userId`가 없으면 401 에러 반환
+- [ ] 모든 데이터베이스 쿼리에 `userId` 필터 적용
+- [ ] 업데이트/삭제 시 소유권 이중 확인
+- [ ] 클라이언트에서 받은 `userId` 절대 신뢰하지 않음
+
+### 컴포넌트 개발 시 확인사항:
+- [ ] `useAuth()` 또는 `auth()`로 인증 상태 확인
+- [ ] 로딩 상태 처리
+- [ ] 미인증 사용자 처리
+- [ ] 사용자별 데이터만 표시
+
+## 공통 실수 방지
+
+### 1. URL 파라미터로 받은 사용자 ID 신뢰
+```typescript
+// ❌ 잘못된 방법
+export async function getProfile(userIdFromUrl: string) {
+  return await db.select().from(userProfiles).where(eq(userProfiles.clerkUserId, userIdFromUrl));
+}
+
+// ✅ 올바른 방법
+export async function getProfile() {
+  const { userId } = auth();
+  if (!userId) throw new Error('Unauthorized');
+  
+  return await db.select().from(userProfiles).where(eq(userProfiles.clerkUserId, userId));
+}
+```
+
+### 2. 관리자 권한 체크 누락
+```typescript
+// 관리자 기능이 필요한 경우
+export async function adminOnlyFunction() {
+  const { userId, sessionClaims } = auth();
+  
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+  
+  // Clerk의 역할 기반 접근 제어 사용
+  if (sessionClaims?.role !== 'admin') {
+    throw new Error('Forbidden: Admin access required');
+  }
+  
+  // 관리자 전용 로직
+}
+```
+
+이 규칙을 엄격히 준수하여 모든 사용자 데이터의 보안을 보장하세요.
