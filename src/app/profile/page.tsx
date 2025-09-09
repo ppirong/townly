@@ -1,5 +1,6 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
+import Image from 'next/image';
 
 export default async function ProfilePage() {
   const { userId } = await auth();
@@ -24,10 +25,12 @@ export default async function ProfilePage() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
               <div className="text-center">
-                <img 
+                <Image 
                   src={user?.imageUrl || '/default-avatar.png'} 
                   alt="프로필 이미지"
-                  className="w-24 h-24 rounded-full mx-auto mb-4"
+                  width={96}
+                  height={96}
+                  className="rounded-full mx-auto mb-4"
                 />
                 <h2 className="text-xl font-bold text-gray-900 mb-1">
                   {user?.firstName || '사용자'}님
