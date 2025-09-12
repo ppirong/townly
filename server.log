@@ -1,0 +1,167 @@
+
+> townly@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.2
+   - Local:        http://localhost:3000
+   - Network:      http://172.30.1.8:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1737ms
+ ✓ Compiled /middleware in 274ms (221 modules)
+ ○ Compiling /api/kakao/webhook ...
+ ✓ Compiled /api/kakao/webhook in 820ms (570 modules)
+📥 카카오 웹훅 이벤트 수신: {
+  type: 'message',
+  channelId: '1307940',
+  userId: 'test_user_debug',
+  messageText: '파주시 야당역 맛집을 추천해줘',
+  messageType: 'text',
+  timestamp: 1757429952589
+}
+🤖 챗봇으로 이벤트 전달 중...
+💬 메시지 이벤트 처리 시작: { id: 'msg_debug_001', type: 'text', text: '파주시 야당역 맛집을 추천해줘' }
+👤 사용자: test_user_debug
+💬 메시지: "파주시 야당역 맛집을 추천해줘"
+📖 대화 기록: 0개 메시지
+🔍 특수 명령어 확인 중...
+🧠 ChatGPT 응답 생성 중...
+ POST /api/kakao/webhook 200 in 1063ms
+🤖 생성된 응답: "안녕하세요! 🏘️ 야당역 근처 맛집으로는 "야당동백"이 추천되어요! 이곳은 전통적인 한식 요리를 맛볼 수 있고, 특히 유명한 돌솥비빔밥이 매우 맛있답니다. 가족 모임이나 친구와의..."
+📤 응답 전송 중...
+🤖 [개발 모드] 카카오 메시지 전송 시뮬레이션:
+📍 채널: 1307940
+👤 사용자: test_user_debug
+💬 메시지: 안녕하세요! 🏘️ 야당역 근처 맛집으로는 "야당동백"이 추천되어요! 이곳은 전통적인 한식 요리를 맛볼 수 있고, 특히 유명한 돌솥비빔밥이 매우 맛있답니다. 가족 모임이나 친구와의 소소한 외식에 딱 좋아요. 꼭 한번 방문해보세요! 🍚🥢
+✅ 메시지 전송 완료 (시뮬레이션)
+✅ 메시지 처리 완료
+✅ 챗봇 이벤트 처리 완료
+ ✓ Compiled in 449ms (376 modules)
+ ✓ Compiled in 152ms (194 modules)
+   Reload env: .env.local
+ ✓ Compiled in 229ms (415 modules)
+   Reload env: .env.local
+ ✓ Compiled in 180ms (415 modules)
+   Reload env: .env.local
+ ✓ Compiled in 106ms (415 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1471ms (543 modules)
+ ✓ Compiled in 24ms (197 modules)
+ ✓ Compiled in 751ms (543 modules)
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/jisoopark/Dropbox/백업폴더/townly/.next/server/pages/_document.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/jisoopark/Dropbox/백업폴더/townly/.next/server/pages/_document.js'
+}
+ GET /chatbot 404 in 5ms
+ ○ Compiling /_not-found ...
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled /favicon.ico in 5.7s (1343 modules)
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/jisoopark/Dropbox/백업폴더/townly/.next/server/pages/_document.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/jisoopark/Dropbox/백업폴더/townly/.next/server/pages/_document.js'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/jisoopark/Dropbox/백업폴더/townly/.next/server/pages/_document.js'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/jisoopark/Dropbox/백업폴더/townly/.next/server/pages/_document.js'
+}
+ ⨯ [Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./src/middleware.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+] {
+  digest: '942291391'
+}
+ ⨯ [Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./src/middleware.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+] {
+  digest: '2078639952'
+}
+ ⨯ [Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./src/middleware.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+] {
+  digest: '942291391'
+}
+ GET /chatbot 404 in 33ms
+ GET /favicon.ico 200 in 4254ms
+ ⨯ [Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./src/middleware.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+] {
+  digest: '942291391'
+}
+ ⨯ [Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./src/middleware.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+] {
+  digest: '2078639952'
+}
+ ⨯ [Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./src/middleware.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+] {
+  digest: '942291391'
+}
+ GET /favicon.ico 200 in 70ms
+ ✓ Compiled in 439ms (499 modules)
+ ✓ Compiled in 737ms (499 modules)
+ ✓ Compiled in 604ms (499 modules)
+ ✓ Compiled in 297ms (499 modules)
+ ✓ Compiled in 266ms (499 modules)
+ ✓ Compiled in 437ms (499 modules)
+ ✓ Compiled in 140ms (499 modules)
+ ✓ Compiled in 1069ms (499 modules)
+ ✓ Compiled in 156ms (499 modules)
+ ✓ Compiled in 496ms (499 modules)
+ ✓ Compiled in 341ms (499 modules)
+ ✓ Compiled in 624ms (499 modules)
+ ✓ Compiled in 357ms (499 modules)
+ ✓ Compiled in 175ms (499 modules)
+ ✓ Compiled in 571ms (696 modules)
+ ✓ Compiled in 660ms (499 modules)
+ ✓ Compiled in 1360ms (917 modules)
+ ✓ Compiled in 500ms (696 modules)
+ ✓ Compiled in 296ms (499 modules)
+ ✓ Compiled in 959ms (696 modules)
+ ✓ Compiled in 271ms (499 modules)
+ ✓ Compiled in 256ms (499 modules)
+ ✓ Compiled in 90ms (499 modules)
+ ✓ Compiled in 85ms (499 modules)
+ ✓ Compiled in 103ms (499 modules)
+ ✓ Compiled in 129ms (499 modules)
+ ✓ Compiled in 297ms (499 modules)
+ ✓ Compiled in 456ms (499 modules)
+   Reload env: .env.local
+ ✓ Compiled in 461ms (917 modules)

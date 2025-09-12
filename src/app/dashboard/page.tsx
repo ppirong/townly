@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 
 export default async function DashboardPage() {
   const { userId } = await auth();
@@ -57,6 +58,22 @@ export default async function DashboardPage() {
               </div>
               <div className="text-3xl">📅</div>
             </div>
+          </div>
+        </div>
+
+        {/* Admin Panel Access */}
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 shadow-lg mb-8">
+          <div className="flex items-center justify-between text-white">
+            <div>
+              <h3 className="text-xl font-bold mb-2">카카오 채널 관리자</h3>
+              <p className="text-blue-100">카카오 채널 &ldquo;Towny&rdquo;로 수신된 메시지를 실시간으로 모니터링하세요</p>
+            </div>
+            <Link
+              href="/admin/kakao"
+              className="bg-white text-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+            >
+              관리자 페이지 →
+            </Link>
           </div>
         </div>
 

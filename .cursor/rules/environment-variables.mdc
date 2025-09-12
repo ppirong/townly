@@ -1,0 +1,121 @@
+---
+alwaysApply: true
+---
+
+# 환경변수 관리 규칙
+
+이 프로젝트의 모든 환경변수는 `.env.local` 파일에 저장되어 있습니다.
+
+## 핵심 원칙
+
+### 1. 환경변수 확인 시
+- 모든 환경변수는 **`.env.local` 파일을 먼저 참조**해야 합니다.
+- 새로운 환경변수가 필요하거나 기존 환경변수를 확인해야 할 때는 반드시 이 파일을 확인하세요.
+
+### 2. 새 환경변수 추가 시
+1. **`.env.local` 파일에 환경변수 추가**
+2. **`src/lib/env.ts` 파일에서 타입 정의 업데이트**
+
+### 3. 환경변수 사용 시
+- `src/lib/env.ts`를 통해 타입 안전하게 접근해야 합니다.
+- 직접 `process.env`를 사용하지 말고, 타입이 정의된 환경변수를 사용하세요.
+
+## 필수 패턴
+
+### 올바른 환경변수 사용 예시:
+```typescript
+import { env } from '@/lib/env';
+
+// ✅ 올바른 방법: 타입 안전한 접근
+const apiKey = env.KAKAO_API_KEY;
+const dbUrl = env.DATABASE_URL;
+```
+
+### 잘못된 환경변수 사용 예시:
+```typescript
+// ❌ 잘못된 방법: 직접 process.env 사용
+const apiKey = process.env.KAKAO_API_KEY;
+const dbUrl = process.env.DATABASE_URL;
+```
+
+## 환경변수 추가 프로세스
+
+1. **`.env.local`에 변수 추가**:
+```bash
+NEW_API_KEY=your_api_key_here
+```
+
+2. **`src/lib/env.ts`에 타입 정의 추가**:
+```typescript
+export const env = {
+  // 기존 변수들...
+  NEW_API_KEY: process.env.NEW_API_KEY!,
+} as const;
+```
+
+3. **사용 시 타입 안전하게 접근**:
+```typescript
+import { env } from '@/lib/env';
+
+const newApiKey = env.NEW_API_KEY;
+```
+
+이 규칙을 통해 환경변수 관리의 일관성과 타입 안전성을 보장합니다.# 환경변수 관리 규칙
+
+이 프로젝트의 모든 환경변수는 `.env.local` 파일에 저장되어 있습니다.
+
+## 핵심 원칙
+
+### 1. 환경변수 확인 시
+- 모든 환경변수는 **`.env.local` 파일을 먼저 참조**해야 합니다.
+- 새로운 환경변수가 필요하거나 기존 환경변수를 확인해야 할 때는 반드시 이 파일을 확인하세요.
+
+### 2. 새 환경변수 추가 시
+1. **`.env.local` 파일에 환경변수 추가**
+2. **`src/lib/env.ts` 파일에서 타입 정의 업데이트**
+
+### 3. 환경변수 사용 시
+- `src/lib/env.ts`를 통해 타입 안전하게 접근해야 합니다.
+- 직접 `process.env`를 사용하지 말고, 타입이 정의된 환경변수를 사용하세요.
+
+## 필수 패턴
+
+### 올바른 환경변수 사용 예시:
+```typescript
+import { env } from '@/lib/env';
+
+// ✅ 올바른 방법: 타입 안전한 접근
+const apiKey = env.KAKAO_API_KEY;
+const dbUrl = env.DATABASE_URL;
+```
+
+### 잘못된 환경변수 사용 예시:
+```typescript
+// ❌ 잘못된 방법: 직접 process.env 사용
+const apiKey = process.env.KAKAO_API_KEY;
+const dbUrl = process.env.DATABASE_URL;
+```
+
+## 환경변수 추가 프로세스
+
+1. **`.env.local`에 변수 추가**:
+```bash
+NEW_API_KEY=your_api_key_here
+```
+
+2. **`src/lib/env.ts`에 타입 정의 추가**:
+```typescript
+export const env = {
+  // 기존 변수들...
+  NEW_API_KEY: process.env.NEW_API_KEY!,
+} as const;
+```
+
+3. **사용 시 타입 안전하게 접근**:
+```typescript
+import { env } from '@/lib/env';
+
+const newApiKey = env.NEW_API_KEY;
+```
+
+이 규칙을 통해 환경변수 관리의 일관성과 타입 안전성을 보장합니다.
