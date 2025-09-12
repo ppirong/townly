@@ -85,6 +85,7 @@ export function KakaoAdminDashboard() {
     loadMessages(0, currentFilters);
     loadUnreadCount();
     // 자동 새로고침 완전 제거 - 수동 새로고침 버튼만 사용
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentFilters]); // loadMessages, loadUnreadCount 의존성 제거하여 재실행 방지
 
   // 필터 변경 핸들러

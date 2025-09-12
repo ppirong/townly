@@ -56,10 +56,10 @@ export async function getClaudeResponse(userMessage: string, systemPrompt?: stri
           }
         ],
       }),
-      new Promise((_, reject) => 
+      new Promise<never>((_, reject) => 
         setTimeout(() => reject(new Error('Claude API timeout')), 8000) // 8초 타임아웃
       )
-    ]) as Awaited<ReturnType<typeof anthropic.messages.create>>;
+    ]);
 
     // 응답 추출
     const response = message.content[0];
