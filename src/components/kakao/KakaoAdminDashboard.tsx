@@ -86,12 +86,14 @@ export function KakaoAdminDashboard() {
     loadUnreadCount();
     // 자동 새로고침 완전 제거 - 수동 새로고침 버튼만 사용
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilters]); // loadMessages, loadUnreadCount 의존성 제거하여 재실행 방지
+  }, []); // 의존성 배열을 비워서 최초 1회만 실행
 
   // 필터 변경 핸들러
   const handleFilterChange = (filters: Filters) => {
     setCurrentFilters(filters);
     setCurrentOffset(0);
+    // loadMessages는 useEffect에서 자동 호출되므로 여기서는 제거
+    // 대신 직접 호출하여 즉시 필터 적용
     loadMessages(0, filters, false);
   };
 
