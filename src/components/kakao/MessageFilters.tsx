@@ -70,9 +70,10 @@ export function MessageFilters({
             size="sm"
             onClick={onRefresh}
             disabled={isLoading}
+            title="수동으로 최신 메시지를 불러옵니다"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            새로고침
+            수동 새로고침
           </Button>
         </div>
       </CardHeader>

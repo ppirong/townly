@@ -42,19 +42,24 @@ export async function getClaudeResponse(userMessage: string, systemPrompt?: stri
 
     const finalSystemPrompt = systemPrompt || defaultSystemPrompt;
 
-    // Claude API 호출
-    const message = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022", // Claude 3.5 Sonnet 최신 버전
-      max_tokens: 500, // 카카오톡 메시지 길이 제한 고려
-      temperature: 0.7, // 적당한 창의성
-      system: finalSystemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: userMessage
-        }
-      ],
-    });
+    // Claude API 호출 (타임아웃 설정)
+    const message = await Promise.race([
+      anthropic.messages.create({
+        model: "claude-3-5-sonnet-20241022", // TODO: 모델 업데이트 필요 (2025년 10월 사용 중단)
+        max_tokens: 300, // 카카오톡 응답 속도 개선을 위해 축소
+        temperature: 0.5, // 응답 속도를 위해 창의성 약간 낮춤
+        system: finalSystemPrompt,
+        messages: [
+          {
+            role: "user",
+            content: userMessage
+          }
+        ],
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Claude API timeout')), 8000) // 8초 타임아웃
+      )
+    ]) as Awaited<ReturnType<typeof anthropic.messages.create>>;
 
     // 응답 추출
     const response = message.content[0];

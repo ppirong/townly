@@ -80,11 +80,12 @@ export function KakaoAdminDashboard() {
     }
   }, []);
 
-  // 초기 데이터 로드
+  // 초기 데이터 로드 (최초 1회만)
   useEffect(() => {
     loadMessages(0, currentFilters);
     loadUnreadCount();
-  }, [loadMessages, loadUnreadCount, currentFilters]);
+    // 자동 새로고침 완전 제거 - 수동 새로고침 버튼만 사용
+  }, [currentFilters]); // loadMessages, loadUnreadCount 의존성 제거하여 재실행 방지
 
   // 필터 변경 핸들러
   const handleFilterChange = (filters: Filters) => {

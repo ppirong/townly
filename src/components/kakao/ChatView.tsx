@@ -48,16 +48,15 @@ export function ChatView({
     }
   };
 
-  // 자동 새로고침 (30초마다)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!isLoading) {
-        onRefresh();
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [isLoading, onRefresh]);
+  // 자동 새로고침 제거 - 수동 새로고침 버튼만 사용
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     if (!isLoading) {
+  //       onRefresh();
+  //     }
+  //   }, 30000);
+  //   return () => clearInterval(interval);
+  // }, [isLoading, onRefresh]);
 
   return (
     <Card className="h-[800px] flex flex-col">
@@ -75,9 +74,10 @@ export function ChatView({
             size="sm"
             onClick={onRefresh}
             disabled={isLoading}
+            title="최신 메시지를 수동으로 불러옵니다 (자동 새로고침 안함)"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            새로고침
+            수동 새로고침
           </Button>
         </div>
       </CardHeader>
