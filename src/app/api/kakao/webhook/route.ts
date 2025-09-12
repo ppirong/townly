@@ -319,7 +319,7 @@ export async function GET(request: NextRequest) {
 /**
  * 메시지 타입 감지 함수
  */
-function detectMessageType(skillRequest: any): string {
+function detectMessageType(skillRequest: Record<string, any>): string {
   // 메시지 타입 분석
   const utterance = skillRequest.userRequest?.utterance || '';
   const params = skillRequest.userRequest?.params || {};
@@ -390,13 +390,6 @@ async function generateAITownlyResponseWithMetadata(userMessage: string): Promis
   }
 }
 
-/**
- * ChatGPT를 사용한 Townly 챗봇 응답 생성 함수 (하위 호환성)
- */
-async function generateAITownlyResponse(userMessage: string): Promise<string> {
-  const result = await generateAITownlyResponseWithMetadata(userMessage);
-  return result.text;
-}
 
 /**
  * ChatGPT 실패 시 사용할 기본 응답 함수

@@ -6,7 +6,7 @@ import { desc } from 'drizzle-orm';
 /**
  * 디버깅용 메시지 조회 API
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     console.log('🔍 디버깅: 데이터베이스에서 메시지 조회 중...');
     
