@@ -45,9 +45,9 @@ export async function getClaudeResponse(userMessage: string, systemPrompt?: stri
     // Claude API 호출 (타임아웃 설정)
     const message = await Promise.race([
       anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022", // TODO: 모델 업데이트 필요 (2025년 10월 사용 중단)
-        max_tokens: 300, // 카카오톡 응답 속도 개선을 위해 축소
-        temperature: 0.5, // 응답 속도를 위해 창의성 약간 낮춤
+        model: "claude-3-haiku-20240307", // 빠른 응답을 위해 Haiku 모델 사용
+        max_tokens: 150, // 카카오 5초 타임아웃 대응
+        temperature: 0.1, // 최대 속도를 위해 결정적 응답
         system: finalSystemPrompt,
         messages: [
           {
@@ -57,7 +57,7 @@ export async function getClaudeResponse(userMessage: string, systemPrompt?: stri
         ],
       }),
       new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Claude API timeout')), 8000) // 8초 타임아웃
+        setTimeout(() => reject(new Error('Claude API timeout')), 3000) // 3초 타임아웃으로 단축
       )
     ]);
 
