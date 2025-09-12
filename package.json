@@ -2,6 +2,9 @@
   "name": "townly",
   "version": "0.1.0",
   "private": true,
+  "npmConfig": {
+    "legacy-peer-deps": true
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
@@ -45,5 +48,13 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.8",
     "typescript": "^5"
+  },
+  "overrides": {
+    "openai": {
+      "zod": "$zod"
+    }
+  },
+  "peerDependencies": {
+    "zod": "^4.1.5"
   }
 }
