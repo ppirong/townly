@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { kakaoMessages, webhookLogs } from '@/db/schema';
-import { getChatGPTResponse, generateContextualSystemPrompt, validateAndProcessResponse } from '@/lib/services/openai';
+import { getClaudeResponse, generateContextualSystemPrompt, validateAndProcessResponse } from '@/lib/services/claude';
 
 /**
  * 카카오톡 챗봇 스킬 웹훅 엔드포인트
@@ -11,6 +11,15 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
   let statusCode = '200';
   let errorMessage: string | null = null;
+  
+  // 개발 환경 감지
+  const isLocalDev = process.env.NODE_ENV === 'development' || 
+                    request.url.includes('localhost') ||
+                    request.url.includes('127.0.0.1');
+  
+  if (isLocalDev) {
+    console.log('🔧 로컬 개발 환경에서 실행 중');
+  }
   
   try {
     // 요청 본문 읽기
@@ -139,7 +148,7 @@ export async function POST(request: NextRequest) {
     
     console.log(`👤 사용자 ${userId}: "${userUtterance}"`);
     
-    // ChatGPT를 사용한 챗봇 응답 생성
+    // Claude를 사용한 챗봇 응답 생성
     const aiResponseStartTime = Date.now();
     const responseResult = await generateAITownlyResponseWithMetadata(userUtterance);
     const aiProcessingTime = `${Date.now() - aiResponseStartTime}ms`;
@@ -349,7 +358,7 @@ function detectMessageType(skillRequest: Record<string, any>): string {
 }
 
 /**
- * ChatGPT를 사용한 Townly 챗봇 응답 생성 함수 (메타데이터 포함)
+ * Claude를 사용한 Townly 챗봇 응답 생성 함수 (메타데이터 포함)
  */
 async function generateAITownlyResponseWithMetadata(userMessage: string): Promise<{text: string, type: string}> {
   try {
@@ -367,21 +376,21 @@ async function generateAITownlyResponseWithMetadata(userMessage: string): Promis
     // 메시지 유형에 따른 컨텍스트 생성
     const systemPrompt = generateContextualSystemPrompt(userMessage);
     
-    // ChatGPT API 호출
-    const chatGPTResponse = await getChatGPTResponse(userMessage, systemPrompt);
+    // Claude API 호출
+    const claudeResponse = await getClaudeResponse(userMessage, systemPrompt);
     
     // 응답 검증 및 후처리
-    const finalResponse = validateAndProcessResponse(chatGPTResponse);
+    const finalResponse = validateAndProcessResponse(claudeResponse);
     
     return {
       text: finalResponse,
-      type: 'chatgpt'
+      type: 'claude'
     };
     
   } catch (error) {
-    console.error('ChatGPT 응답 생성 중 오류:', error);
+    console.error('Claude 응답 생성 중 오류:', error);
     
-    // ChatGPT 실패 시 기본 응답으로 폴백
+    // Claude 실패 시 기본 응답으로 폴백
     const fallbackResponse = generateFallbackResponse(userMessage);
     return {
       text: fallbackResponse,
@@ -392,7 +401,7 @@ async function generateAITownlyResponseWithMetadata(userMessage: string): Promis
 
 
 /**
- * ChatGPT 실패 시 사용할 기본 응답 함수
+ * Claude 실패 시 사용할 기본 응답 함수
  */
 function generateFallbackResponse(userMessage: string): string {
   const lowerMessage = userMessage.toLowerCase().trim();

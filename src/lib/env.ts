@@ -10,8 +10,9 @@ export const env = {
   // 데이터베이스
   DATABASE_URL: process.env.DATABASE_URL!,
   
-  // AI/API 키들 (ChatGPT 연동용)
+  // AI/API 키들
   OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY, // 선택적 (Claude 사용 시 필요)
   KAKAO_API_KEY: process.env.KAKAO_API_KEY,
   
   // 서버 설정
