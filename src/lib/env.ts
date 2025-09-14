@@ -13,7 +13,14 @@ export const env = {
   // AI/API 키들
   OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY, // 선택적 (Claude 사용 시 필요)
+  
+  // 카카오 API 설정
   KAKAO_API_KEY: process.env.KAKAO_API_KEY,
+  KAKAO_REST_API_KEY: process.env.KAKAO_REST_API_KEY,
+  KAKAO_ADMIN_KEY: process.env.KAKAO_ADMIN_KEY,
+  KAKAO_CHANNEL_ID: process.env.KAKAO_CHANNEL_ID,
+  KAKAO_SENDER_KEY: process.env.KAKAO_SENDER_KEY,
+  KAKAO_TEMPLATE_ID: process.env.KAKAO_TEMPLATE_ID,
   
   // 서버 설정
   NODE_ENV: process.env.NODE_ENV || 'development',
