@@ -31,17 +31,19 @@ export default async function WeatherPage() {
           </p>
           {userLocation && (
             <div className="mt-3 p-4 bg-blue-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <span className="text-blue-600">📍</span>
-                <div>
-                  <p className="text-sm font-medium text-blue-800">
-                    설정된 위치: {userLocation.address || `${parseFloat(userLocation.latitude).toFixed(4)}, ${parseFloat(userLocation.longitude).toFixed(4)}`}
-                  </p>
-                  {userLocation.cityName && (
-                    <p className="text-xs text-blue-600">
-                      날씨 조회 지역: {userLocation.cityName}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-blue-600">📍</span>
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">
+                      설정된 위치: {userLocation.address || `${parseFloat(userLocation.latitude).toFixed(4)}, ${parseFloat(userLocation.longitude).toFixed(4)}`}
                     </p>
-                  )}
+                    {userLocation.cityName && (
+                      <p className="text-xs text-blue-600">
+                        날씨 조회 지역: {userLocation.cityName}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

@@ -55,10 +55,12 @@ export async function GET(request: NextRequest) {
     // 도로명 주소 우선, 없으면 지번 주소 사용
     if (document.road_address) {
       address = document.road_address.address_name;
-      city = document.road_address.region_1depth_name || document.road_address.region_2depth_name;
+      // 시/군/구를 우선으로, 없으면 시/도 사용
+      city = document.road_address.region_2depth_name || document.road_address.region_1depth_name;
     } else if (document.address) {
       address = document.address.address_name;
-      city = document.address.region_1depth_name || document.address.region_2depth_name;
+      // 시/군/구를 우선으로, 없으면 시/도 사용
+      city = document.address.region_2depth_name || document.address.region_1depth_name;
     }
 
     return NextResponse.json({

@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { HourlyWeatherData, DailyWeatherData } from '@/lib/services/weather';
 import { getWeatherIcon } from '@/lib/weather-icons';
 import type { UserLocation } from '@/db/schema';
+import { setUserLocation } from '@/actions/location';
 
 interface WeatherDashboardProps {
   className?: string;
@@ -23,6 +24,9 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
   const [weatherHeadline, setWeatherHeadline] = useState<{text: string; category: string; severity: number} | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userLocation, setUserLocationState] = useState<UserLocation | null>(initialLocation || null);
+  const [locationRefreshing, setLocationRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
 
   // 온도 범위에 따른 막대 위치와 길이 계산 함수
   const calculateBarProperties = (highTemp: number, lowTemp: number, minTemp: number, maxTemp: number, isDetailed: boolean = true) => {
@@ -73,6 +77,11 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                           `${parseFloat(initialLocation.latitude).toFixed(4)}, ${parseFloat(initialLocation.longitude).toFixed(4)}`;
       setLocation(locationName);
       
+      // userLocation 상태도 업데이트 (초기값과 다를 수 있음)
+      if (!userLocation) {
+        setUserLocationState(initialLocation);
+      }
+      
       // 자동으로 날씨 정보 조회
       setTimeout(() => {
         fetchWeatherData(locationName);
@@ -93,7 +102,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
 
   const fetchHourlyWeather = async (targetLocation?: string) => {
     const locationToUse = targetLocation || location;
-    if (!locationToUse.trim() && !initialLocation) return;
+    if (!locationToUse.trim() && !userLocation) return;
     
     setLoading(true);
     setError(null);
@@ -103,10 +112,12 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       const params = new URLSearchParams();
       
       // 사용자 위치 정보가 있으면 위도/경도를 우선 사용
-      if (initialLocation?.latitude && initialLocation?.longitude) {
-        params.append('latitude', initialLocation.latitude);
-        params.append('longitude', initialLocation.longitude);
+      if (userLocation?.latitude && userLocation?.longitude) {
+        console.log('🌍 시간별 날씨 조회 - 위도/경도 사용:', userLocation.latitude, userLocation.longitude);
+        params.append('latitude', userLocation.latitude);
+        params.append('longitude', userLocation.longitude);
       } else if (locationToUse) {
+        console.log('🌍 시간별 날씨 조회 - 도시명 사용:', locationToUse);
         params.append('location', locationToUse);
       }
       
@@ -119,11 +130,21 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       if (result.success) {
         setHourlyData(result.data);
       } else {
-        setError(result.error || '시간별 날씨 조회에 실패했습니다');
+        const errorMessage = result.error || '시간별 날씨 조회에 실패했습니다';
+        if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests') || errorMessage.includes('한도')) {
+          setError('⏰ API 호출 한도가 초과되었습니다. 잠시 후 다시 시도해주세요.');
+        } else {
+          setError(errorMessage);
+        }
       }
     } catch (error) {
       console.error('시간별 날씨 조회 실패:', error);
-      setError('시간별 날씨 정보를 가져오는데 실패했습니다');
+      const errorStr = error instanceof Error ? error.message : '시간별 날씨 정보를 가져오는데 실패했습니다';
+      if (errorStr.includes('429') || errorStr.includes('Too Many Requests') || errorStr.includes('한도')) {
+        setError('⏰ API 호출 한도가 초과되었습니다. 잠시 후 다시 시도해주세요.');
+      } else {
+        setError('시간별 날씨 정보를 가져오는데 실패했습니다');
+      }
     } finally {
       setLoading(false);
     }
@@ -131,7 +152,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
 
   const fetchDailyWeather = async (days: 1 | 5 | 10 | 15 = 5, targetLocation?: string) => {
     const locationToUse = targetLocation || location;
-    if (!locationToUse.trim() && !initialLocation) return;
+    if (!locationToUse.trim() && !userLocation) return;
     
     setLoading(true);
     setError(null);
@@ -141,10 +162,12 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       const params = new URLSearchParams();
       
       // 사용자 위치 정보가 있으면 위도/경도를 우선 사용
-      if (initialLocation?.latitude && initialLocation?.longitude) {
-        params.append('latitude', initialLocation.latitude);
-        params.append('longitude', initialLocation.longitude);
+      if (userLocation?.latitude && userLocation?.longitude) {
+        console.log('🌍 일별 날씨 조회 - 위도/경도 사용:', userLocation.latitude, userLocation.longitude);
+        params.append('latitude', userLocation.latitude);
+        params.append('longitude', userLocation.longitude);
       } else if (locationToUse) {
+        console.log('🌍 일별 날씨 조회 - 도시명 사용:', locationToUse);
         params.append('location', locationToUse);
       }
       
@@ -159,11 +182,21 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
         setDailyData(result.data);
         setWeatherHeadline(result.headline || null);
       } else {
-        setError(result.error || '일별 날씨 조회에 실패했습니다');
+        const errorMessage = result.error || '일별 날씨 조회에 실패했습니다';
+        if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests') || errorMessage.includes('한도')) {
+          setError('⏰ API 호출 한도가 초과되었습니다. 잠시 후 다시 시도해주세요.');
+        } else {
+          setError(errorMessage);
+        }
       }
     } catch (error) {
       console.error('일별 날씨 조회 실패:', error);
-      setError('일별 날씨 정보를 가져오는데 실패했습니다');
+      const errorStr = error instanceof Error ? error.message : '일별 날씨 정보를 가져오는데 실패했습니다';
+      if (errorStr.includes('429') || errorStr.includes('Too Many Requests') || errorStr.includes('한도')) {
+        setError('⏰ API 호출 한도가 초과되었습니다. 잠시 후 다시 시도해주세요.');
+      } else {
+        setError('일별 날씨 정보를 가져오는데 실패했습니다');
+      }
     } finally {
       setLoading(false);
     }
@@ -171,9 +204,184 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
 
   const getTemperatureUnit = () => units === 'metric' ? '°C' : '°F';
 
+  // 현재 위치 새로고침 함수
+  const refreshLocation = async () => {
+    // 쿨다운 체크 (30초)
+    const now = Date.now();
+    const cooldownTime = 30 * 1000; // 30초
+    
+    if (now - lastRefreshTime < cooldownTime) {
+      const remainingTime = Math.ceil((cooldownTime - (now - lastRefreshTime)) / 1000);
+      setError(`⏰ 위치 새로고침은 ${remainingTime}초 후에 다시 시도할 수 있습니다.`);
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setLocationRefreshing(true);
+    setError(null);
+    setLastRefreshTime(now);
+
+    try {
+      // Geolocation API 지원 확인
+      if (!navigator.geolocation) {
+        throw new Error('이 브라우저에서는 위치 서비스를 지원하지 않습니다.');
+      }
+
+      // 현재 위치 조회
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000 // 1분간 캐시된 위치 사용
+          }
+        );
+      });
+
+      const { latitude, longitude } = position.coords;
+
+      // 카카오 Geocoding API를 통해 주소 변환
+      const geocodeResponse = await fetch('/api/kakao/geocode', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ latitude, longitude }),
+      });
+
+      const geocodeResult = await geocodeResponse.json();
+      
+      let address = '';
+      let cityName = '';
+
+      if (geocodeResult.success && geocodeResult.data) {
+        address = geocodeResult.data.address;
+        cityName = geocodeResult.data.cityName;
+      } else {
+        // Geocoding 실패 시 좌표만 사용
+        address = `위도: ${latitude.toFixed(4)}, 경도: ${longitude.toFixed(4)}`;
+        cityName = '현재 위치';
+      }
+
+      // 위치 정보 업데이트
+      try {
+        const updateResult = await setUserLocation({
+          latitude: latitude.toString(),
+          longitude: longitude.toString(),
+          address,
+          cityName,
+          source: 'gps' as const,
+        });
+
+        if (updateResult.success) {
+          console.log('🔄 위치 새로고침 성공:', updateResult.data);
+          setUserLocationState(updateResult.data);
+          setLocation(cityName);
+          
+          // 성공 메시지 먼저 표시
+          setError('✅ 위치가 성공적으로 업데이트되었습니다!');
+          
+          // 새로운 위치로 날씨 조회 (실패해도 위치 업데이트는 성공으로 처리)
+          try {
+            await fetchWeatherData(cityName);
+            // 날씨 조회도 성공하면 메시지 업데이트
+            setError('✅ 위치 및 날씨 정보가 성공적으로 업데이트되었습니다!');
+          } catch (weatherError) {
+            console.warn('날씨 조회 실패, 하지만 위치는 업데이트됨:', weatherError);
+            setError('✅ 위치가 업데이트되었습니다. 날씨 정보는 수동으로 새로고침해 주세요.');
+          }
+          
+          setTimeout(() => setError(null), 5000);
+        } else {
+          throw new Error('위치 정보 저장에 실패했습니다.');
+        }
+      } catch (locationError) {
+        throw new Error('위치 정보 저장에 실패했습니다.');
+      }
+
+    } catch (error) {
+      console.error('위치 새로고침 실패:', error);
+      
+      if (error instanceof GeolocationPositionError) {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setError('위치 접근 권한이 거부되었습니다. 브라우저 설정에서 위치 권한을 허용해 주세요.');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setError('위치 정보를 사용할 수 없습니다.');
+            break;
+          case error.TIMEOUT:
+            setError('위치 조회 시간이 초과되었습니다. 다시 시도해 주세요.');
+            break;
+          default:
+            setError('위치 조회에 실패했습니다.');
+        }
+      } else {
+        setError(error instanceof Error ? error.message : '위치 새로고침에 실패했습니다.');
+      }
+    } finally {
+      setLocationRefreshing(false);
+    }
+  };
+
   return (
     <div className={className}>
       <div className="space-y-6">
+
+        {/* 현재 설정된 위치 정보 표시 */}
+        {userLocation && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <span>📍</span>
+                현재 설정된 위치
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">
+                    주소: {userLocation.address || '주소 정보 없음'}
+                  </p>
+                  {userLocation.cityName && (
+                    <p className="text-xs text-muted-foreground">
+                      날씨 조회 지역: {userLocation.cityName}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    좌표: {parseFloat(userLocation.latitude).toFixed(4)}, {parseFloat(userLocation.longitude).toFixed(4)}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refreshLocation}
+                  disabled={locationRefreshing || loading}
+                  className="flex items-center gap-2"
+                >
+                  {locationRefreshing ? (
+                    <>
+                      <span className="animate-spin">🔄</span>
+                      새로고침 중...
+                    </>
+                  ) : loading ? (
+                    <>
+                      <span className="animate-pulse">⏳</span>
+                      날씨 조회 중...
+                    </>
+                  ) : (
+                    <>
+                      <span>🔄</span>
+                      위치 새로고침
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 검색 및 설정 */}
         <Card>
@@ -205,12 +413,16 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                 onClick={() => fetchWeatherData()} 
                 disabled={loading || !location.trim()}
               >
-                {loading ? '조회 중...' : '날씨 조회'}
+                {loading ? '조회 중...' : '새로 고침'}
               </Button>
             </div>
 
             {error && (
-              <Alert variant={error.includes('제한') || error.includes('한도') ? 'default' : 'destructive'}>
+              <Alert variant={
+                error.includes('✅') ? 'default' : 
+                error.includes('제한') || error.includes('한도') || error.includes('⏰') ? 'default' : 
+                'destructive'
+              }>
                 <AlertDescription>
                   {error}
                   {error.includes('제한') && (
@@ -218,9 +430,16 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                       💡 무료 API는 5일 예보만 지원됩니다. 더 긴 기간의 예보는 유료 플랜이 필요합니다.
                     </div>
                   )}
-                  {error.includes('한도') && (
+                  {(error.includes('한도') || error.includes('API 호출 한도가 초과')) && (
                     <div className="mt-2 text-sm">
                       ⏰ 잠시 후 다시 시도해주세요. 무료 API는 일일 호출 한도가 있습니다.
+                      <br />
+                      💡 위치는 업데이트되었으니 나중에 날씨 새로고침 버튼을 이용해 주세요.
+                    </div>
+                  )}
+                  {error.includes('위치 접근 권한') && (
+                    <div className="mt-2 text-sm">
+                      💡 브라우저 주소창 옆의 위치 아이콘을 클릭하여 위치 권한을 허용해 주세요.
                     </div>
                   )}
                 </AlertDescription>

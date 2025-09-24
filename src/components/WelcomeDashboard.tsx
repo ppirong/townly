@@ -107,6 +107,10 @@ export default function WelcomeDashboard() {
     router.push('/weather');
   };
 
+  const handleAirQualityClick = () => {
+    router.push('/airquality');
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Welcome Header */}
@@ -231,7 +235,10 @@ export default function WelcomeDashboard() {
           </div>
         </div>
         
-        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+        <div 
+          className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 cursor-pointer hover:shadow-xl transition-all transform hover:scale-105"
+          onClick={handleAirQualityClick}
+        >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold">미세먼지</h3>
             <div className="text-2xl">😷</div>
@@ -242,7 +249,10 @@ export default function WelcomeDashboard() {
             <p className="text-sm text-gray-500">PM10: 25㎍/㎥</p>
           </div>
           <div className="bg-green-50 rounded-lg p-3 text-sm">
-            <p className="text-green-800">✅ 마스크 없이 외출 가능합니다</p>
+            <p className="text-green-800 flex items-center justify-between">
+              <span>✅ 마스크 없이 외출 가능합니다</span>
+              <span className="text-green-600">자세히 보기 →</span>
+            </p>
           </div>
         </div>
         
@@ -281,6 +291,13 @@ export default function WelcomeDashboard() {
           >
             <div className="text-2xl mb-2">🌤️</div>
             <div className="text-sm font-medium">날씨 정보</div>
+          </button>
+          <button 
+            onClick={handleAirQualityClick}
+            className="bg-white p-4 rounded-lg hover:shadow-md transition-shadow hover:bg-green-50"
+          >
+            <div className="text-2xl mb-2">😷</div>
+            <div className="text-sm font-medium">미세먼지</div>
           </button>
           <button className="bg-white p-4 rounded-lg hover:shadow-md transition-shadow">
             <div className="text-2xl mb-2">🔔</div>

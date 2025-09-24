@@ -25,6 +25,9 @@ export const env = {
   // MCP Weather Server (AccuWeather API)
   ACCUWEATHER_API_KEY: process.env.ACCUWEATHER_API_KEY,
   
+  // 한국환경공단 에어코리아 API
+  AIRKOREA_API_KEY: process.env.AIRKOREA_API_KEY,
+  
   // 서버 설정
   NODE_ENV: process.env.NODE_ENV || 'development',
   VERCEL_URL: process.env.VERCEL_URL,

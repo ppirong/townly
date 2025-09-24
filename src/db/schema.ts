@@ -172,6 +172,37 @@ export const userLocations = pgTable('user_locations', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+/**
+ * 사용자별 선택된 측정소 정보 테이블
+ */
+export const userSelectedStations = pgTable('user_selected_stations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  
+  // Clerk 사용자 ID
+  clerkUserId: text('clerk_user_id').notNull().unique(),
+  
+  // 측정소 정보
+  stationName: text('station_name').notNull(), // 측정소명
+  sido: text('sido').notNull(), // 시도
+  
+  // 자동 선택 정보
+  isAutoSelected: boolean('is_auto_selected').default(false).notNull(), // 자동 선택 여부
+  distance: integer('distance'), // 사용자 위치로부터의 거리 (미터)
+  stationAddress: text('station_address'), // 측정소 주소
+  
+  // 사용자 위치 정보 (자동 선택 시)
+  userLatitude: text('user_latitude'), // 사용자 위도
+  userLongitude: text('user_longitude'), // 사용자 경도
+  
+  // 설정 정보
+  isDefault: boolean('is_default').default(true).notNull(), // 기본 측정소 여부
+  
+  // 시간 정보
+  selectedAt: timestamp('selected_at').defaultNow().notNull(), // 선택된 시간
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // 타입 정의
 export type KakaoMessage = typeof kakaoMessages.$inferSelect;
 export type NewKakaoMessage = typeof kakaoMessages.$inferInsert;
@@ -185,3 +216,5 @@ export type ScheduledMessageLog = typeof scheduledMessageLogs.$inferSelect;
 export type NewScheduledMessageLog = typeof scheduledMessageLogs.$inferInsert;
 export type UserLocation = typeof userLocations.$inferSelect;
 export type NewUserLocation = typeof userLocations.$inferInsert;
+export type UserSelectedStation = typeof userSelectedStations.$inferSelect;
+export type NewUserSelectedStation = typeof userSelectedStations.$inferInsert;
