@@ -12,7 +12,7 @@ const toggleSchema = z.object({
 // PATCH: 예약 메시지 활성화/비활성화 토글
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -21,7 +21,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const messageId = params.id;
+    const { id: messageId } = await params;
     const body = await request.json();
     
     // 데이터 검증
@@ -67,3 +67,4 @@ export async function PATCH(
     );
   }
 }
+

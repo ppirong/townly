@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 // DELETE: 예약 메시지 삭제
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -16,7 +16,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const messageId = params.id;
+    const { id: messageId } = await params;
 
     // 메시지 존재 확인
     const [existingMessage] = await db
@@ -45,3 +45,4 @@ export async function DELETE(
     );
   }
 }
+

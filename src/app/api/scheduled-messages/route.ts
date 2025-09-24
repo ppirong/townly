@@ -10,7 +10,7 @@ const createScheduledMessageSchema = z.object({
   title: z.string().min(1, '제목은 필수입니다').max(100, '제목은 100자 이하여야 합니다'),
   message: z.string().min(1, '메시지 내용은 필수입니다').max(1000, '메시지는 1000자 이하여야 합니다'),
   scheduleType: z.enum(['daily', 'weekly', 'monthly', 'once'], {
-    errorMap: () => ({ message: '유효하지 않은 스케줄 타입입니다' })
+    message: '유효하지 않은 스케줄 타입입니다'
   }),
   scheduleTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, '유효한 시간 형식이 아닙니다'),
   scheduleDay: z.number().int().min(0).max(31).optional(),
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: error.errors[0].message },
+        { error: error.issues[0].message },
         { status: 400 }
       );
     }

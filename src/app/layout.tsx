@@ -54,6 +54,12 @@ export default function RootLayout({
                         대시보드
                       </Link>
                       <Link 
+                        href="/weather" 
+                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                      >
+                        날씨
+                      </Link>
+                      <Link 
                         href="/profile" 
                         className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
                       >

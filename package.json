@@ -15,7 +15,9 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "test:webhook": "node scripts/test-local-webhook.js",
-    "test:webhook:help": "node scripts/test-local-webhook.js --help"
+    "test:webhook:help": "node scripts/test-local-webhook.js --help",
+    "weather:server": "npx -y @timlukahorstmann/mcp-weather",
+    "weather:supergateway": "npx -y supergateway --stdio \"npx -y @timlukahorstmann/mcp-weather\" --port 4004 --baseUrl http://127.0.0.1:4004 --ssePath /messages --messagePath /message --cors \"*\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.62.0",
@@ -26,6 +28,7 @@
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
+    "@timlukahorstmann/mcp-weather": "^0.4.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

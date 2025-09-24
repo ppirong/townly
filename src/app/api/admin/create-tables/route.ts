@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: '스케줄 메시지 테이블이 성공적으로 생성되었습니다',
-      tables: tables.map((t: any) => t.table_name),
+      tables: tables.rows?.map((t: any) => t.table_name) || [],
       timestamp: new Date().toISOString(),
     });
 

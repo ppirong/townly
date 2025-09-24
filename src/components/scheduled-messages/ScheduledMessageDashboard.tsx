@@ -304,7 +304,7 @@ export function ScheduledMessageDashboard({ onCreateMessage, refreshTrigger }: S
                     </p>
                   </div>
                   <div className="flex justify-between text-sm text-gray-600">
-                    <span>다음 발송: {formatNextSendTime(message.nextSendAt)}</span>
+                    <span>다음 발송: {formatNextSendTime(message.nextSendAt?.toISOString() || null)}</span>
                     <span>총 발송 횟수: {message.totalSentCount}회</span>
                   </div>
                   {message.lastSentAt && (

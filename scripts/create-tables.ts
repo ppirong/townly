@@ -79,7 +79,7 @@ async function createScheduledTables() {
       ORDER BY table_name;
     `);
 
-    console.log('📋 생성된 테이블:', tables.map((t: any) => t.table_name));
+    console.log('📋 생성된 테이블:', tables.rows?.map((t: any) => t.table_name) || []);
     console.log('🎉 모든 스케줄 메시지 테이블이 성공적으로 생성되었습니다!');
 
   } catch (error) {
