@@ -16,7 +16,7 @@ import {
 const BASE_URL = 'http://apis.data.go.kr/B552584/ArpltnInforInqireSvc';
 
 class AirKoreaService {
-  private apiKey: string;
+  private apiKey: string | undefined;
 
   constructor() {
     this.apiKey = env.AIRKOREA_API_KEY;
@@ -217,6 +217,9 @@ class AirKoreaService {
     return this.getSidoRealtimeAirQuality({
       sidoName: '서울',
       numOfRows: 50,
+      returnType: 'json',
+      pageNo: 1,
+      ver: '1.3',
     });
   }
 
@@ -228,6 +231,9 @@ class AirKoreaService {
       stationName,
       dataTerm: 'DAILY',
       numOfRows: 24, // 24시간
+      returnType: 'json',
+      pageNo: 1,
+      ver: '1.3',
     });
   }
 
@@ -239,6 +245,9 @@ class AirKoreaService {
       stationName,
       dataTerm: '3MONTH', // 3개월
       numOfRows: 90, // 90일
+      returnType: 'json',
+      pageNo: 1,
+      ver: '1.3',
     });
   }
 
@@ -255,6 +264,9 @@ class AirKoreaService {
         const data = await this.getSidoRealtimeAirQuality({
           sidoName: city,
           numOfRows: 10,
+          returnType: 'json',
+          pageNo: 1,
+          ver: '1.3',
         });
         return { city, data };
       } catch (error) {

@@ -89,6 +89,11 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
   // 시도 목록
   const sidoList = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
 
+  // 대기질 등급 유효성 검사 함수
+  const isValidGrade = (grade: string | null | undefined): grade is keyof typeof airQualityGrade => {
+    return grade !== null && grade !== undefined && ['1', '2', '3', '4'].includes(grade);
+  };
+
   // 대기질 데이터 처리 함수
   const processAirQualityData = (items: AirQualityItem[]): ProcessedAirQualityData[] => {
     return items
@@ -97,13 +102,17 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
         const pm10Value = parseFloat(item.pm10Value || '0');
         const pm25Value = parseFloat(item.pm25Value || '0');
         
+        // 등급이 유효하지 않으면 농도값으로 계산한 등급 사용
+        const pm10Grade = isValidGrade(item.pm10Grade) ? item.pm10Grade : getPM10Grade(pm10Value);
+        const pm25Grade = isValidGrade(item.pm25Grade) ? item.pm25Grade : getPM25Grade(pm25Value);
+        
         return {
           stationName: item.stationName!,
           dataTime: item.dataTime!, // null이 아님을 보장 (위에서 필터링됨)
           pm10Value,
           pm25Value,
-          pm10Grade: item.pm10Grade || getPM10Grade(pm10Value),
-          pm25Grade: item.pm25Grade || getPM25Grade(pm25Value),
+          pm10Grade,
+          pm25Grade,
           khaiValue: item.khaiValue ? parseFloat(item.khaiValue) : undefined,
           khaiGrade: item.khaiGrade || undefined,
         };
