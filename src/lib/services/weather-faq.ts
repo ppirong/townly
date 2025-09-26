@@ -34,7 +34,7 @@ export class WeatherFAQService {
     {
       id: 'rain-check',
       question: '비 올까?',
-      keywords: ['비', '강수', '우천', '올까', '올지', '와?'],
+      keywords: ['비', '강수', '우천', '올까', '올지', '와?', '밤', '저녁', '밤에'],
       answer: '강수 확률을 확인해드리겠습니다.',
       category: 'forecast',
       confidence: 0.8
@@ -156,6 +156,25 @@ export class WeatherFAQService {
 
     // 카테고리별 추가 정보 제공
     switch (faq.category) {
+      case 'forecast':
+        if (faq.id === 'rain-check' && weatherData) {
+          // 밤 날씨 정보가 있는지 확인
+          if (Array.isArray(weatherData) && weatherData.length > 0) {
+            const todayWeather = weatherData[0];
+            if (todayWeather.nightWeather?.precipitationProbability !== undefined) {
+              const nightRainChance = todayWeather.nightWeather.precipitationProbability;
+              if (nightRainChance > 70) {
+                response += ' 오늘 밤 비가 올 확률이 높습니다.';
+              } else if (nightRainChance > 30) {
+                response += ' 오늘 밤 비가 올 가능성이 있습니다.';
+              } else {
+                response += ' 오늘 밤은 비가 오지 않을 것 같습니다.';
+              }
+            }
+          }
+        }
+        break;
+
       case 'advice':
         if (faq.id === 'clothing-advice' && weatherData?.temperature) {
           const temp = weatherData.temperature;

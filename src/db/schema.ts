@@ -577,6 +577,34 @@ export type RegionalHourlyAirQuality = typeof regionalHourlyAirQuality.$inferSel
 export type NewRegionalHourlyAirQuality = typeof regionalHourlyAirQuality.$inferInsert;
 export type RegionalDailyAirQuality = typeof regionalDailyAirQuality.$inferSelect;
 export type NewRegionalDailyAirQuality = typeof regionalDailyAirQuality.$inferInsert;
+// 날씨 정보 벡터 임베딩 테이블
+export const weatherEmbeddings = pgTable('weather_embeddings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  contentType: text('content_type').notNull(), // 'current', 'hourly', 'daily', 'forecast'
+  locationName: text('location_name').notNull(),
+  forecastDate: text('forecast_date'),
+  forecastHour: integer('forecast_hour'),
+  content: text('content').notNull(), // 임베딩할 텍스트 내용
+  embedding: text('embedding').notNull(), // JSON 문자열로 저장된 벡터
+  metadata: jsonb('metadata'), // 추가 메타데이터 (온도, 습도, 강수확률 등)
+  weatherDataId: uuid('weather_data_id'), // 원본 날씨 데이터 ID 참조
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ChatGPT 대화 히스토리 테이블
+export const chatGptConversations = pgTable('chatgpt_conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').notNull(),
+  sessionId: text('session_id').notNull(),
+  userQuestion: text('user_question').notNull(),
+  retrievedContext: jsonb('retrieved_context'), // RAG로 가져온 컨텍스트
+  gptResponse: text('gpt_response').notNull(),
+  tokensUsed: integer('tokens_used'),
+  responseTime: integer('response_time'), // 응답 시간 (ms)
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export type ApiCallLog = typeof apiCallLogs.$inferSelect;
 export type NewApiCallLog = typeof apiCallLogs.$inferInsert;
 export type DailyApiStats = typeof dailyApiStats.$inferSelect;
@@ -587,3 +615,7 @@ export type DailyWeatherData = typeof dailyWeatherData.$inferSelect;
 export type NewDailyWeatherData = typeof dailyWeatherData.$inferInsert;
 export type WeatherLocationKey = typeof weatherLocationKeys.$inferSelect;
 export type NewWeatherLocationKey = typeof weatherLocationKeys.$inferInsert;
+export type WeatherEmbedding = typeof weatherEmbeddings.$inferSelect;
+export type NewWeatherEmbedding = typeof weatherEmbeddings.$inferInsert;
+export type ChatGptConversation = typeof chatGptConversations.$inferSelect;
+export type NewChatGptConversation = typeof chatGptConversations.$inferInsert;
