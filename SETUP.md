@@ -110,7 +110,7 @@ OPENAI_API_KEY=your_openai_api_key
 ### 5.1 AccuWeather API
 1. [AccuWeather API](https://developer.accuweather.com/) 가입
 2. API Key 발급
-3. 무료 플랜 제한: 일 50회 호출
+3. 무료 플랜 제한: 일 500회 호출 (Free Trial)
 
 ### 5.2 에어코리아 API
 1. [에어코리아 OpenAPI](https://www.airkorea.or.kr/web/contents/contentView/?pMENU_NO=138&cntnts_no=74) 신청

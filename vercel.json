@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/scheduled-messages",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/api-stats-reset",
+      "schedule": "0 15 * * *"
     }
   ]
 }

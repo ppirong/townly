@@ -43,6 +43,34 @@
       "when": 1758723968884,
       "tag": "0005_greedy_amazoness",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1758727417737,
+      "tag": "0006_tan_mesmero",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1758783986430,
+      "tag": "0007_tidy_lifeguard",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1758807859946,
+      "tag": "0008_redundant_metal_master",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1758860913814,
+      "tag": "0009_lyrical_killmonger",
+      "breakpoints": true
     }
   ]
 }

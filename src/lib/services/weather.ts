@@ -4,6 +4,10 @@
  */
 
 import { env } from '@/lib/env';
+import { weatherCache } from './weather-cache';
+import { weatherRateLimiter } from './weather-rate-limiter';
+import { apiTrackingService } from './api-tracking';
+import { weatherDbService } from './weather-db';
 
 export interface WeatherLocation {
   location?: string | null;
@@ -73,25 +77,76 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
   }
 
   try {
-    // 1. 위치 키 조회 (위도/경도 우선, 없으면 위치명 사용)
+    console.log('🌤️ 시간별 날씨 조회 시작');
+    
+    // 1. 위치 키 조회 (캐싱 적용)
     let locationKey: string;
     let locationName: string;
     
     if (params.latitude !== undefined && params.longitude !== undefined) {
-      locationKey = await getLocationKeyByCoordinates(params.latitude, params.longitude);
+      locationKey = await getLocationKeyByCoordinatesWithCache(params.latitude, params.longitude);
       locationName = `${params.latitude.toFixed(4)}, ${params.longitude.toFixed(4)}`;
     } else if (params.location && params.location.trim() !== '') {
-      locationKey = await getLocationKey(params.location);
+      locationKey = await getLocationKeyWithCache(params.location);
       locationName = params.location;
     } else {
       throw new Error('위치 정보(location 또는 latitude/longitude)가 필요합니다.');
     }
     
-    // 2. 12시간 시간별 날씨 예보 조회
+    // 2. 캐시에서 시간별 날씨 데이터 확인 (메모리 -> DB 순서)
+    const units = params.units || 'metric';
+    const cacheKey = weatherCache.getHourlyWeatherCacheKey(locationKey, units);
+    
+    // 2.1. 메모리 캐시 확인
+    const cachedData = weatherCache.get<HourlyWeatherData[]>(cacheKey);
+    if (cachedData) {
+      console.log('🎯 시간별 날씨 메모리 캐시 적중');
+      return cachedData;
+    }
+    
+    // 2.2. 데이터베이스 캐시 확인
+    const dbCachedData = await weatherDbService.getHourlyWeatherData(cacheKey);
+    if (dbCachedData) {
+      console.log('🎯 시간별 날씨 DB 캐시 적중');
+      // DB에서 가져온 데이터를 메모리 캐시에도 저장
+      weatherCache.set(cacheKey, dbCachedData, 10);
+      return dbCachedData;
+    }
+    
+    // 3. 레이트 리미터 확인
+    if (!weatherRateLimiter.canMakeRequest()) {
+      const waitTime = weatherRateLimiter.getWaitTime();
+      throw new Error(`API 호출 한도 초과: ${Math.round(waitTime / 1000)}초 후 다시 시도해주세요.`);
+    }
+
+    // 4. API 호출 및 응답 처리
+    console.log('🌐 AccuWeather API 호출 - 시간별 날씨');
+    weatherRateLimiter.recordRequest();
+    
     const forecastUrl = `https://dataservice.accuweather.com/forecasts/v1/hourly/12hour/${locationKey}`;
-    const response = await fetch(`${forecastUrl}?apikey=${env.ACCUWEATHER_API_KEY}&metric=${params.units === 'metric'}`);
+    const requestStartTime = Date.now();
+    const response = await fetch(`${forecastUrl}?apikey=${env.ACCUWEATHER_API_KEY}&metric=${units === 'metric'}`);
+    const responseTime = Date.now() - requestStartTime;
+    
+    // API 호출 기록
+    await apiTrackingService.recordApiCall({
+      provider: 'accuweather',
+      endpoint: '/forecasts/v1/hourly/12hour',
+      method: 'GET',
+      httpStatus: response.status,
+      responseTime,
+      isSuccessful: response.ok,
+      requestParams: {
+        locationKey,
+        metric: units === 'metric',
+      },
+      errorMessage: response.ok ? undefined : `${response.status} ${response.statusText}`,
+    });
     
     if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error(`API 호출 한도 초과: 잠시 후 다시 시도해주세요. (${response.status})`);
+      }
       throw new Error(`AccuWeather API 오류: ${response.status} ${response.statusText}`);
     }
     
@@ -116,6 +171,21 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
       };
     });
 
+    // 5. 캐시에 저장 (메모리 + DB)
+    weatherCache.set(cacheKey, hourlyData, 10);
+    console.log('💾 시간별 날씨 메모리 캐시 저장');
+    
+    // DB에도 저장 (더 긴 TTL)
+    await weatherDbService.saveHourlyWeatherData(
+      locationKey, 
+      locationName, 
+      hourlyData, 
+      cacheKey, 
+      60, // 1시간
+      params.latitude, 
+      params.longitude
+    );
+
     return hourlyData;
   } catch (error) {
     console.error('시간별 날씨 조회 실패:', error);
@@ -133,22 +203,52 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
 
   try {
     const days = params.days || 5;
+    console.log(`🌤️ ${days}일 날씨 조회 시작`);
     
-    // 1. 위치 키 조회 (위도/경도 우선, 없으면 위치명 사용)
+    // 1. 위치 키 조회 (캐싱 적용)
     let locationKey: string;
     let locationName: string;
     
     if (params.latitude !== undefined && params.longitude !== undefined) {
-      locationKey = await getLocationKeyByCoordinates(params.latitude, params.longitude);
+      locationKey = await getLocationKeyByCoordinatesWithCache(params.latitude, params.longitude);
       locationName = `${params.latitude.toFixed(4)}, ${params.longitude.toFixed(4)}`;
     } else if (params.location && params.location.trim() !== '') {
-      locationKey = await getLocationKey(params.location);
+      locationKey = await getLocationKeyWithCache(params.location);
       locationName = params.location;
     } else {
       throw new Error('위치 정보(location 또는 latitude/longitude)가 필요합니다.');
     }
     
-    // 2. 일별 날씨 예보 조회 (AccuWeather는 1일, 5일, 10일, 15일 지원)
+    // 2. 캐시에서 일별 날씨 데이터 확인 (메모리 -> DB 순서)
+    const units = params.units || 'metric';
+    const cacheKey = weatherCache.getDailyWeatherCacheKey(locationKey, days, units);
+    
+    // 2.1. 메모리 캐시 확인
+    const cachedData = weatherCache.get<DailyWeatherResponse>(cacheKey);
+    if (cachedData) {
+      console.log('🎯 일별 날씨 메모리 캐시 적중');
+      return cachedData;
+    }
+    
+    // 2.2. 데이터베이스 캐시 확인
+    const dbCachedData = await weatherDbService.getDailyWeatherData(cacheKey);
+    if (dbCachedData) {
+      console.log('🎯 일별 날씨 DB 캐시 적중');
+      // DB에서 가져온 데이터를 메모리 캐시에도 저장
+      weatherCache.set(cacheKey, dbCachedData, 30);
+      return dbCachedData;
+    }
+    
+    // 3. 레이트 리미터 확인
+    if (!weatherRateLimiter.canMakeRequest()) {
+      const waitTime = weatherRateLimiter.getWaitTime();
+      throw new Error(`API 호출 한도 초과: ${Math.round(waitTime / 1000)}초 후 다시 시도해주세요.`);
+    }
+    
+    // 4. API 호출 및 응답 처리
+    console.log('🌐 AccuWeather API 호출 - 일별 날씨');
+    weatherRateLimiter.recordRequest();
+    
     const forecastType = days === 1 ? '1day' : days === 5 ? '5day' : days === 10 ? '10day' : '15day';
     const forecastUrl = `https://dataservice.accuweather.com/forecasts/v1/daily/${forecastType}/${locationKey}`;
     
@@ -157,10 +257,30 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
       apikey: env.ACCUWEATHER_API_KEY,
       language: 'ko-kr', // 한국어 응답
       details: 'true',   // 상세 정보 포함
-      metric: (params.units === 'metric').toString() // 미터법 여부
+      metric: (units === 'metric').toString() // 미터법 여부
     });
     
+    const requestStartTime = Date.now();
     const response = await fetch(`${forecastUrl}?${apiParams.toString()}`);
+    const responseTime = Date.now() - requestStartTime;
+    
+    // API 호출 기록
+    await apiTrackingService.recordApiCall({
+      provider: 'accuweather',
+      endpoint: `/forecasts/v1/daily/${forecastType}`,
+      method: 'GET',
+      httpStatus: response.status,
+      responseTime,
+      isSuccessful: response.ok,
+      requestParams: {
+        locationKey,
+        days,
+        language: 'ko-kr',
+        details: true,
+        metric: units === 'metric',
+      },
+      errorMessage: response.ok ? undefined : `${response.status} ${response.statusText}`,
+    });
     
     if (!response.ok) {
       if (response.status === 403) {
@@ -242,10 +362,29 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
       severity: data.Headline.Severity || 0
     } : undefined;
 
-    return {
+    const result: DailyWeatherResponse = {
       headline,
       dailyForecasts: dailyData
     };
+
+    // 5. 캐시에 저장 (메모리 + DB)
+    weatherCache.set(cacheKey, result, 30);
+    console.log('💾 일별 날씨 메모리 캐시 저장');
+    
+    // DB에도 저장 (더 긴 TTL)
+    await weatherDbService.saveDailyWeatherData(
+      locationKey, 
+      locationName, 
+      result, 
+      days, 
+      units, 
+      cacheKey, 
+      120, // 2시간
+      params.latitude, 
+      params.longitude
+    );
+
+    return result;
   } catch (error) {
     console.error('일별 날씨 조회 실패:', error);
     throw new Error('날씨 정보를 가져오는데 실패했습니다.');
@@ -262,7 +401,24 @@ async function getLocationKey(location: string): Promise<string> {
 
   try {
     const searchUrl = `https://dataservice.accuweather.com/locations/v1/cities/search`;
+    const requestStartTime = Date.now();
     const response = await fetch(`${searchUrl}?apikey=${env.ACCUWEATHER_API_KEY}&q=${encodeURIComponent(location)}&language=ko-kr`);
+    const responseTime = Date.now() - requestStartTime;
+    
+    // API 호출 기록
+    await apiTrackingService.recordApiCall({
+      provider: 'accuweather',
+      endpoint: '/locations/v1/cities/search',
+      method: 'GET',
+      httpStatus: response.status,
+      responseTime,
+      isSuccessful: response.ok,
+      requestParams: {
+        q: location,
+        language: 'ko-kr',
+      },
+      errorMessage: response.ok ? undefined : `${response.status} ${response.statusText}`,
+    });
     
     if (!response.ok) {
       throw new Error(`위치 검색 API 오류: ${response.status} ${response.statusText}`);
@@ -292,7 +448,24 @@ export async function getLocationKeyByCoordinates(latitude: number, longitude: n
 
   try {
     const geopositionUrl = `https://dataservice.accuweather.com/locations/v1/cities/geoposition/search`;
+    const requestStartTime = Date.now();
     const response = await fetch(`${geopositionUrl}?apikey=${env.ACCUWEATHER_API_KEY}&q=${latitude},${longitude}&language=ko-kr`);
+    const responseTime = Date.now() - requestStartTime;
+    
+    // API 호출 기록
+    await apiTrackingService.recordApiCall({
+      provider: 'accuweather',
+      endpoint: '/locations/v1/cities/geoposition/search',
+      method: 'GET',
+      httpStatus: response.status,
+      responseTime,
+      isSuccessful: response.ok,
+      requestParams: {
+        q: `${latitude},${longitude}`,
+        language: 'ko-kr',
+      },
+      errorMessage: response.ok ? undefined : `${response.status} ${response.statusText}`,
+    });
     
     if (!response.ok) {
       throw new Error(`좌표 검색 API 오류: ${response.status} ${response.statusText}`);
@@ -321,14 +494,109 @@ export async function checkWeatherServiceHealth(): Promise<boolean> {
     }
 
     // AccuWeather API 키 유효성을 간단한 요청으로 확인
-    try {
-      const response = await fetch(`https://dataservice.accuweather.com/locations/v1/cities/search?apikey=${env.ACCUWEATHER_API_KEY}&q=Seoul`);
-      return response.ok;
-    } catch {
-      return false;
-    }
-  } catch (error) {
-    console.error('Weather Service 상태 확인 실패:', error);
+    const response = await fetch(`https://dataservice.accuweather.com/locations/v1/cities/search?apikey=${env.ACCUWEATHER_API_KEY}&q=Seoul`);
+    return response.ok;
+  } catch {
     return false;
   }
+}
+
+/**
+ * 캐시가 적용된 위치 키 조회 (위치명)
+ */
+async function getLocationKeyWithCache(location: string): Promise<string> {
+  const cacheKey = weatherCache.getLocationKeyCacheKey(location);
+  
+  // 메모리 캐시 확인
+  const cachedKey = weatherCache.get<string>(cacheKey);
+  if (cachedKey) {
+    console.log('🎯 위치 키 메모리 캐시 적중:', location);
+    return cachedKey;
+  }
+  
+  // DB 캐시 확인
+  const dbCachedKey = await weatherDbService.getLocationKey(cacheKey);
+  if (dbCachedKey) {
+    console.log('🎯 위치 키 DB 캐시 적중:', location);
+    // DB에서 가져온 데이터를 메모리 캐시에도 저장
+    weatherCache.set(cacheKey, dbCachedKey, 60 * 24);
+    return dbCachedKey;
+  }
+  
+  console.log('🌐 AccuWeather API 호출 - 위치 키 조회:', location);
+  
+  // 레이트 리미터 확인
+  if (!weatherRateLimiter.canMakeRequest()) {
+    const waitTime = weatherRateLimiter.getWaitTime();
+    throw new Error(`API 호출 한도 초과: ${Math.round(waitTime / 1000)}초 후 다시 시도해주세요.`);
+  }
+  
+  weatherRateLimiter.recordRequest();
+  const locationKey = await getLocationKey(location);
+  
+  // 메모리 캐시에 저장 (24시간)
+  weatherCache.set(cacheKey, locationKey, 60 * 24);
+  
+  // DB에도 저장 (더 긴 TTL)
+  await weatherDbService.saveLocationKey(
+    locationKey, 
+    cacheKey, 
+    'name', 
+    60 * 24 * 7, // 7일
+    location, 
+    undefined, 
+    undefined
+  );
+  
+  return locationKey;
+}
+
+/**
+ * 캐시가 적용된 위치 키 조회 (좌표)
+ */
+async function getLocationKeyByCoordinatesWithCache(latitude: number, longitude: number): Promise<string> {
+  const cacheKey = weatherCache.getLocationKeyCacheKey(undefined, latitude, longitude);
+  
+  // 메모리 캐시 확인
+  const cachedKey = weatherCache.get<string>(cacheKey);
+  if (cachedKey) {
+    console.log('🎯 좌표 위치 키 메모리 캐시 적중:', `${latitude}, ${longitude}`);
+    return cachedKey;
+  }
+  
+  // DB 캐시 확인
+  const dbCachedKey = await weatherDbService.getLocationKey(cacheKey);
+  if (dbCachedKey) {
+    console.log('🎯 좌표 위치 키 DB 캐시 적중:', `${latitude}, ${longitude}`);
+    // DB에서 가져온 데이터를 메모리 캐시에도 저장
+    weatherCache.set(cacheKey, dbCachedKey, 60 * 24);
+    return dbCachedKey;
+  }
+  
+  console.log('🌐 AccuWeather API 호출 - 좌표 위치 키 조회:', `${latitude}, ${longitude}`);
+  
+  // 레이트 리미터 확인
+  if (!weatherRateLimiter.canMakeRequest()) {
+    const waitTime = weatherRateLimiter.getWaitTime();
+    throw new Error(`API 호출 한도 초과: ${Math.round(waitTime / 1000)}초 후 다시 시도해주세요.`);
+  }
+  
+  weatherRateLimiter.recordRequest();
+  const locationKey = await getLocationKeyByCoordinates(latitude, longitude);
+  
+  // 메모리 캐시에 저장 (24시간)
+  weatherCache.set(cacheKey, locationKey, 60 * 24);
+  
+  // DB에도 저장 (더 긴 TTL)
+  await weatherDbService.saveLocationKey(
+    locationKey, 
+    cacheKey, 
+    'coordinates', 
+    60 * 24 * 7, // 7일
+    undefined, 
+    latitude, 
+    longitude
+  );
+  
+  return locationKey;
 }

@@ -1,11 +1,19 @@
 import { AirQualityDashboard } from '@/components/airquality/AirQualityDashboard';
+import { RegionalAirQualityPanel } from '@/components/airquality/RegionalAirQualityPanel';
+import { HourlyAirQuality } from '@/components/airquality/HourlyAirQuality';
+import { DailyAirQuality } from '@/components/airquality/DailyAirQuality';
+import { HourlyForecast } from '@/components/airquality/HourlyForecast';
+import SevenDayForecast from '@/components/airquality/SevenDayForecast';
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
+import { getUserStation } from '@/actions/user-station';
 
 /**
  * 미세먼지 페이지
  * 한국환경공단 에어코리아 API를 활용한 대기질 정보 조회
  */
-export default function AirQualityPage() {
+export default async function AirQualityPage() {
+  // 사용자의 저장된 측정소 정보 조회
+  const userStation = await getUserStation();
   return (
     <>
       <SignedOut>
@@ -36,11 +44,81 @@ export default function AirQualityPage() {
             </div>
 
             {/* 미세먼지 대시보드 */}
-            <AirQualityDashboard className="w-full" />
+            <div className="space-y-6">
+              {/* 현재 대기질 현황과 지역별 정보 */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <AirQualityDashboard className="w-full" />
+                <RegionalAirQualityPanel className="w-full" />
+              </div>
+
+              {/* 시간별 대기정보 - 사용자 측정소 기반 */}
+              {userStation && (
+                <HourlyAirQuality 
+                  stationName={userStation.stationName} 
+                  regionName={userStation.sido}
+                  className="w-full" 
+                />
+              )}
+
+              {/* 일별 대기정보 - 사용자 측정소 기반 */}
+              {userStation && (
+                <DailyAirQuality 
+                  stationName={userStation.stationName} 
+                  regionName={userStation.sido}
+                  className="w-full" 
+                />
+              )}
+
+              {/* 시간별 대기예보 - 등급 정보 (좋음, 보통, 나쁨, 매우나쁨) */}
+              <HourlyForecast 
+                userRegion={userStation?.sido || '수도권'}
+                className="w-full" 
+              />
+
+              {/* 7일간 대기질 예보 - 일별예보(오늘~+2일) + 주간예보(+3일~+6일) */}
+              <SevenDayForecast 
+                defaultRegion={
+                  userStation?.stationName === '운정' ? '경기북부' : 
+                  userStation?.sido || '서울'
+                }
+              />
+            </div>
 
             {/* 도움말 섹션 */}
             <div className="bg-muted/50 rounded-lg p-6 space-y-4">
-              <h2 className="text-lg font-semibold">대기질 지수 안내</h2>
+              <h2 className="text-lg font-semibold">대기질 정보 안내</h2>
+              
+              {/* 대기질 정보 종류 안내 */}
+              <div className="mb-6">
+                <h3 className="font-medium mb-2">대기질 정보 종류</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                    <h4 className="font-medium text-blue-600 mb-2">실시간 측정</h4>
+                    <p className="text-muted-foreground">측정소별 현재 농도 값(μg/m³)과 등급</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                    <h4 className="font-medium text-green-600 mb-2">시간별/일별 데이터</h4>
+                    <p className="text-muted-foreground">지역별 대표 측정소의 농도 값 변화</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                    <h4 className="font-medium text-orange-600 mb-2">시간별 예보</h4>
+                    <p className="text-muted-foreground">오늘~모레 지역별 예보등급 (좋음/나쁨)</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                    <h4 className="font-medium text-purple-600 mb-2">7일간 예보</h4>
+                    <p className="text-muted-foreground">일주일간 지역별 대기질 예보</p>
+                  </div>
+                </div>
+                
+                <div className="text-sm space-y-1 mt-4">
+                  <div><strong>실시간 측정:</strong> 각 측정소의 현재 PM10/PM2.5 농도와 등급</div>
+                  <div><strong>시간별 정보:</strong> 최근 24시간의 시간대별 대기질 변화</div>
+                  <div><strong>일별 정보:</strong> 최근 7일간의 일별 대기질 평균 및 최고/최저값</div>
+                  <div><strong>시간별 예보:</strong> 한국환경공단 발표 예보등급 (informGrade, informData 활용)</div>
+                  <div><strong>7일간 예보:</strong> 일별예보(오늘~+2일) + 주간예보(+3일~+6일) 통합 정보</div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h3 className="font-medium mb-2">미세먼지 (PM10) 농도 기준</h3>
@@ -64,6 +142,7 @@ export default function AirQualityPage() {
               <div className="text-sm text-muted-foreground">
                 <p>* 데이터 출처: 한국환경공단 에어코리아 (AirKorea)</p>
                 <p>* 측정 시간은 각 측정소의 실제 측정 시각을 나타냅니다.</p>
+                <p>* 지역별 데이터는 해당 지역의 대표 측정소 데이터를 기반으로 합니다.</p>
               </div>
             </div>
           </div>

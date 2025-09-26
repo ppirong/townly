@@ -17,10 +17,16 @@ import {
   getNearbyStationsLocal,
   getAirQualityByLocation,
   saveSelectedStation,
-  getSavedStation
+  getSavedStation,
+  getLatestWeeklyForecast,
+  getProcessedWeeklyForecast
 } from '@/actions/airquality';
+import { 
+  getHourlyAirQualityByStation,
+  getDailyAirQualityByStation 
+} from '@/actions/regional-airquality';
 import { airQualityGrade, getPM10Grade, getPM25Grade } from '@/lib/schemas/airquality';
-import type { AirQualityItem } from '@/lib/schemas/airquality';
+import type { AirQualityItem, ProcessedWeeklyForecast } from '@/lib/schemas/airquality';
 
 interface AirQualityDashboardProps {
   className?: string;
@@ -72,22 +78,23 @@ export function AirQualityDashboard({ className }: AirQualityDashboardProps) {
 function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
   const [selectedSido, setSelectedSido] = useState('서울');
   const [selectedStation, setSelectedStation] = useState('');
-  const [availableStations, setAvailableStations] = useState<string[]>([]);
   const [hourlyData, setHourlyData] = useState<ProcessedAirQualityData[]>([]);
   const [dailyData, setDailyData] = useState<ProcessedAirQualityData[]>([]);
   const [currentData, setCurrentData] = useState<ProcessedAirQualityData[]>([]);
+  const [weeklyForecastData, setWeeklyForecastData] = useState<ProcessedWeeklyForecast[]>([]);
+  // 지역별 시간별/일별 대기정보 데이터
+  const [regionalHourlyData, setRegionalHourlyData] = useState<any[]>([]);
+  const [regionalDailyData, setRegionalDailyData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'current' | 'hourly' | 'daily'>('current');
+  const [activeTab, setActiveTab] = useState<'current' | 'hourly' | 'daily' | 'forecast'>('current');
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [selectedStationInfo, setSelectedStationInfo] = useState<{
     distance?: number;
     address?: string;
   } | null>(null);
 
-  // 시도 목록
-  const sidoList = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
 
   // 대기질 등급 유효성 검사 함수
   const isValidGrade = (grade: string | null | undefined): grade is keyof typeof airQualityGrade => {
@@ -146,66 +153,84 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
     return grouped;
   };
 
-  // 현재 실시간 대기질 정보 조회
-  const fetchCurrentAirQuality = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await getSidoAirQuality({
-        sidoName: selectedSido,
-        numOfRows: 50,
-      });
-      
-      if (response.response.header.resultCode === '00') {
-        const processed = processAirQualityData(response.response.body.items);
-        setCurrentData(processed);
-        
-        // 측정소 목록 업데이트
-        const stations = processed.map(item => item.stationName);
-        setAvailableStations([...new Set(stations)]);
-        
-        if (stations.length > 0 && !selectedStation) {
-          setSelectedStation(stations[0]);
-        }
-      } else {
-        throw new Error(response.response.header.resultMsg);
-      }
-    } catch (error) {
-      console.error('현재 대기질 정보 조회 실패:', error);
-      setError('현재 대기질 정보를 가져오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // 특정 측정소의 현재 대기질 정보 조회
   const fetchCurrentAirQualityByStation = async (stationName: string, sido: string) => {
+    console.log(`🔍 [현재 대기질 조회 시작] 측정소: "${stationName}", 시도: "${sido}"`);
     setLoading(true);
     setError(null);
     
     try {
-      console.log(`특정 측정소 현재 데이터 조회: ${stationName} (${sido})`);
+      console.log(`📡 API 호출 준비: ${sido} 지역의 모든 측정소 데이터 요청`);
       const response = await getSidoAirQuality({
         sidoName: sido,
         numOfRows: 100, // 더 많은 데이터를 가져와서 해당 측정소를 찾기
       });
+      console.log(`📡 API 응답 받음:`, response);
       
       if (response.response.header.resultCode === '00') {
+        // 디버깅: 받아온 모든 측정소명 출력
+        const allStationNames = response.response.body.items.map(item => item.stationName);
+        console.log(`${sido} 지역의 모든 측정소명 (총 ${allStationNames.length}개):`, allStationNames);
+        console.log(`찾고 있는 측정소명: "${stationName}"`);
+        
+        // 운정과 관련된 측정소 찾기
+        const relatedStations = response.response.body.items.filter(item => 
+          item.stationName && (
+            item.stationName.includes('운정') || 
+            item.stationName.includes('파주') ||
+            item.stationName.includes('김포')
+          )
+        );
+        console.log('운정/파주/김포 관련 측정소들:', relatedStations.map(item => item.stationName));
+        
         // 특정 측정소 데이터만 필터링
         const stationData = response.response.body.items.filter(
           item => item.stationName === stationName
         );
         
+        console.log(`필터링된 측정소 데이터 개수: ${stationData.length}`);
+        
         if (stationData.length > 0) {
           const processed = processAirQualityData(stationData);
           setCurrentData(processed);
           console.log(`${stationName} 측정소 현재 데이터 로드 완료: ${processed.length}개 항목`);
+          
+          // 새로고침 성공 메시지
+          const currentTime = new Date().toLocaleTimeString('ko-KR', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          });
+          setSuccessMessage(`✅ ${currentTime}에 새로고침 완료`);
+          setTimeout(() => setSuccessMessage(null), 2000);
         } else {
           console.warn(`${stationName} 측정소의 현재 데이터를 찾을 수 없습니다.`);
-          // 전체 시도 데이터로 대체
-          const processed = processAirQualityData(response.response.body.items);
-          setCurrentData(processed);
+          
+          // 부분 일치 시도 (공백 제거, 소문자 변환)
+          const normalizedStationName = stationName.replace(/\s+/g, '').toLowerCase();
+          const partialMatchData = response.response.body.items.filter(
+            item => item.stationName && item.stationName.replace(/\s+/g, '').toLowerCase().includes(normalizedStationName)
+          );
+          
+          console.log(`부분 일치 시도: "${normalizedStationName}", 결과: ${partialMatchData.length}개`);
+          
+          if (partialMatchData.length > 0) {
+            const processed = processAirQualityData(partialMatchData);
+            setCurrentData(processed);
+            console.log(`부분 일치로 ${partialMatchData[0].stationName} 측정소 데이터 로드: ${processed.length}개 항목`);
+            
+            setSuccessMessage(`✅ ${partialMatchData[0].stationName} 측정소 데이터 로드 완료 (부분 일치)`);
+            setTimeout(() => setSuccessMessage(null), 3000);
+          } else {
+            // 정확한 일치도 부분 일치도 없으면 첫 번째 측정소 데이터 사용
+            console.log('부분 일치도 실패, 첫 번째 측정소 데이터 사용');
+            const firstStationData = response.response.body.items.slice(0, 1);
+            const processed = processAirQualityData(firstStationData);
+            setCurrentData(processed);
+            
+            setSuccessMessage(`✅ ${firstStationData[0].stationName} 측정소 데이터 로드 완료 (대체)`);
+            setTimeout(() => setSuccessMessage(null), 3000);
+          }
         }
       } else {
         throw new Error(response.response.header.resultMsg);
@@ -213,6 +238,7 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
     } catch (error) {
       console.error('특정 측정소 현재 대기질 정보 조회 실패:', error);
       setError(`${stationName} 측정소의 현재 대기질 정보를 가져오는데 실패했습니다.`);
+      setCurrentData([]);
     } finally {
       setLoading(false);
     }
@@ -290,6 +316,110 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
     }
   };
 
+  // 주간예보 정보 조회
+  const fetchWeeklyForecast = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('주간예보 데이터 조회 시작');
+      const forecasts = await getLatestWeeklyForecast();
+      console.log(`주간예보 데이터 처리 완료: ${forecasts.length}개 항목`);
+      setWeeklyForecastData(forecasts);
+      
+      if (forecasts.length === 0) {
+        setError('주간예보 데이터가 없습니다.');
+      }
+    } catch (error) {
+      console.error('주간예보 정보 조회 실패:', error);
+      setError('주간예보 정보를 가져오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 지역별 시간별 대기정보 조회
+  const fetchRegionalHourlyAirQuality = async (stationName?: string) => {
+    const targetStation = stationName || selectedStation;
+    if (!targetStation) {
+      console.warn('지역별 시간별 데이터 조회: 측정소가 선택되지 않았습니다.');
+      throw new Error('측정소가 선택되지 않았습니다.');
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log(`🔍 지역별 시간별 데이터 조회 시작: "${targetStation}"`);
+      const today = new Date().toISOString().split('T')[0];
+      const response = await getHourlyAirQualityByStation(targetStation, today, 24);
+      
+      console.log(`✅ 지역별 시간별 데이터 조회 완료:`, response);
+      setRegionalHourlyData(response.data || []);
+      
+      if (!response.data || response.data.length === 0) {
+        const warningMsg = `${targetStation} 측정소 지역의 시간별 대기정보가 없습니다.`;
+        console.warn(warningMsg);
+        throw new Error(warningMsg);
+      }
+    } catch (error) {
+      console.error('❌ 지역별 시간별 대기정보 조회 실패:', error);
+      
+      // 에러 메시지에 따라 다른 처리
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+      
+      if (errorMessage.includes('지역 정보를 찾을 수 없습니다')) {
+        console.warn(`측정소 "${targetStation}"의 지역 매핑 실패 - 폴백 필요`);
+      }
+      
+      setRegionalHourlyData([]);
+      throw error; // 상위에서 폴백 처리할 수 있도록 에러 재던지기
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 지역별 일별 대기정보 조회
+  const fetchRegionalDailyAirQuality = async (stationName?: string) => {
+    const targetStation = stationName || selectedStation;
+    if (!targetStation) {
+      console.warn('지역별 일별 데이터 조회: 측정소가 선택되지 않았습니다.');
+      throw new Error('측정소가 선택되지 않았습니다.');
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log(`🔍 지역별 일별 데이터 조회 시작: "${targetStation}"`);
+      const today = new Date().toISOString().split('T')[0];
+      const response = await getDailyAirQualityByStation(targetStation, today, 7);
+      
+      console.log(`✅ 지역별 일별 데이터 조회 완료:`, response);
+      setRegionalDailyData(response.data || []);
+      
+      if (!response.data || response.data.length === 0) {
+        const warningMsg = `${targetStation} 측정소 지역의 일별 대기정보가 없습니다.`;
+        console.warn(warningMsg);
+        throw new Error(warningMsg);
+      }
+    } catch (error) {
+      console.error('❌ 지역별 일별 대기정보 조회 실패:', error);
+      
+      // 에러 메시지에 따라 다른 처리
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+      
+      if (errorMessage.includes('지역 정보를 찾을 수 없습니다')) {
+        console.warn(`측정소 "${targetStation}"의 지역 매핑 실패 - 폴백 필요`);
+      }
+      
+      setRegionalDailyData([]);
+      throw error; // 상위에서 폴백 처리할 수 있도록 에러 재던지기
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 위치 기반 자동 측정소 선택
   const handleAutoSelectStation = async () => {
     if (!navigator.geolocation) {
@@ -356,18 +486,18 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
         // 저장 실패해도 기능은 계속 진행
       }
       
-      // 자동 선택 후 시간별 데이터 자동 로드
+      // 자동 선택 후 현재 상황 데이터 자동 로드
       setTimeout(async () => {
         try {
-          setActiveTab('hourly');
-          await fetchHourlyAirQuality(nearestStation.stationName);
+          setActiveTab('current');
+          await fetchCurrentAirQualityByStation(nearestStation.stationName, nearestStation.sido);
           
           // 성공 알림 (3초간 표시)
-          setSuccessMessage(`✅ ${nearestStation.stationName} 측정소가 자동 선택되어 저장되었습니다. 시간별 데이터를 확인하세요!`);
+          setSuccessMessage(`✅ ${nearestStation.stationName} 측정소가 자동 선택되어 저장되었습니다. 현재 대기질을 확인하세요!`);
           setTimeout(() => setSuccessMessage(null), 3000);
         } catch (fetchError) {
-          console.error('시간별 데이터 로드 실패:', fetchError);
-          setError('측정소는 선택되었지만 시간별 데이터를 가져오는데 실패했습니다.');
+          console.error('현재 데이터 로드 실패:', fetchError);
+          setError('측정소는 선택되었지만 현재 대기질 데이터를 가져오는데 실패했습니다.');
         }
       }, 500); // 측정소 선택 후 약간의 딜레이
       
@@ -397,11 +527,14 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
 
   // 페이지 로드 시 저장된 측정소 정보 불러오기
   useEffect(() => {
+    console.log(`🚀 [페이지 로드] AirQualityDashboard 초기화 시작`);
     const loadSavedStation = async () => {
       try {
+        console.log(`📋 저장된 측정소 정보 조회 중...`);
         const savedStation = await getSavedStation();
         if (savedStation) {
           console.log('저장된 측정소 정보 발견:', savedStation);
+          console.log(`측정소명: "${savedStation.stationName}", 시도: "${savedStation.sido}"`);
           
           // 저장된 측정소 정보로 상태 설정
           setSelectedSido(savedStation.sido);
@@ -415,48 +548,49 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
             });
           }
           
-          // 자동으로 모든 탭의 데이터 로드
-          await Promise.all([
-            fetchCurrentAirQualityByStation(savedStation.stationName, savedStation.sido),
-            fetchHourlyAirQuality(savedStation.stationName),
-            fetchDailyAirQuality(savedStation.stationName)
-          ]);
+          // 현재 상황 데이터 우선 로드
+          console.log(`저장된 측정소로 현재 대기질 조회 시작: ${savedStation.stationName} (${savedStation.sido})`);
+          await fetchCurrentAirQualityByStation(savedStation.stationName, savedStation.sido);
           
-          // 기본적으로 시간별 탭을 활성화 (가장 유용한 정보)
-          setActiveTab('hourly');
+          // 기본적으로 현재 상황 탭을 활성화 (가장 직관적인 정보)
+          setActiveTab('current');
           
           setSuccessMessage(`✅ 저장된 측정소 "${savedStation.stationName}"의 데이터를 불러왔습니다.`);
           setTimeout(() => setSuccessMessage(null), 3000);
         } else {
-          // 저장된 측정소가 없으면 기본 서울 데이터 로드
-          fetchCurrentAirQuality();
+          // 저장된 측정소가 없으면 안내 메시지만 표시
+          console.log('저장된 측정소가 없습니다. 자동 선택 버튼을 이용해주세요.');
         }
       } catch (error) {
         console.error('저장된 측정소 불러오기 실패:', error);
-        // 에러 시 기본 서울 데이터 로드
-        fetchCurrentAirQuality();
+        // 에러 시에도 안내 메시지만 표시
+        setError('저장된 측정소 정보를 불러오는데 실패했습니다. 자동 선택 버튼을 이용해주세요.');
       }
     };
     
     loadSavedStation();
   }, []); // 컴포넌트 마운트 시 한 번만 실행
 
-  // 시도 변경 시 현재 데이터 로드 (수동 선택 시)
-  useEffect(() => {
-    if (selectedSido && !selectedStationInfo?.distance) {
-      // 자동 선택이 아닌 경우에만 실행
-      fetchCurrentAirQuality();
-    }
-  }, [selectedSido]);
 
-  // 측정소 변경 시 시간별, 일별 데이터 로드 (수동 선택 시에만)
+  // 측정소 변경 시 또는 탭 변경 시 데이터 로드
   useEffect(() => {
-    if (selectedStation && !selectedStationInfo?.distance) {
-      // 자동 선택이 아닌 경우에만 실행 (저장된 측정소 로드 시에는 이미 모든 데이터가 로드됨)
-      if (activeTab === 'hourly') {
-        fetchHourlyAirQuality();
+    if (selectedStation) {
+      if (activeTab === 'current') {
+        fetchCurrentAirQualityByStation(selectedStation, selectedSido);
+      } else if (activeTab === 'hourly') {
+        // 지역별 데이터를 우선 시도하고, 실패시 측정소별 데이터로 폴백
+        fetchRegionalHourlyAirQuality().catch(() => {
+          console.warn('지역별 시간별 데이터 조회 실패, 측정소별 데이터로 폴백');
+          fetchHourlyAirQuality();
+        });
       } else if (activeTab === 'daily') {
-        fetchDailyAirQuality();
+        // 지역별 데이터를 우선 시도하고, 실패시 측정소별 데이터로 폴백
+        fetchRegionalDailyAirQuality().catch(() => {
+          console.warn('지역별 일별 데이터 조회 실패, 측정소별 데이터로 폴백');
+          fetchDailyAirQuality();
+        });
+      } else if (activeTab === 'forecast') {
+        fetchWeeklyForecast();
       }
     }
   }, [selectedStation, activeTab]);
@@ -485,90 +619,72 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
   return (
     <div className={className}>
       <div className="space-y-6">
-        {/* 검색 및 설정 */}
+        {/* 측정소 설정 */}
         <Card>
           <CardHeader>
-            <CardTitle>미세먼지 조회</CardTitle>
+            <CardTitle>내 측정소</CardTitle>
+            <CardDescription>
+              가장 가까운 측정소를 자동으로 선택하여 저장합니다
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">시도 선택</label>
-                <select
-                  value={selectedSido}
-                  onChange={(e) => setSelectedSido(e.target.value)}
-                  className="w-full p-2 border rounded-md"
-                >
-                  {sidoList.map(sido => (
-                    <option key={sido} value={sido}>{sido}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">측정소 선택</label>
-                <div className="flex gap-2">
-                  <select
-                    value={selectedStation}
-                    onChange={(e) => {
-                      setSelectedStation(e.target.value);
-                      // 수동 선택 시 자동 선택 정보 초기화
-                      setSelectedStationInfo(null);
-                    }}
-                    className="flex-1 p-2 border rounded-md"
-                    disabled={availableStations.length === 0}
-                  >
-                    <option value="">측정소를 선택하세요</option>
-                    {availableStations.map(station => (
-                      <option key={station} value={station}>{station}</option>
-                    ))}
-                  </select>
-                  <Button
-                    onClick={handleAutoSelectStation}
-                    disabled={isGettingLocation}
-                    variant="outline"
-                    className="flex items-center gap-1 whitespace-nowrap"
-                  >
-                    {isGettingLocation ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        위치 확인 중...
-                      </>
-                    ) : (
-                      <>
-                        📍 자동 선택
-                      </>
-                    )}
-                  </Button>
-                </div>
-                {selectedStation && (
-                  <div className="text-xs mt-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-green-600">✅ 선택된 측정소: {selectedStation}</p>
+            {/* 자동 선택 버튼과 현재 측정소 정보 */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  {selectedStation ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-semibold text-green-700">✅ {selectedStation}</h3>
+                        {selectedStationInfo?.distance && (
+                          <Badge variant="secondary" className="text-xs">
+                            자동 선택됨
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600">{selectedSido}</p>
                       {selectedStationInfo?.distance && (
-                        <Badge variant="secondary" className="text-xs">
-                          자동 선택됨
-                        </Badge>
+                        <p className="text-sm text-blue-600">
+                          📍 거리: {(selectedStationInfo.distance / 1000).toFixed(1)}km
+                          {selectedStationInfo.distance < 1000 && ` (${selectedStationInfo.distance}m)`}
+                        </p>
                       )}
+                      {selectedStationInfo?.address && (
+                        <p className="text-xs text-gray-500">
+                          📍 {selectedStationInfo.address}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-medium text-gray-500">측정소가 선택되지 않았습니다</h3>
+                      <p className="text-sm text-gray-400">자동 선택 버튼을 눌러 가까운 측정소를 찾아보세요</p>
                     </div>
-                    {selectedStationInfo?.distance && (
-                      <p className="text-blue-600">
-                        📍 거리: {(selectedStationInfo.distance / 1000).toFixed(1)}km
-                        {selectedStationInfo.distance < 1000 && ` (${selectedStationInfo.distance}m)`}
-                      </p>
-                    )}
-                    {selectedStationInfo?.address && (
-                      <p className="text-gray-500">
-                        📍 주소: {selectedStationInfo.address}
-                      </p>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
+                
+                <Button
+                  onClick={handleAutoSelectStation}
+                  disabled={isGettingLocation}
+                  variant={selectedStation ? "outline" : "default"}
+                  className="flex items-center gap-2 whitespace-nowrap"
+                >
+                  {isGettingLocation ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      위치 확인 중...
+                    </>
+                  ) : (
+                    <>
+                      📍 {selectedStation ? '다시 선택' : '자동 선택'}
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
 
             {/* 탭 버튼 */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button
                 variant={activeTab === 'current' ? 'default' : 'outline'}
                 onClick={() => setActiveTab('current')}
@@ -588,6 +704,12 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
                 disabled={!selectedStation}
               >
                 일별
+              </Button>
+              <Button
+                variant={activeTab === 'forecast' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('forecast')}
+              >
+                📅 주간예보
               </Button>
             </div>
 
@@ -620,67 +742,367 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
         </Card>
 
         {/* 현재 대기질 현황 */}
-        {activeTab === 'current' && currentData.length > 0 && (
+        {activeTab === 'current' && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>
+                    {selectedStation ? `${selectedStation} - 현재 대기질 현황` : `${selectedSido} - 현재 대기질 현황`}
+                    {selectedStationInfo?.distance && (
+                      <span className="text-sm font-normal text-blue-600 ml-2">
+                        (자동 선택된 측정소)
+                      </span>
+                    )}
+                  </CardTitle>
+                  <CardDescription>
+                    {selectedStation && selectedStationInfo?.distance 
+                      ? `자동 선택된 가장 가까운 측정소의 실시간 미세먼지 농도` 
+                      : selectedStation 
+                        ? `${selectedStation} 측정소의 실시간 미세먼지 농도`
+                        : '측정소를 선택하여 실시간 미세먼지 농도를 확인하세요'
+                    }
+                  </CardDescription>
+                </div>
+                {selectedStation && (
+                  <Button
+                    onClick={() => fetchCurrentAirQualityByStation(selectedStation, selectedSido)}
+                    disabled={loading}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        새로고침 중...
+                      </>
+                    ) : (
+                      <>
+                        🔄 새로고침
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {currentData.length > 0 ? (
+                <div className="max-w-md mx-auto">
+                  {currentData.slice(0, 1).map((station, index) => (
+                    <Card key={index} className="p-6 border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+                      <div className="space-y-4">
+                        <div className="text-center border-b border-blue-200 pb-3">
+                          <h3 className="text-xl font-bold text-gray-800">{station.stationName}</h3>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {new Date(station.dataTime).toLocaleString('ko-KR', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })} 측정
+                          </div>
+                          {selectedStationInfo?.distance && (
+                            <div className="text-sm text-blue-600 mt-1">
+                              📍 거리: {(selectedStationInfo.distance / 1000).toFixed(1)}km
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="text-center">
+                            <div className="text-sm mb-2 text-gray-600">미세먼지 (PM10)</div>
+                            <ConcentrationDisplay 
+                              value={station.pm10Value} 
+                              grade={station.pm10Grade} 
+                            />
+                            <div className="mt-2">
+                              <AirQualityBadge grade={station.pm10Grade} type="PM10" />
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-sm mb-2 text-gray-600">초미세먼지 (PM2.5)</div>
+                            <ConcentrationDisplay 
+                              value={station.pm25Value} 
+                              grade={station.pm25Grade} 
+                            />
+                            <div className="mt-2">
+                              <AirQualityBadge grade={station.pm25Grade} type="PM2.5" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 종합 공기질 정보 */}
+                        {station.khaiValue && (
+                          <div className="text-center border-t border-blue-200 pt-3">
+                            <div className="text-sm text-gray-600 mb-1">통합대기환경지수 (KHAI)</div>
+                            <div className="text-lg font-bold text-blue-700">
+                              {station.khaiValue} {station.khaiGrade && `(${station.khaiGrade})`}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : selectedStation ? (
+                <div className="text-center py-8">
+                  <div className="text-muted-foreground mb-2">
+                    {selectedStation} 측정소의 현재 대기질 데이터를 찾을 수 없습니다.
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    다른 측정소를 선택하거나 자동 선택 기능을 사용해보세요.
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="mb-4">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                      <span className="text-2xl">📍</span>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-700 mb-2">
+                      측정소를 선택해주세요
+                    </h3>
+                    <div className="text-sm text-gray-500 space-y-1">
+                      <p>위의 📍 자동 선택 버튼을 눌러</p>
+                      <p>가장 가까운 측정소를 자동으로 찾아보세요</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 지역별 시간별 대기정보 */}
+        {activeTab === 'hourly' && regionalHourlyData.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>
-                {selectedStation ? `${selectedStation} - 현재 대기질 현황` : `${selectedSido} - 현재 대기질 현황`}
+                {selectedStation}의 지역 - 시간별 대기정보
                 {selectedStationInfo?.distance && (
                   <span className="text-sm font-normal text-blue-600 ml-2">
-                    (저장된 측정소)
+                    (거리: {(selectedStationInfo.distance / 1000).toFixed(1)}km)
                   </span>
                 )}
               </CardTitle>
-              <CardDescription>
-                {selectedStation && selectedStationInfo?.distance 
-                  ? `저장된 측정소의 실시간 미세먼지 농도` 
-                  : '실시간 측정소별 미세먼지 농도'
-                }
-              </CardDescription>
+              <CardDescription>최근 24시간 지역별 시간별 대기질 변화</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {currentData.slice(0, 12).map((station, index) => (
-                  <Card key={index} className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-medium">{station.stationName}</h3>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(station.dataTime).toLocaleString()}
+              <div className="overflow-x-auto pb-4 h-[300px]">
+                <div className="flex gap-3 min-w-max h-full"
+                     style={{ 
+                       scrollBehavior: 'smooth',
+                       cursor: 'grab'
+                     }}
+                     onMouseDown={(e) => {
+                       const startX = e.pageX;
+                       const container = e.currentTarget;
+                       const scrollLeft = container.scrollLeft;
+                       
+                       const handleMouseMove = (moveEvent: MouseEvent) => {
+                         const x = moveEvent.pageX - startX;
+                         container.scrollLeft = scrollLeft - x;
+                       };
+                       
+                       const handleMouseUp = () => {
+                         document.removeEventListener('mousemove', handleMouseMove);
+                         document.removeEventListener('mouseup', handleMouseUp);
+                         container.style.cursor = 'grab';
+                       };
+                       
+                       container.style.cursor = 'grabbing';
+                       document.addEventListener('mousemove', handleMouseMove);
+                       document.addEventListener('mouseup', handleMouseUp);
+                     }}>
+                  {regionalHourlyData.slice(0, 24).map((data, index) => {
+                    const isLatest = index === 0;
+                    const hour = data.hour || new Date(data.dataTime).getHours();
+                    return (
+                      <div 
+                        key={index}
+                        className={`${
+                          isLatest 
+                            ? 'bg-gradient-to-b from-blue-50 to-blue-100 border-blue-300 shadow-lg' 
+                            : 'bg-gradient-to-b from-green-50 to-green-100 border'
+                        } dark:from-gray-800 dark:to-gray-900 rounded-xl p-4 hover:shadow-lg transition-all duration-200 flex flex-col flex-shrink-0 w-32 h-[270px]`}
+                        style={{ userSelect: 'none' }}
+                      >
+                        {/* 시간 표시 */}
+                        <div className={`text-center border-b ${isLatest ? 'border-blue-200' : 'border-green-200'} dark:border-gray-700 mb-3 pb-2`}>
+                          <div className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                            {hour}시
+                            {isLatest && <span className="text-xs text-blue-600 ml-1">최신</span>}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {data.regionName}
+                          </div>
+                        </div>
+                        
+                        {/* PM10 농도 */}
+                        <div className="text-center mb-3">
+                          <div className="text-xs text-muted-foreground mb-1">PM10</div>
+                          {data.pm10Value && (
+                            <ConcentrationDisplay 
+                              value={data.pm10Value} 
+                              grade={data.pm10Grade || '2'} 
+                            />
+                          )}
+                        </div>
+                        
+                        {/* PM2.5 농도 */}
+                        <div className="text-center mb-3">
+                          <div className="text-xs text-muted-foreground mb-1">PM2.5</div>
+                          {data.pm25Value && (
+                            <ConcentrationDisplay 
+                              value={data.pm25Value} 
+                              grade={data.pm25Grade || '2'} 
+                            />
+                          )}
+                        </div>
+                        
+                        {/* 등급 표시 */}
+                        <div className="mt-auto space-y-1">
+                          {data.pm10Value && data.pm10Grade && (
+                            <AirQualityBadge grade={data.pm10Grade as keyof typeof airQualityGrade} type="PM10" />
+                          )}
+                          {data.pm25Value && data.pm25Grade && (
+                            <AirQualityBadge grade={data.pm25Grade as keyof typeof airQualityGrade} type="PM2.5" />
+                          )}
                         </div>
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <div className="text-sm mb-1">미세먼지 (PM10)</div>
-                          <ConcentrationDisplay 
-                            value={station.pm10Value} 
-                            grade={station.pm10Grade} 
-                          />
-                        </div>
-                        <div>
-                          <div className="text-sm mb-1">초미세먼지 (PM2.5)</div>
-                          <ConcentrationDisplay 
-                            value={station.pm25Value} 
-                            grade={station.pm25Grade} 
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <AirQualityBadge grade={station.pm10Grade} type="PM10" />
-                        <AirQualityBadge grade={station.pm25Grade} type="PM2.5" />
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* 시간별 미세먼지 농도 */}
-        {activeTab === 'hourly' && hourlyData.length > 0 && (
+        {/* 지역별 일별 대기정보 */}
+        {activeTab === 'daily' && regionalDailyData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {selectedStation}의 지역 - 일별 대기정보
+                {selectedStationInfo?.distance && (
+                  <span className="text-sm font-normal text-blue-600 ml-2">
+                    (거리: {(selectedStationInfo.distance / 1000).toFixed(1)}km)
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription>최근 7일간 지역별 일별 대기질 변화</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto pb-4 h-[400px]">
+                <div className="flex gap-3 min-w-max h-full"
+                     style={{ 
+                       scrollBehavior: 'smooth',
+                       cursor: 'grab'
+                     }}
+                     onMouseDown={(e) => {
+                       const startX = e.pageX;
+                       const container = e.currentTarget;
+                       const scrollLeft = container.scrollLeft;
+                       
+                       const handleMouseMove = (moveEvent: MouseEvent) => {
+                         const x = moveEvent.pageX - startX;
+                         container.scrollLeft = scrollLeft - x;
+                       };
+                       
+                       const handleMouseUp = () => {
+                         document.removeEventListener('mousemove', handleMouseMove);
+                         document.removeEventListener('mouseup', handleMouseUp);
+                         container.style.cursor = 'grab';
+                       };
+                       
+                       container.style.cursor = 'grabbing';
+                       document.addEventListener('mousemove', handleMouseMove);
+                       document.addEventListener('mouseup', handleMouseUp);
+                     }}>
+                  {regionalDailyData.slice(0, 7).map((data, index) => {
+                    const date = new Date(data.date);
+                    const dateStr = date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+                    const dayOfWeek = date.toLocaleDateString('ko-KR', { weekday: 'short' });
+                    return (
+                      <div 
+                        key={index}
+                        className="bg-gradient-to-b from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 border rounded-xl p-4 hover:shadow-lg transition-all duration-200 flex flex-col flex-shrink-0 w-40 h-[370px]"
+                        style={{ userSelect: 'none' }}
+                      >
+                        {/* 날짜 표시 */}
+                        <div className="text-center border-b border-blue-200 dark:border-gray-700 mb-3 pb-2">
+                          <div className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                            {dateStr}
+                          </div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">
+                            ({dayOfWeek})
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {data.regionName}
+                          </div>
+                        </div>
+                        
+                        {/* PM10 정보 */}
+                        <div className="text-center mb-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3">
+                          <div className="text-xs text-amber-700 dark:text-amber-300 font-medium mb-2">PM10</div>
+                          {data.pm10Value && (
+                            <>
+                              <ConcentrationDisplay 
+                                value={data.pm10Value} 
+                                grade={data.pm10Grade || '2'} 
+                              />
+                              {data.pm10Grade && (
+                                <div className="mt-2">
+                                  <AirQualityBadge grade={data.pm10Grade as keyof typeof airQualityGrade} type="PM10" />
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {(data.pm10Avg || data.pm10Max || data.pm10Min) && (
+                            <div className="text-xs text-gray-600 mt-2 space-y-1">
+                              {data.pm10Avg && <div>평균: {data.pm10Avg}</div>}
+                              {data.pm10Max && <div>최고: {data.pm10Max}</div>}
+                              {data.pm10Min && <div>최저: {data.pm10Min}</div>}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* PM2.5 정보 */}
+                        <div className="text-center bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3">
+                          <div className="text-xs text-indigo-700 dark:text-indigo-300 font-medium mb-2">PM2.5</div>
+                          {data.pm25Value && (
+                            <>
+                              <ConcentrationDisplay 
+                                value={data.pm25Value} 
+                                grade={data.pm25Grade || '2'} 
+                              />
+                              {data.pm25Grade && (
+                                <div className="mt-2">
+                                  <AirQualityBadge grade={data.pm25Grade as keyof typeof airQualityGrade} type="PM2.5" />
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {(data.pm25Avg || data.pm25Max || data.pm25Min) && (
+                            <div className="text-xs text-gray-600 mt-2 space-y-1">
+                              {data.pm25Avg && <div>평균: {data.pm25Avg}</div>}
+                              {data.pm25Max && <div>최고: {data.pm25Max}</div>}
+                              {data.pm25Min && <div>최저: {data.pm25Min}</div>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 시간별 미세먼지 농도 (기존) */}
+        {activeTab === 'hourly' && hourlyData.length > 0 && regionalHourlyData.length === 0 && (
           <Card>
             <CardHeader>
               <CardTitle>
@@ -865,6 +1287,122 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
             </Card>
           );
         })()}
+
+        {/* 주간예보 */}
+        {activeTab === 'forecast' && weeklyForecastData.length > 0 && (
+          <div className="space-y-6">
+            {weeklyForecastData.map((forecast, index) => (
+              <Card key={index}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    📅 {forecast.informCode === 'PM10' ? '미세먼지(PM10)' : '초미세먼지(PM2.5)'} 주간예보
+                    <Badge variant="secondary" className="text-xs">
+                      {new Date(forecast.dataTime).toLocaleDateString('ko-KR')} 발표
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    {forecast.informData} - 한국환경공단 발표
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* 전반적인 대기질 전망 */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                    <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">전반적인 대기질 전망</h3>
+                    <p className="text-blue-700 dark:text-blue-300 leading-relaxed">{forecast.informOverall}</p>
+                    {forecast.informCause && (
+                      <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
+                        <p className="text-sm text-blue-600 dark:text-blue-400">
+                          <strong>원인:</strong> {forecast.informCause}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 일별 예보 */}
+                  {forecast.dailyForecasts.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3">일별 예보</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {forecast.dailyForecasts.map((daily, dailyIndex) => {
+                          const date = new Date(daily.date);
+                          const dayOfWeek = date.toLocaleDateString('ko-KR', { weekday: 'short' });
+                          const monthDay = date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+                          
+                          // 등급에 따른 색상 결정
+                          let gradeColor = 'bg-gray-100 text-gray-700';
+                          let gradeText = daily.grade;
+                          
+                          if (daily.grade.includes('좋음')) {
+                            gradeColor = 'bg-blue-100 text-blue-700';
+                            gradeText = '좋음';
+                          } else if (daily.grade.includes('보통')) {
+                            gradeColor = 'bg-green-100 text-green-700'; 
+                            gradeText = '보통';
+                          } else if (daily.grade.includes('나쁨') && !daily.grade.includes('매우')) {
+                            gradeColor = 'bg-orange-100 text-orange-700';
+                            gradeText = '나쁨';
+                          } else if (daily.grade.includes('매우나쁨')) {
+                            gradeColor = 'bg-red-100 text-red-700';
+                            gradeText = '매우나쁨';
+                          }
+                          
+                          return (
+                            <div key={dailyIndex} className="border rounded-lg p-3 hover:shadow-md transition-shadow">
+                              <div className="text-center">
+                                <div className="font-medium text-gray-800 dark:text-gray-200">
+                                  {monthDay} ({dayOfWeek})
+                                </div>
+                                <div className={`inline-block px-2 py-1 rounded text-sm font-medium mt-2 ${gradeColor}`}>
+                                  {gradeText}
+                                </div>
+                                {daily.description && (
+                                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                                    {daily.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 행동요령 */}
+                  {forecast.actionKnack && (
+                    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
+                      <h3 className="font-semibold text-amber-800 dark:text-amber-200 mb-2">💡 행동요령</h3>
+                      <p className="text-amber-700 dark:text-amber-300 leading-relaxed">{forecast.actionKnack}</p>
+                    </div>
+                  )}
+
+                  {/* 예보 이미지 */}
+                  {forecast.imageUrls && forecast.imageUrls.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3">예보 차트</h3>
+                      <ScrollArea className="w-full">
+                        <div className="flex gap-3 pb-2">
+                          {forecast.imageUrls.map((imageUrl, imgIndex) => (
+                            <div key={imgIndex} className="flex-shrink-0">
+                              <img 
+                                src={imageUrl} 
+                                alt={`예보 차트 ${imgIndex + 1}`}
+                                className="w-64 h-auto border rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {loading && (
           <div className="text-center py-8">

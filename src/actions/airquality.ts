@@ -2,7 +2,7 @@
 
 import { airKoreaService } from '@/lib/services/airkorea';
 import { z } from 'zod';
-import type { AirQualityResponse, NearbyStationResponse } from '@/lib/schemas/airquality';
+import type { AirQualityResponse, NearbyStationResponse, WeeklyForecastResponse, ProcessedWeeklyForecast } from '@/lib/schemas/airquality';
 import { wgs84ToTm } from '@/lib/utils/coordinate';
 import { findNearestStation, findNearbyStations, getStationsBySido } from '@/lib/data/stations';
 import { auth } from '@clerk/nextjs/server';
@@ -31,6 +31,11 @@ const getStationAirQualitySchema = z.object({
 const getNearbyStationsSchema = z.object({
   latitude: z.number().min(-90).max(90, '위도는 -90도에서 90도 사이여야 합니다'),
   longitude: z.number().min(-180).max(180, '경도는 -180도에서 180도 사이여야 합니다'),
+});
+
+// 주간예보 조회 스키마
+const getWeeklyForecastSchema = z.object({
+  searchDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식이어야 합니다').optional(),
 });
 
 /**
@@ -356,7 +361,53 @@ export async function getSavedStation(): Promise<{
   }
 }
 
+/**
+ * 미세먼지 주간예보 조회
+ */
+export async function getWeeklyForecast(input?: z.infer<typeof getWeeklyForecastSchema>): Promise<WeeklyForecastResponse> {
+  const validatedData = getWeeklyForecastSchema.parse(input || {});
+  
+  try {
+    // 날짜가 제공되지 않으면 오늘 날짜 사용
+    const searchDate = validatedData.searchDate || new Date().toISOString().split('T')[0];
+    
+    return await airKoreaService.getWeeklyForecast({
+      searchDate,
+      returnType: 'json',
+    });
+  } catch (error) {
+    console.error('미세먼지 주간예보 조회 실패:', error);
+    throw new Error('미세먼지 주간예보를 가져오는데 실패했습니다.');
+  }
+}
+
+/**
+ * 처리된 미세먼지 주간예보 조회
+ */
+export async function getProcessedWeeklyForecast(input?: z.infer<typeof getWeeklyForecastSchema>): Promise<ProcessedWeeklyForecast[]> {
+  try {
+    const response = await getWeeklyForecast(input);
+    return airKoreaService.processWeeklyForecastData(response);
+  } catch (error) {
+    console.error('처리된 주간예보 조회 실패:', error);
+    throw new Error('주간예보 데이터를 처리하는데 실패했습니다.');
+  }
+}
+
+/**
+ * 최신 미세먼지 주간예보 조회 (오늘 기준)
+ */
+export async function getLatestWeeklyForecast(): Promise<ProcessedWeeklyForecast[]> {
+  try {
+    return await airKoreaService.getLatestWeeklyForecast();
+  } catch (error) {
+    console.error('최신 주간예보 조회 실패:', error);
+    throw new Error('최신 미세먼지 주간예보를 가져오는데 실패했습니다.');
+  }
+}
+
 // TypeScript 타입 내보내기
 export type GetSidoAirQualityInput = z.infer<typeof getSidoAirQualitySchema>;
 export type GetStationAirQualityInput = z.infer<typeof getStationAirQualitySchema>;
 export type GetNearbyStationsInput = z.infer<typeof getNearbyStationsSchema>;
+export type GetWeeklyForecastInput = z.infer<typeof getWeeklyForecastSchema>;

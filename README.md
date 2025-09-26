@@ -10,6 +10,7 @@ GPS 기반으로 위치별 맞춤화된 날씨, 미세먼지, 마트 할인 정�
 - **대시보드**: 사용자 통계, 최근 활동, 빠른 설정
 - **프로필 페이지**: 사용자 정보 관리 및 설정
 - **위치 서비스**: GPS 기반 현재 위치 수집
+- **미세먼지 정보**: 실시간/시간별/일별/주간예보 조회
 - **데모 모드**: Clerk API 키 없이도 UI 확인 가능
 
 ### 🎨 디자인 시스템
@@ -29,11 +30,11 @@ GPS 기반으로 위치별 맞춤화된 날씨, 미세먼지, 마트 할인 정�
 - **Clerk**: 소셜 로그인 (카카오 전용)
 - **Middleware**: 보호된 라우트 관리
 
-### APIs (향후 통합)
-- **AccuWeather**: 날씨 정보
-- **에어코리아**: 미세먼지 농도
-- **카카오맵**: 위치 정보
-- **OpenAI**: AI 에이전트
+### APIs (일부 통합 완료)
+- **AccuWeather**: 날씨 정보 (향후 통합)
+- **에어코리아**: 미세먼지 농도 ✅
+- **카카오맵**: 위치 정보 (향후 통합)
+- **OpenAI**: AI 에이전트 (향후 통합)
 
 ## 🚦 시작하기
 
@@ -70,7 +71,19 @@ http://localhost:3000 접속
 # Clerk 환경 변수
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
 CLERK_SECRET_KEY=sk_test_your_key_here
+
+# 에어코리아 API (미세먼지 정보)
+AIRKOREA_API_KEY=your_airkorea_api_key_here
+
+# 데이터베이스
+DATABASE_URL=your_database_url_here
 ```
+
+**에어코리아 API 키 발급:**
+1. [공공데이터포털](https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15073861) 접속
+2. 회원가입 및 로그인
+3. "한국환경공단_에어코리아_대기오염정보" API 신청
+4. 승인 후 인증키 확인 (마이페이지 > 오픈API > 인증키)
 
 ### 3. 카카오 개발자 설정
 - [카카오 디벨로퍼스](https://developers.kakao.com/) 앱 생성
@@ -100,6 +113,14 @@ mv src/app/page-with-clerk.tsx src/app/page.tsx
 - 빠른 설정 메뉴
 - 실시간 정보 카드
 
+### 🌫️ 미세먼지 정보 (`/airquality`)
+- **실시간 현황**: 시도별 측정소 현재 대기질
+- **시간별 조회**: 특정 측정소의 24시간 변화
+- **일별 조회**: 최근 30일간 아침/점심/저녁별 데이터
+- **주간예보**: 한국환경공단 발표 주간 대기질 전망
+- **자동 측정소 선택**: GPS 기반 가장 가까운 측정소 추천
+- **측정소 저장**: 선택한 측정소 정보 자동 저장
+
 ### 👤 프로필 페이지
 - 사용자 정보 요약
 - 계정 설정 관리
@@ -115,7 +136,7 @@ mv src/app/page-with-clerk.tsx src/app/page.tsx
 
 ### 우선순위 1: 백엔드 API 통합
 - [ ] AccuWeather API 연동
-- [ ] 에어코리아 API 연동
+- [x] 에어코리아 API 연동 (완료)
 - [ ] 카카오맵 API 연동
 - [ ] OpenAI API 연동
 
@@ -143,13 +164,27 @@ mv src/app/page-with-clerk.tsx src/app/page.tsx
 townly/
 ├── src/
 │   ├── app/                    # Next.js App Router
+│   │   ├── airquality/        # 미세먼지 정보 페이지
 │   │   ├── dashboard/         # 대시보드 페이지
 │   │   ├── profile/           # 프로필 페이지
 │   │   ├── sign-in/           # 로그인 페이지
-│   │   └── sign-up/           # 회원가입 페이지
+│   │   ├── sign-up/           # 회원가입 페이지
+│   │   └── api/               # API 라우트
+│   ├── actions/               # Server Actions (Next.js 15)
+│   │   └── airquality.ts      # 미세먼지 관련 액션
 │   ├── components/            # 재사용 컴포넌트
+│   │   ├── airquality/        # 미세먼지 컴포넌트
 │   │   └── WelcomeDashboard.tsx
+│   ├── lib/
+│   │   ├── services/          # 외부 API 서비스
+│   │   │   └── airkorea.ts    # 에어코리아 API
+│   │   └── schemas/           # Zod 스키마
+│   │       └── airquality.ts  # 미세먼지 스키마
+│   ├── db/                    # 데이터베이스
+│   │   ├── schema.ts          # Drizzle 스키마
+│   │   └── index.ts           # DB 클라이언트
 │   └── middleware.ts          # Clerk 미들웨어
+├── drizzle/                   # DB 마이그레이션
 ├── public/                    # 정적 파일
 └── README.md                  # 프로젝트 문서
 ```

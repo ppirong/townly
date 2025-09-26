@@ -11,6 +11,43 @@ import { getWeatherIcon } from '@/lib/weather-icons';
 import type { UserLocation } from '@/db/schema';
 import { setUserLocation } from '@/actions/location';
 
+interface WeatherApiStats {
+  today: {
+    date: string;
+    totalCalls: number;
+    successfulCalls: number;
+    failedCalls: number;
+    successRate: number;
+    avgResponseTime: number;
+    hourlyUsage: Array<{ hour: number; calls: number }>;
+    endpointUsage: Record<string, any>;
+  };
+  limit: {
+    current: number;
+    limit: number;
+    remaining: number;
+    percentage: number;
+    canMakeRequest: boolean;
+    status: 'ok' | 'warning' | 'critical';
+  };
+  recent: {
+    days: number;
+    stats: Array<{
+      date: string;
+      totalCalls: number;
+      successRate: number;
+      avgResponseTime: number;
+    }>;
+    totalCalls: number;
+    averageDaily: number;
+  };
+  recommendations: {
+    shouldOptimizeCache: boolean;
+    shouldUpgradePlan: boolean;
+    peakHours: number[];
+  };
+}
+
 interface WeatherDashboardProps {
   className?: string;
   initialLocation?: UserLocation | null;
@@ -27,6 +64,8 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
   const [userLocation, setUserLocationState] = useState<UserLocation | null>(initialLocation || null);
   const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
+  const [apiStats, setApiStats] = useState<WeatherApiStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   // 온도 범위에 따른 막대 위치와 길이 계산 함수
   const calculateBarProperties = (highTemp: number, lowTemp: number, minTemp: number, maxTemp: number, isDetailed: boolean = true) => {
@@ -95,8 +134,27 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
     
     await Promise.all([
       fetchHourlyWeather(targetLocation),
-      fetchDailyWeather(5, targetLocation)
+      fetchDailyWeather(5, targetLocation),
+      fetchApiStats()
     ]);
+  };
+
+  const fetchApiStats = async () => {
+    setStatsLoading(true);
+    try {
+      const response = await fetch('/api/weather/stats');
+      const result = await response.json();
+      
+      if (result.success) {
+        setApiStats(result.data);
+      } else {
+        console.error('API 통계 조회 실패:', result.error);
+      }
+    } catch (error) {
+      console.error('API 통계 조회 실패:', error);
+    } finally {
+      setStatsLoading(false);
+    }
   };
 
 
@@ -383,6 +441,117 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
           </Card>
         )}
 
+        {/* API 사용량 통계 */}
+        {apiStats && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <span>📊</span>
+                AccuWeather API 사용량
+              </CardTitle>
+              <CardDescription>
+                오늘의 API 호출 현황 및 한도 관리
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* 기본 통계 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {apiStats.limit.current}
+                    </div>
+                    <div className="text-sm text-muted-foreground">오늘 사용</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {apiStats.limit.remaining}
+                    </div>
+                    <div className="text-sm text-muted-foreground">남은 횟수</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {apiStats.today.successRate}%
+                    </div>
+                    <div className="text-sm text-muted-foreground">성공률</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {apiStats.today.avgResponseTime}ms
+                    </div>
+                    <div className="text-sm text-muted-foreground">평균 응답</div>
+                  </div>
+                </div>
+
+                {/* 사용량 진행바 */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>일일 한도 사용률</span>
+                    <span className={`font-medium ${
+                      apiStats.limit.status === 'critical' ? 'text-red-600' :
+                      apiStats.limit.status === 'warning' ? 'text-yellow-600' :
+                      'text-green-600'
+                    }`}>
+                      {apiStats.limit.percentage}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div 
+                      className={`h-3 rounded-full transition-all duration-300 ${
+                        apiStats.limit.status === 'critical' ? 'bg-red-500' :
+                        apiStats.limit.status === 'warning' ? 'bg-yellow-500' :
+                        'bg-green-500'
+                      }`}
+                      style={{ width: `${Math.min(apiStats.limit.percentage, 100)}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {apiStats.limit.current} / {apiStats.limit.limit} 호출 사용
+                  </div>
+                </div>
+
+                {/* 상태 배지 및 권장사항 */}
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant={
+                    apiStats.limit.status === 'critical' ? 'destructive' :
+                    apiStats.limit.status === 'warning' ? 'default' :
+                    'secondary'
+                  }>
+                    {apiStats.limit.status === 'critical' ? '⚠️ 한도 임박' :
+                     apiStats.limit.status === 'warning' ? '⚡ 주의 필요' :
+                     '✅ 정상'}
+                  </Badge>
+                  
+                  {apiStats.recommendations.shouldOptimizeCache && (
+                    <Badge variant="outline">💾 캐시 최적화 권장</Badge>
+                  )}
+                  
+                  {apiStats.recommendations.shouldUpgradePlan && (
+                    <Badge variant="outline">⬆️ 플랜 업그레이드 권장</Badge>
+                  )}
+                </div>
+
+                {/* 최근 7일 트렌드 (간단한 텍스트 요약) */}
+                {apiStats.recent.stats.length > 0 && (
+                  <div className="pt-3 border-t">
+                    <div className="text-sm font-medium mb-2">최근 7일 평균</div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">일평균 호출: </span>
+                        <span className="font-medium">{apiStats.recent.averageDaily}회</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">총 호출: </span>
+                        <span className="font-medium">{apiStats.recent.totalCalls}회</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* 검색 및 설정 */}
         <Card>
           <CardHeader>
@@ -512,19 +681,27 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                         </div>
                       </div>
                       
-                      {/* 강수 정보 */}
-                      <div className="text-center space-y-1 mt-auto">
-                        {weather.precipitation && weather.precipitation > 0 && (
+                        {/* 강수 정보 */}
+                        <div className="text-center space-y-1 mt-auto">
                           <div className="text-xs text-blue-600 dark:text-blue-400">
-                            💧 {weather.precipitation}mm
+                            💧 {weather.precipitation || 0}mm
                           </div>
-                        )}
-                        {weather.precipitationProbability && weather.precipitationProbability > 0 && (
-                          <div className="text-xs text-green-600 dark:text-green-400">
-                            ☔ {weather.precipitationProbability}%
-                          </div>
-                        )}
-                      </div>
+                          {(weather.precipitationProbability || 0) > 0 && (
+                            <div className="text-xs text-green-600 dark:text-green-400">
+                              ☔ {weather.precipitationProbability}%
+                            </div>
+                          )}
+                          {(weather.humidity || 0) > 0 && (
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
+                              💨 {weather.humidity}%
+                            </div>
+                          )}
+                          {(weather.rainProbability || 0) > 0 && (
+                            <div className="text-xs text-indigo-600 dark:text-indigo-400">
+                              🌧️ {weather.rainProbability}%
+                            </div>
+                          )}
+                        </div>
                     </div>
                   ))}
                 </div>
