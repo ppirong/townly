@@ -78,8 +78,39 @@ export class ChatGPTRAGService {
         5 // 상위 5개 결과
       );
 
+      // 벡터 데이터가 없으면 기존 날씨 서비스로 폴백
       if (searchResults.length === 0) {
-        throw new Error('관련된 날씨 정보를 찾을 수 없습니다.');
+        console.log('🔄 벡터 데이터 없음 - 기존 날씨 서비스로 폴백');
+        const { weatherChatbotService } = await import('./weather-chatbot');
+        const fallbackResponse = await weatherChatbotService.processWeatherQuery(userQuestion, locationName);
+        
+        if (fallbackResponse.success) {
+          // 대화 기록 저장
+          const conversationData: NewChatGptConversation = {
+            userId,
+            sessionId,
+            userQuestion,
+            retrievedContext: [{ content: '기존 시스템 폴백', metadata: { fallback: true } }],
+            gptResponse: fallbackResponse.message,
+            tokensUsed: 0,
+            responseTime: Date.now() - startTime
+          };
+
+          const savedConversation = await db
+            .insert(chatGptConversations)
+            .values(conversationData)
+            .returning();
+
+          return {
+            answer: fallbackResponse.message + '\n\n💡 더 정확한 정보를 위해 날씨 데이터를 학습 중입니다.',
+            context: [],
+            tokensUsed: 0,
+            responseTime: Date.now() - startTime,
+            conversationId: savedConversation[0].id
+          };
+        } else {
+          throw new Error('관련된 날씨 정보를 찾을 수 없습니다.');
+        }
       }
 
       console.log('🔍 벡터 검색 결과:', {

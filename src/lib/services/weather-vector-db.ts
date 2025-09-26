@@ -220,27 +220,39 @@ export class WeatherVectorDBService {
     try {
       console.log('🔍 날씨 벡터 검색:', { query, locationName, contentTypes, limit });
       
-      // 쿼리를 임베딩으로 변환
-      const queryEmbedding = await openaiEmbeddingService.embedQuery(query);
-      
-      // 데이터베이스에서 모든 임베딩 가져오기 (필터링 적용)
-      const whereConditions = [];
-      
-      if (locationName) {
-        whereConditions.push(eq(weatherEmbeddings.locationName, locationName));
-      }
-      
-      if (contentTypes && contentTypes.length > 0) {
-        // contentTypes 필터링 (임시로 첫 번째 타입만 사용)
-        whereConditions.push(eq(weatherEmbeddings.contentType, contentTypes[0]));
+      // 먼저 벡터 임베딩 테이블이 존재하는지 확인
+      let embeddings;
+      try {
+        // 데이터베이스에서 모든 임베딩 가져오기 (필터링 적용)
+        const whereConditions = [];
+        
+        if (locationName) {
+          whereConditions.push(eq(weatherEmbeddings.locationName, locationName));
+        }
+        
+        if (contentTypes && contentTypes.length > 0) {
+          // contentTypes 필터링 (임시로 첫 번째 타입만 사용)
+          whereConditions.push(eq(weatherEmbeddings.contentType, contentTypes[0]));
+        }
+
+        embeddings = await db
+          .select()
+          .from(weatherEmbeddings)
+          .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+          .orderBy(desc(weatherEmbeddings.createdAt))
+          .limit(100); // 최대 100개에서 검색
+      } catch (dbError) {
+        console.log('⚠️ 벡터 임베딩 테이블이 존재하지 않거나 데이터가 없음:', dbError);
+        return []; // 빈 배열 반환으로 폴백 처리 유도
       }
 
-      const embeddings = await db
-        .select()
-        .from(weatherEmbeddings)
-        .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-        .orderBy(desc(weatherEmbeddings.createdAt))
-        .limit(100); // 최대 100개에서 검색
+      if (!embeddings || embeddings.length === 0) {
+        console.log('⚠️ 벡터 임베딩 데이터가 없음 - 폴백 처리');
+        return [];
+      }
+      
+      // 쿼리를 임베딩으로 변환
+      const queryEmbedding = await openaiEmbeddingService.embedQuery(query);
 
       // 유사도 계산
       const results: SearchResult[] = embeddings.map(embedding => {
@@ -276,7 +288,8 @@ export class WeatherVectorDBService {
       return sortedResults;
     } catch (error) {
       console.error('❌ 날씨 벡터 검색 실패:', error);
-      throw new Error('날씨 벡터 검색에 실패했습니다.');
+      // 에러 시에도 빈 배열 반환하여 폴백 처리 유도
+      return [];
     }
   }
 
