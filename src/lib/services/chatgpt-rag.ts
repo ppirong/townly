@@ -85,28 +85,36 @@ export class ChatGPTRAGService {
         const fallbackResponse = await weatherChatbotService.processWeatherQuery(userQuestion, locationName);
         
         if (fallbackResponse.success) {
-          // 대화 기록 저장
-          const conversationData: NewChatGptConversation = {
-            userId,
-            sessionId,
-            userQuestion,
-            retrievedContext: [{ content: '기존 시스템 폴백', metadata: { fallback: true } }],
-            gptResponse: fallbackResponse.message,
-            tokensUsed: 0,
-            responseTime: Date.now() - startTime
-          };
+          // 임시로 대화 기록 저장을 비활성화 (테이블이 없는 경우)
+          let conversationId = '';
+          try {
+            const conversationData: NewChatGptConversation = {
+              userId,
+              sessionId,
+              userQuestion,
+              retrievedContext: [{ content: '기존 시스템 폴백', metadata: { fallback: true } }],
+              gptResponse: fallbackResponse.message,
+              tokensUsed: 0,
+              responseTime: Date.now() - startTime
+            };
 
-          const savedConversation = await db
-            .insert(chatGptConversations)
-            .values(conversationData)
-            .returning();
+            const savedConversation = await db
+              .insert(chatGptConversations)
+              .values(conversationData)
+              .returning();
+            
+            conversationId = savedConversation[0].id;
+          } catch (dbError) {
+            console.log('⚠️ 대화 기록 저장 실패 (테이블이 존재하지 않음):', dbError);
+            // 테이블이 없어도 서비스는 계속 동작
+          }
 
           return {
             answer: fallbackResponse.message + '\n\n💡 더 정확한 정보를 위해 날씨 데이터를 학습 중입니다.',
             context: [],
             tokensUsed: 0,
             responseTime: Date.now() - startTime,
-            conversationId: savedConversation[0].id
+            conversationId
           };
         } else {
           throw new Error('관련된 날씨 정보를 찾을 수 없습니다.');
@@ -157,13 +165,22 @@ export class ChatGPTRAGService {
         responseTime
       };
 
-      const savedConversation = await db
-        .insert(chatGptConversations)
-        .values(conversationData)
-        .returning();
+      let conversationId = '';
+      try {
+        const savedConversation = await db
+          .insert(chatGptConversations)
+          .values(conversationData)
+          .returning();
+
+        conversationId = savedConversation[0].id;
+        console.log('💾 대화 기록 저장 완료:', conversationId);
+      } catch (dbError) {
+        console.log('⚠️ 대화 기록 저장 실패 (테이블이 존재하지 않음):', dbError);
+        // 테이블이 없어도 서비스는 계속 동작
+      }
 
       console.log('✅ ChatGPT RAG 응답 생성 완료:', {
-        conversationId: savedConversation[0].id,
+        conversationId,
         tokensUsed,
         responseTime
       });
@@ -173,7 +190,7 @@ export class ChatGPTRAGService {
         context: searchResults,
         tokensUsed,
         responseTime,
-        conversationId: savedConversation[0].id
+        conversationId
       };
 
     } catch (error) {
