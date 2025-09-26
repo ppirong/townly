@@ -135,7 +135,8 @@ export class WeatherChatbotService {
       .where(
         and(
           gte(hourlyWeatherData.expiresAt, now),
-          eq(hourlyWeatherData.forecastDate, today)
+          eq(hourlyWeatherData.forecastDate, today),
+          eq(hourlyWeatherData.locationName, location)
         )
       )
       .orderBy(desc(hourlyWeatherData.forecastDateTime))
@@ -167,7 +168,8 @@ export class WeatherChatbotService {
       .where(
         and(
           gte(hourlyWeatherData.expiresAt, now),
-          eq(hourlyWeatherData.forecastDate, today)
+          eq(hourlyWeatherData.forecastDate, today),
+          eq(hourlyWeatherData.locationName, location)
         )
       )
       .orderBy(asc(hourlyWeatherData.forecastDateTime))
@@ -190,7 +192,12 @@ export class WeatherChatbotService {
     const dailyData = await db
       .select()
       .from(dailyWeatherData)
-      .where(gte(dailyWeatherData.expiresAt, now))
+      .where(
+        and(
+          gte(dailyWeatherData.expiresAt, now),
+          eq(dailyWeatherData.locationName, location)
+        )
+      )
       .orderBy(asc(dailyWeatherData.forecastDate))
       .limit(5); // 5일
     
@@ -211,7 +218,12 @@ export class WeatherChatbotService {
     const weeklyData = await db
       .select()
       .from(dailyWeatherData)
-      .where(gte(dailyWeatherData.expiresAt, now))
+      .where(
+        and(
+          gte(dailyWeatherData.expiresAt, now),
+          eq(dailyWeatherData.locationName, location)
+        )
+      )
       .orderBy(asc(dailyWeatherData.forecastDate))
       .limit(7); // 7일
     
@@ -239,7 +251,8 @@ export class WeatherChatbotService {
       .where(
         and(
           gte(dailyWeatherData.expiresAt, now),
-          eq(dailyWeatherData.forecastDate, date)
+          eq(dailyWeatherData.forecastDate, date),
+          eq(dailyWeatherData.locationName, location)
         )
       )
       .limit(1);
@@ -391,6 +404,14 @@ export class WeatherChatbotService {
       
       if (weather.precipitationProbability > 0) {
         response += ` (강수 ${weather.precipitationProbability}%)`;
+      }
+      
+      // 밤 날씨 정보가 있고 오늘/내일인 경우 추가 표시
+      if (index <= 1 && weather.nightWeather) {
+        response += `\n   🌙 밤: ${weather.nightWeather.conditions}`;
+        if (weather.nightWeather.precipitationProbability > 0) {
+          response += ` (강수 ${weather.nightWeather.precipitationProbability}%)`;
+        }
       }
       
       response += '\n';
