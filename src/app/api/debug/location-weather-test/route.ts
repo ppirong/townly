@@ -9,7 +9,7 @@ import { getHourlyWeather } from '@/lib/services/weather';
  * 데이터베이스 저장된 위치로 날씨 API 테스트 (인증 불필요)
  * GET /api/debug/location-weather-test
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     console.log('🧪 데이터베이스 위치로 날씨 API 테스트 시작');
 

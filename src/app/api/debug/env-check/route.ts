@@ -5,7 +5,7 @@ import { env } from '@/lib/env';
  * 환경변수 설정 상태를 확인하는 디버그 API
  * GET /api/debug/env-check
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const envStatus = {
       accuWeatherApiKey: {

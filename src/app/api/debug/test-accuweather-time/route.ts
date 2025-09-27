@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/lib/env';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     console.log('🕐 AccuWeather API 시간대 테스트 시작');
     

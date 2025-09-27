@@ -3,7 +3,6 @@
 import { airKoreaService } from '@/lib/services/airkorea';
 import { auth } from '@clerk/nextjs/server';
 import {
-  type HourlyForecastRequest,
   type ProcessedHourlyForecast,
 } from '@/lib/schemas/airquality';
 

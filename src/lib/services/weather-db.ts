@@ -10,19 +10,16 @@ import {
   weatherLocationKeys,
   type NewHourlyWeatherData,
   type NewDailyWeatherData, 
-  type NewWeatherLocationKey,
-  type HourlyWeatherData as DBHourlyWeatherData,
-  type DailyWeatherData as DBDailyWeatherData,
-  type WeatherLocationKey as DBWeatherLocationKey
+  type NewWeatherLocationKey
 } from '@/db/schema';
-import { eq, and, gte, lte, desc, count } from 'drizzle-orm';
+import { eq, and, gte, lte, count } from 'drizzle-orm';
 import type { 
   HourlyWeatherData, 
   DailyWeatherData, 
   DailyWeatherResponse 
 } from './weather';
 import { weatherVectorDBService } from './weather-vector-db';
-import { utcToKst, formatKoreanDate } from '@/lib/utils/timezone';
+import { formatKoreanDate } from '@/lib/utils/timezone';
 
 export class WeatherDatabaseService {
 

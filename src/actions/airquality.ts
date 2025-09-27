@@ -4,7 +4,7 @@ import { airKoreaService } from '@/lib/services/airkorea';
 import { z } from 'zod';
 import type { AirQualityResponse, NearbyStationResponse, WeeklyForecastResponse, ProcessedWeeklyForecast } from '@/lib/schemas/airquality';
 import { wgs84ToTm } from '@/lib/utils/coordinate';
-import { findNearestStation, findNearbyStations, getStationsBySido } from '@/lib/data/stations';
+import { findNearbyStations } from '@/lib/data/stations';
 import { auth } from '@clerk/nextjs/server';
 import { db } from '@/db';
 import { userSelectedStations } from '@/db/schema';

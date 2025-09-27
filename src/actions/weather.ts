@@ -24,7 +24,7 @@ const hourlyWeatherSchema = weatherLocationSchema.extend({
 });
 
 const dailyWeatherSchema = weatherLocationSchema.extend({
-  days: z.enum([1, 5, 10, 15]).default(5),
+  days: z.union([z.literal(1), z.literal(5), z.literal(10), z.literal(15)]).default(5),
 });
 
 type HourlyWeatherInput = z.infer<typeof hourlyWeatherSchema>;

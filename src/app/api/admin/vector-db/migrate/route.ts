@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { weatherVectorDBService } from '@/lib/services/weather-vector-db';
 import { auth } from '@clerk/nextjs/server';
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // 관리자 권한 확인
     const { userId } = await auth();

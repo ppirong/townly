@@ -3,7 +3,6 @@
 import { db } from '@/db';
 import { userLocations } from '@/db/schema';
 import { auth } from '@clerk/nextjs/server';
-import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { setUserLocationSchema, updateUserLocationSchema } from '@/lib/schemas/location';
 import type { SetUserLocationInput, UpdateUserLocationInput } from '@/lib/schemas/location';

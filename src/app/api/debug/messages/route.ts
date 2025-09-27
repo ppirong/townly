@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { kakaoMessages, webhookLogs } from '@/db/schema';
 import { desc } from 'drizzle-orm';

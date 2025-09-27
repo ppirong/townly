@@ -6,7 +6,7 @@ import { auth } from '@clerk/nextjs/server';
 /**
  * 스케줄 메시지 테이블 생성 API (관리자 전용)
  */
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const { userId } = await auth();
     

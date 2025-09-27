@@ -10,7 +10,7 @@ import { HourlyWeatherData, DailyWeatherData } from '@/lib/services/weather';
 import { getWeatherIcon } from '@/lib/weather-icons';
 import type { UserLocation } from '@/db/schema';
 import { setUserLocation } from '@/actions/location';
-import { getUserWeatherByCoordinates, getUserLocationWeather } from '@/actions/weather';
+import { getUserLocationWeather } from '@/actions/weather';
 
 interface WeatherApiStats {
   today: {
@@ -66,7 +66,6 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
   const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
   const [apiStats, setApiStats] = useState<WeatherApiStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
   const [cacheClearing, setCacheClearing] = useState(false);
 
   // 온도 범위에 따른 막대 위치와 길이 계산 함수
@@ -183,7 +182,6 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
   };
 
   const fetchApiStats = async () => {
-    setStatsLoading(true);
     try {
       const response = await fetch('/api/weather/stats');
       const result = await response.json();
@@ -195,8 +193,6 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       }
     } catch (error) {
       console.error('API 통계 조회 실패:', error);
-    } finally {
-      setStatsLoading(false);
     }
   };
 
@@ -321,7 +317,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
     try {
       console.log('🧹 캐시 삭제 및 새로운 데이터 조회 시작...');
 
-      let requestBody: any = {
+      const requestBody: any = {
         units: units,
       };
 

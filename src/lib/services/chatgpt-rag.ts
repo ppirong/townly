@@ -89,7 +89,7 @@ export class ChatGPTRAGService {
           let conversationId = '';
           try {
             const conversationData: NewChatGptConversation = {
-              userId,
+              clerkUserId: userId,
               sessionId,
               userQuestion,
               retrievedContext: [{ content: '기존 시스템 폴백', metadata: { fallback: true } }],
@@ -156,7 +156,7 @@ export class ChatGPTRAGService {
 
       // 5. 대화 기록 저장
       const conversationData: NewChatGptConversation = {
-        userId,
+        clerkUserId: userId,
         sessionId,
         userQuestion,
         retrievedContext: searchResults,
@@ -296,7 +296,7 @@ ${weatherText}
 
       // 대화 기록 저장
       const conversationData: NewChatGptConversation = {
-        userId,
+        clerkUserId: userId,
         sessionId,
         userQuestion: question,
         retrievedContext: [{ content: weatherText, metadata: weatherData }],
@@ -385,7 +385,7 @@ ${weatherText}
       const conversations = await db
         .select()
         .from(chatGptConversations)
-        .where(eq(chatGptConversations.userId, userId))
+        .where(eq(chatGptConversations.clerkUserId, userId))
         .orderBy(desc(chatGptConversations.createdAt))
         .limit(limit);
 

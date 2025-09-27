@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { hourlyWeatherData } from '@/db/schema';
 import { desc, isNotNull } from 'drizzle-orm';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // 개발 환경에서는 인증 없이 테스트 가능
     const isDevelopment = process.env.NODE_ENV === 'development';
