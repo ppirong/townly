@@ -348,6 +348,17 @@ export class WeatherVectorDBService {
           
         console.log(`👤 사용자 ${clerkUserId}의 날씨 데이터 ${embeddings.length}개 발견`);
         
+        // 사용자별 데이터가 없으면 모든 사용자의 데이터에서 검색 (폴백)
+        if (embeddings.length === 0) {
+          console.log('🔄 사용자별 데이터 없음 - 전체 데이터에서 검색');
+          embeddings = await db
+            .select()
+            .from(weatherEmbeddings)
+            .orderBy(desc(weatherEmbeddings.createdAt))
+            .limit(50);
+          console.log(`🌐 전체 날씨 데이터 ${embeddings.length}개에서 검색`);
+        }
+        
         if (embeddings.length > 0) {
           console.log('📄 첫 번째 임베딩 샘플:', {
             id: embeddings[0].id.substring(0, 8) + '...',

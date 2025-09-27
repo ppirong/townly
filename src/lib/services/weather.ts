@@ -142,7 +142,7 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
     
     const forecastUrl = `https://dataservice.accuweather.com/forecasts/v1/hourly/12hour/${locationKey}`;
     const requestStartTime = Date.now();
-    const response = await fetch(`${forecastUrl}?apikey=${env.ACCUWEATHER_API_KEY}&metric=${units === 'metric'}`);
+    const response = await fetch(`${forecastUrl}?apikey=${env.ACCUWEATHER_API_KEY}&metric=${units === 'metric'}&details=true`);
     const responseTime = Date.now() - requestStartTime;
     
     // API 호출 기록
@@ -156,6 +156,7 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
       requestParams: {
         locationKey,
         metric: units === 'metric',
+        details: true,
       },
       errorMessage: response.ok ? undefined : `${response.status} ${response.statusText}`,
     });
@@ -182,9 +183,29 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
       const { kstDateTime } = convertAccuWeatherDateTimeToKST(forecast.DateTime);
       const { hour } = formatKSTTime(kstDateTime);
       
-      // 디버깅: 첫 3개만 로깅
+      // 강수량 처리 로직 수정
+      let precipitation = 0;
+      
+      // AccuWeather API에서 오는 강수량 데이터 디버깅 (첫 3개만)
       if (index < 3) {
         console.log(`🕐 시간별 예보 ${index}: ${forecast.DateTime} -> ${kstDateTime.toISOString()}`);
+        console.log(`💧 전체 예보 데이터 ${index}:`, JSON.stringify(forecast, null, 2));
+      }
+      
+      // 강수량 처리: Rain, Snow, Ice, TotalLiquid 순서로 확인
+      if (forecast.Rain?.Value !== undefined && forecast.Rain.Value !== null) {
+        precipitation = forecast.Rain.Value;
+      } else if (forecast.Snow?.Value !== undefined && forecast.Snow.Value !== null) {
+        precipitation = forecast.Snow.Value;
+      } else if (forecast.Ice?.Value !== undefined && forecast.Ice.Value !== null) {
+        precipitation = forecast.Ice.Value;
+      } else if (forecast.TotalLiquid?.Value !== undefined && forecast.TotalLiquid.Value !== null) {
+        precipitation = forecast.TotalLiquid.Value;
+      }
+      
+      // 디버깅: 최종 강수량 값 로깅 (첫 3개만)
+      if (index < 3) {
+        console.log(`💧 최종 강수량 ${index}: ${precipitation}mm`);
       }
       
       return {
@@ -195,7 +216,7 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
         conditions: forecast.IconPhrase || '알 수 없음',
         weatherIcon: forecast.WeatherIcon || null,
         humidity: forecast.RelativeHumidity || 0,
-        precipitation: forecast.Rain?.Value || forecast.TotalLiquid?.Value || 0,
+        precipitation: precipitation,
         precipitationProbability: forecast.PrecipitationProbability || 0,
         rainProbability: forecast.RainProbability || 0,
         windSpeed: forecast.Wind?.Speed?.Value ? Math.round(forecast.Wind.Speed.Value) : 0,

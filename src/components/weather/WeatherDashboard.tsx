@@ -814,23 +814,11 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                         {/* 강수 정보 */}
                         <div className="text-center space-y-1 mt-auto">
                           <div className="text-xs text-blue-600 dark:text-blue-400">
-                            💧 {weather.precipitation || 0}mm
+                            💧 {typeof weather.precipitation === 'number' ? weather.precipitation.toFixed(1) : '0.0'}mm
                           </div>
-                          {(weather.precipitationProbability || 0) > 0 && (
-                            <div className="text-xs text-green-600 dark:text-green-400">
-                              ☔ {weather.precipitationProbability}%
-                            </div>
-                          )}
-                          {(weather.humidity || 0) > 0 && (
-                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                              💨 {weather.humidity}%
-                            </div>
-                          )}
-                          {(weather.rainProbability || 0) > 0 && (
-                            <div className="text-xs text-indigo-600 dark:text-indigo-400">
-                              🌧️ {weather.rainProbability}%
-                            </div>
-                          )}
+                          <div className="text-xs text-green-600 dark:text-green-400">
+                            ☔ {weather.precipitationProbability || 0}%
+                          </div>
                         </div>
                     </div>
                   ))}
