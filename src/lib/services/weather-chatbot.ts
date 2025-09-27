@@ -22,9 +22,13 @@ export interface WeatherChatbotResponse {
 export class WeatherChatbotService {
   
   /**
-   * 사용자 메시지 처리 및 날씨 정보 응답 생성 (사용자별 데이터 지원)
+   * 사용자 메시지 처리 및 날씨 정보 응답 생성 (사용자 중심 시스템)
    */
-  async processWeatherQuery(userMessage: string, userLocation?: string, clerkUserId?: string): Promise<WeatherChatbotResponse> {
+  async processWeatherQuery(userMessage: string, clerkUserId: string, userLocation?: string): Promise<WeatherChatbotResponse> {
+    if (!clerkUserId) {
+      throw new Error('사용자 중심 날씨 시스템에서는 사용자 ID가 필수입니다.');
+    }
+    
     try {
       // 1. FAQ 매칭 시도
       const faqMatch = weatherFAQService.findBestMatch(userMessage);

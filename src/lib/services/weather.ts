@@ -111,6 +111,20 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
     const dbCachedData = await weatherDbService.getHourlyWeatherData(cacheKey);
     if (dbCachedData) {
       console.log('🎯 시간별 날씨 DB 캐시 적중');
+      
+      // 사용자별 데이터인 경우 임베딩이 없으면 생성
+      if (params.clerkUserId) {
+        try {
+          await weatherDbService.generateEmbeddingsForExistingHourlyData(
+            dbCachedData,
+            locationName,
+            params.clerkUserId
+          );
+        } catch (embeddingError) {
+          console.error('⚠️ 캐시된 시간별 날씨 데이터 임베딩 생성 실패:', embeddingError);
+        }
+      }
+      
       // DB에서 가져온 데이터를 메모리 캐시에도 저장
       weatherCache.set(cacheKey, dbCachedData, 10);
       return dbCachedData;
@@ -193,17 +207,22 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
     weatherCache.set(cacheKey, hourlyData, 10);
     console.log('💾 시간별 날씨 메모리 캐시 저장');
     
-    // DB에도 저장 (더 긴 TTL)
-    await weatherDbService.saveHourlyWeatherData(
-      locationKey, 
-      locationName, 
-      hourlyData, 
-      cacheKey, 
-      60, // 1시간
-      params.latitude, 
-      params.longitude,
-      params.clerkUserId
-    );
+    // 사용자 ID가 없으면 저장하지 않음
+    if (params.clerkUserId && params.latitude !== undefined && params.longitude !== undefined) {
+      // DB에도 저장 (더 긴 TTL)
+      await weatherDbService.saveHourlyWeatherData(
+        locationKey, 
+        locationName, 
+        hourlyData, 
+        cacheKey, 
+        60, // 1시간
+        params.latitude, 
+        params.longitude,
+        params.clerkUserId
+      );
+    } else {
+      console.log('⚠️ 사용자 ID 또는 좌표 정보가 없어 DB 저장을 건너뜁니다.');
+    }
 
     return hourlyData;
   } catch (error) {
@@ -253,6 +272,20 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
     const dbCachedData = await weatherDbService.getDailyWeatherData(cacheKey);
     if (dbCachedData) {
       console.log('🎯 일별 날씨 DB 캐시 적중');
+      
+      // 사용자별 데이터인 경우 임베딩이 없으면 생성
+      if (params.clerkUserId) {
+        try {
+          await weatherDbService.generateEmbeddingsForExistingDailyData(
+            dbCachedData,
+            locationName,
+            params.clerkUserId
+          );
+        } catch (embeddingError) {
+          console.error('⚠️ 캐시된 일별 날씨 데이터 임베딩 생성 실패:', embeddingError);
+        }
+      }
+      
       // DB에서 가져온 데이터를 메모리 캐시에도 저장
       weatherCache.set(cacheKey, dbCachedData, 30);
       return dbCachedData;
@@ -391,19 +424,24 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
     weatherCache.set(cacheKey, result, 30);
     console.log('💾 일별 날씨 메모리 캐시 저장');
     
-    // DB에도 저장 (더 긴 TTL)
-    await weatherDbService.saveDailyWeatherData(
-      locationKey, 
-      locationName, 
-      result, 
-      days, 
-      units, 
-      cacheKey, 
-      120, // 2시간
-      params.latitude, 
-      params.longitude,
-      params.clerkUserId
-    );
+    // 사용자 ID가 없으면 저장하지 않음
+    if (params.clerkUserId && params.latitude !== undefined && params.longitude !== undefined) {
+      // DB에도 저장 (더 긴 TTL)
+      await weatherDbService.saveDailyWeatherData(
+        locationKey, 
+        locationName, 
+        result, 
+        days, 
+        units, 
+        cacheKey, 
+        120, // 2시간
+        params.latitude, 
+        params.longitude,
+        params.clerkUserId
+      );
+    } else {
+      console.log('⚠️ 사용자 ID 또는 좌표 정보가 없어 DB 저장을 건너뜁니다.');
+    }
 
     return result;
   } catch (error) {

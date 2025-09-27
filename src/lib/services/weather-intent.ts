@@ -122,6 +122,36 @@ export class WeatherIntentService {
       };
     }
     
+    // 월/일 패턴 (예: 9월 28일, 12월 25일)
+    const datePattern = /(\d{1,2})월\s*(\d{1,2})일/;
+    const dateMatch = message.match(datePattern);
+    if (dateMatch) {
+      const month = parseInt(dateMatch[1]);
+      const day = parseInt(dateMatch[2]);
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      
+      // 현재 년도로 날짜 생성
+      const targetDate = new Date(currentYear, month - 1, day);
+      
+      // 만약 날짜가 과거라면 다음 년도로 설정
+      if (targetDate < today) {
+        targetDate.setFullYear(currentYear + 1);
+      }
+      
+      console.log('📅 월/일 패턴 감지:', { 
+        original: message, 
+        month, 
+        day, 
+        targetDate: targetDate.toISOString().split('T')[0] 
+      });
+      
+      return {
+        period: 'specific_date',
+        date: targetDate.toISOString().split('T')[0]
+      };
+    }
+    
     if (message.includes('주간') || message.includes('일주일') || message.includes('7일')) {
       return { period: 'week' };
     }

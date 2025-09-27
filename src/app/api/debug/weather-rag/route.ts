@@ -28,12 +28,11 @@ export async function POST(request: NextRequest) {
     // 1. 의도 분석
     const intent = weatherIntentService.analyzeIntent(message);
     
-    // 2. 벡터 검색
+    // 2. 벡터 검색 (사용자별 필터링 적용)
     const vectorSearchResults = await weatherVectorDBService.searchSimilarWeather(
       message,
       testLocation,
-      undefined,
-      5
+      testUserId // 사용자별 필터링 적용
     );
     
     // 3. ChatGPT RAG 응답 생성
@@ -118,9 +117,8 @@ export async function GET(request: NextRequest) {
     const intent = weatherIntentService.analyzeIntent(testMessage);
     const vectorSearchResults = await weatherVectorDBService.searchSimilarWeather(
       testMessage,
-      testLocation,
-      undefined,
-      3
+      userId, // 사용자별 필터링 적용
+      ['daily', 'hourly', 'current'] // 콘텐츠 타입 필터링
     );
     
     const sessionId = `debug_get_${userId}_${Date.now()}`;

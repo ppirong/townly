@@ -1,16 +1,16 @@
 /**
- * 카카오 챗봇 날씨 RAG 스킬 API
- * ChatGPT와 벡터 검색을 활용한 고도화된 날씨 정보 서비스
+ * 카카오 챗봇 날씨 RAG 스킬 API (범용 시스템)
+ * LLM 기반 의도 분석 + 벡터 검색을 활용한 완전 자동화된 날씨 정보 서비스
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { chatGPTRAGService } from '@/lib/services/chatgpt-rag';
-import { weatherVectorDBService } from '@/lib/services/weather-vector-db';
-import { weatherChatbotService } from '@/lib/services/weather-chatbot';
-import { weatherIntentService } from '@/lib/services/weather-intent';
+import { universalWeatherRAGService } from '@/lib/services/universal-weather-rag';
+import { agentWeatherRAGService } from '@/lib/services/agent-weather-rag';
+import { db } from '@/db';
+import { kakaoMessages } from '@/db/schema';
 import { z } from 'zod';
 
-// 카카오 스킬 요청 스키마 (기존과 동일)
+// 카카오 스킬 요청 스키마
 const kakaoSkillRequestSchema = z.object({
   intent: z.object({
     id: z.string(),
@@ -18,19 +18,14 @@ const kakaoSkillRequestSchema = z.object({
   }),
   userRequest: z.object({
     timezone: z.string(),
-    params: z.object({
-      ignoreMe: z.string().optional(),
-    }).optional(),
     block: z.object({
       id: z.string(),
       name: z.string(),
     }),
     utterance: z.string(),
-    lang: z.string().optional(),
     user: z.object({
       id: z.string(),
-      type: z.string().optional(),
-      properties: z.record(z.string(), z.string()).optional(),
+      properties: z.record(z.string(), z.any()).optional(),
     }),
   }),
   bot: z.object({
@@ -39,10 +34,7 @@ const kakaoSkillRequestSchema = z.object({
   }),
   action: z.object({
     name: z.string(),
-    clientExtra: z.record(z.string(), z.string()).optional(),
-    params: z.record(z.string(), z.string()).optional(),
     id: z.string(),
-    detailParams: z.record(z.string(), z.any()).optional(),
   }),
 });
 
@@ -87,7 +79,7 @@ interface KakaoSkillResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🧠 카카오 날씨 RAG 스킬 요청 수신');
+    console.log('🌐 범용 날씨 RAG 스킬 요청 수신');
     
     const body = await request.json();
     console.log('요청 데이터:', JSON.stringify(body, null, 2));
@@ -97,36 +89,54 @@ export async function POST(request: NextRequest) {
     
     const userMessage = validatedData.userRequest.utterance;
     const userId = validatedData.userRequest.user.id;
-    const sessionId = `kakao_${userId}_${Date.now()}`;
     
     console.log('사용자 메시지:', userMessage);
     console.log('사용자 ID:', userId);
     
-    // 사용자 위치 정보 추출
-    const userLocation = validatedData.userRequest.user.properties?.location;
+    // 사용자 기반 시스템에서는 사용자 ID 필수
+    if (!userId) {
+      throw new Error('사용자 기반 날씨 RAG 시스템에서는 사용자 ID가 필수입니다.');
+    }
     
-    // 의도 분석으로 위치 추출
-    const intent = weatherIntentService.analyzeIntent(userMessage);
-    const targetLocation = intent.location || userLocation || '서울';
-    
-    console.log('분석된 위치:', targetLocation);
-    console.log('분석된 의도:', intent);
-
-    // ChatGPT RAG로 응답 생성
-    const ragResponse = await chatGPTRAGService.generateWeatherResponse(
+    // 에이전트 기반 날씨 RAG 시스템으로 처리 (새로운 시스템)
+    const ragResponse = await agentWeatherRAGService.processWeatherQuery(
       userMessage,
-      userId,
-      sessionId,
-      targetLocation
+      '', // 위치 정보 불필요 (사용자 기반)
+      userId
     );
 
-    console.log('RAG 응답 생성 완료:', {
-      tokensUsed: ragResponse.tokensUsed,
-      responseTime: ragResponse.responseTime,
-      contextCount: ragResponse.context.length
+    console.log('🤖 에이전트 RAG 응답 생성 완료:', {
+      success: ragResponse.success,
+      confidence: ragResponse.confidence,
+      method: ragResponse.method,
+      sourceDataCount: ragResponse.sourceData.length,
+      intentType: ragResponse.intent.type,
+      intentDate: ragResponse.intent.date,
+      tokensUsed: 0, // 에이전트 시스템에서는 별도 토큰 추적 없음
+      responseTime: ragResponse.debugInfo?.processingTime || 0
     });
 
-    // 카카오 스킬 응답 형식으로 변환
+    // 🔥 중요: 메시지를 데이터베이스에 저장 (admin 페이지에서 확인 가능)
+    try {
+      const messageRecord = await db.insert(kakaoMessages).values({
+        userKey: userId,
+        message: userMessage.trim(),
+        messageType: 'text',
+        aiResponse: ragResponse.answer,
+        responseType: 'agent_rag',
+        processingTime: `${ragResponse.debugInfo?.processingTime || 0}ms`,
+        channelId: '68bef0501c4ef66e4f5d73be', // 기본 채널 ID
+        rawData: validatedData,
+        receivedAt: new Date(),
+      }).returning({ id: kakaoMessages.id });
+      
+      console.log('💾 날씨 RAG 메시지와 응답이 데이터베이스에 저장되었습니다. ID:', messageRecord[0]?.id);
+    } catch (dbError) {
+      console.error('❌ 날씨 RAG 메시지 저장 오류:', dbError);
+      // DB 오류가 있어도 응답은 정상 처리
+    }
+
+    // 카카오 응답 형식으로 변환
     const kakaoResponse: KakaoSkillResponse = {
       version: "2.0",
       template: {
@@ -137,307 +147,148 @@ export async function POST(request: NextRequest) {
             }
           }
         ],
-        quickReplies: generateSmartQuickReplies(ragResponse, targetLocation)
-      }
-    };
-
-    // 고급 카드 응답 추가 (컨텍스트가 있는 경우)
-    if (ragResponse.context.length > 0) {
-      const topContext = ragResponse.context[0];
-      
-      if (topContext.metadata) {
-        const meta = topContext.metadata;
-        
-        kakaoResponse.template.outputs.push({
-          basicCard: {
-            title: `${targetLocation} 상세 날씨 정보`,
-            description: generateDetailedDescription(meta, topContext),
-            thumbnail: {
-              imageUrl: getWeatherIconUrl(meta.weatherIcon)
-            },
-            buttons: [
-              {
-                action: "message",
-                label: "더 자세한 예보",
-                messageText: `${targetLocation} 주간 날씨 예보 자세히 알려줘`
-              },
-              {
-                action: "message",
-                label: "옷차림 추천",
-                messageText: `${targetLocation} 날씨에 맞는 옷차림 추천해줘`
-              }
-            ]
-          }
-        });
-      }
-    }
-
-    // 컨텍스트 정보 저장 (사용자 선호 위치 + RAG 정보)
-    kakaoResponse.context = {
-      values: [
-        {
-          name: "user_preferred_location",
-          lifeSpan: 5,
-          params: {
-            location: targetLocation
-          }
-        },
-        {
-          name: "rag_conversation",
-          lifeSpan: 3,
-          params: {
-            conversationId: ragResponse.conversationId,
-            tokensUsed: ragResponse.tokensUsed,
-            contextCount: ragResponse.context.length
-          }
+        quickReplies: generateSmartQuickReplies(ragResponse)
+      },
+      data: {
+        // 디버그 정보를 data 필드에 포함
+        ragInfo: {
+          method: ragResponse.method,
+          confidence: ragResponse.confidence,
+          intentType: ragResponse.intent.type,
+          sourceCount: ragResponse.sourceData.length,
+          responseTime: ragResponse.debugInfo?.processingTime || 0,
+          agentPipeline: ragResponse.debugInfo?.agentPipeline || [],
+          qualityMetrics: ragResponse.debugInfo?.qualityMetrics || {}
         }
-      ]
+      }
     };
 
-    console.log('카카오 RAG 응답 완료');
+    console.log('✅ 카카오 RAG 응답 완료');
     return NextResponse.json(kakaoResponse);
-    
+
   } catch (error) {
-    console.error('카카오 날씨 RAG 스킬 오류:', error);
+    console.error('❌ 카카오 날씨 RAG 스킬 오류:', error);
     
-    // 오류 발생 시 기존 시스템으로 폴백
-    try {
-      console.log('🔄 기존 시스템으로 폴백 시도...');
-      
-      const body = await request.json();
-      const validatedData = kakaoSkillRequestSchema.parse(body);
-      const userMessage = validatedData.userRequest.utterance;
-      const userLocation = validatedData.userRequest.user.properties?.location;
-      
-      // 기존 챗봇 서비스로 처리
-      const fallbackResponse = await weatherChatbotService.processWeatherQuery(
-        userMessage,
-        userLocation
-      );
-      
-      const fallbackKakaoResponse: KakaoSkillResponse = {
-        version: "2.0",
-        template: {
-          outputs: [
-            {
-              simpleText: {
-                text: fallbackResponse.message + '\n\n(기본 시스템으로 응답)'
-              }
+    // 오류 발생 시 기본 응답
+    const errorResponse: KakaoSkillResponse = {
+      version: "2.0",
+      template: {
+        outputs: [
+          {
+            simpleText: {
+              text: "죄송합니다. 날씨 정보를 조회하는 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요."
             }
-          ],
-          quickReplies: [
-            {
-              label: "다시 시도",
-              action: "message",
-              messageText: userMessage
-            },
-            {
-              label: "오늘 날씨",
-              action: "message",
-              messageText: "오늘 날씨"
-            }
-          ]
-        }
-      };
-      
-      return NextResponse.json(fallbackKakaoResponse);
-      
-    } catch (fallbackError) {
-      console.error('폴백도 실패:', fallbackError);
-      
-      // 최종 에러 응답
-      const errorResponse: KakaoSkillResponse = {
-        version: "2.0",
-        template: {
-          outputs: [
-            {
-              simpleText: {
-                text: "죄송합니다. 현재 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요."
-              }
-            }
-          ],
-          quickReplies: [
-            {
-              label: "다시 시도",
-              action: "message",
-              messageText: "오늘 날씨"
-            }
-          ]
-        }
-      };
-      
-      return NextResponse.json(errorResponse);
-    }
+          }
+        ],
+        quickReplies: [
+          {
+            label: "다시 시도",
+            action: "message",
+            messageText: "오늘 날씨"
+          },
+          {
+            label: "내일 날씨",
+            action: "message", 
+            messageText: "내일 날씨"
+          }
+        ]
+      }
+    };
+
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }
 
 /**
- * 스마트한 빠른 응답 버튼 생성 (RAG 컨텍스트 기반)
+ * 응답 결과에 따른 지능형 빠른 응답 생성
  */
-function generateSmartQuickReplies(ragResponse: any, location: string): Array<{label: string, action: string, messageText: string}> {
-  const replies = [];
+function generateSmartQuickReplies(ragResponse: any): Array<{label: string; action: string; messageText: string}> {
+  const intent = ragResponse.intent;
+  const location = intent.location || '서울';
   
-  // 컨텍스트 기반 추천
-  if (ragResponse.context.length > 0) {
-    const topContext = ragResponse.context[0];
-    
-    if (topContext.contentType === 'current') {
-      replies.push({
-        label: "시간별 예보",
-        action: "message",
-        messageText: `${location} 오늘 시간별 날씨 예보`
-      });
-    }
-    
-    if (topContext.contentType === 'daily') {
-      replies.push({
-        label: "주간 예보",
-        action: "message",
-        messageText: `${location} 이번 주 날씨 예보`
-      });
-    }
-    
-    // 강수 관련 정보가 있으면 우산 관련 질문 추가
-    if (topContext.metadata?.precipitationProbability > 30) {
-      replies.push({
-        label: "우산 필요할까?",
-        action: "message",
-        messageText: "우산 가져가야 할까?"
-      });
-    }
-    
-    // 온도 정보가 있으면 옷차림 관련 질문 추가
-    if (topContext.metadata?.temperature !== undefined) {
-      replies.push({
-        label: "옷차림 추천",
-        action: "message",
-        messageText: "오늘 뭐 입을까?"
-      });
-    }
-  }
-  
-  // 기본 추천 (부족한 경우 채우기)
-  const defaultReplies = [
+  // 기본 빠른 응답
+  const baseReplies = [
     {
       label: "내일 날씨",
       action: "message",
-      messageText: `${location} 내일 날씨`
+      messageText: "내일 날씨 알려줘"
     },
     {
-      label: "다른 지역",
+      label: "주간 예보", 
       action: "message",
-      messageText: "부산 날씨"
+      messageText: "이번 주 날씨 예보"
     }
   ];
-  
-  // 최대 4개까지
-  while (replies.length < 4 && defaultReplies.length > 0) {
-    replies.push(defaultReplies.shift()!);
+
+  // 의도 타입에 따른 추가 빠른 응답
+  if (intent.type === 'daily' || intent.type === 'current') {
+    baseReplies.unshift({
+      label: "시간별 날씨",
+      action: "message",
+      messageText: `${location} 시간별 날씨`
+    });
   }
   
-  return replies.slice(0, 4);
+  if (intent.type === 'hourly') {
+    baseReplies.unshift({
+      label: "일별 예보",
+      action: "message", 
+      messageText: `${location} 일별 날씨`
+    });
+  }
+
+  // 다른 위치 추천
+  if (location === '서울') {
+    baseReplies.push({
+      label: "부산 날씨",
+      action: "message",
+      messageText: "부산 날씨 알려줘"
+    });
+  } else {
+    baseReplies.push({
+      label: "서울 날씨", 
+      action: "message",
+      messageText: "서울 날씨 알려줘"
+    });
+  }
+
+  return baseReplies.slice(0, 4); // 최대 4개까지
 }
 
-/**
- * 상세 설명 생성
- */
-function generateDetailedDescription(metadata: any, context: any): string {
-  let description = '';
-  
-  if (metadata.temperature) {
-    description += `온도: ${metadata.temperature}°C\n`;
-  }
-  
-  if (metadata.highTemp && metadata.lowTemp) {
-    description += `최고/최저: ${metadata.highTemp}°C/${metadata.lowTemp}°C\n`;
-  }
-  
-  if (metadata.conditions) {
-    description += `날씨: ${metadata.conditions}\n`;
-  }
-  
-  if (metadata.precipitationProbability > 0) {
-    description += `강수확률: ${metadata.precipitationProbability}%\n`;
-  }
-  
-  if (metadata.humidity) {
-    description += `습도: ${metadata.humidity}%\n`;
-  }
-  
-  if (metadata.windSpeed > 0) {
-    description += `풍속: ${metadata.windSpeed}km/h\n`;
-  }
-  
-  description += `\n유사도: ${(context.similarity * 100).toFixed(1)}%`;
-  
-  return description.trim();
-}
-
-/**
- * 날씨 아이콘 URL 생성
- */
-function getWeatherIconUrl(iconNumber?: number): string {
-  if (!iconNumber) {
-    return 'https://developer.accuweather.com/sites/default/files/01-s.png';
-  }
-  
-  const iconString = iconNumber.toString().padStart(2, '0');
-  return `https://developer.accuweather.com/sites/default/files/${iconString}-s.png`;
-}
-
-/**
- * GET 요청 처리 (스킬 상태 확인용)
- */
 export async function GET() {
   try {
-    // 벡터 DB 통계 조회
-    const vectorStats = await weatherVectorDBService.getVectorDBStats();
-    
-    // 토큰 사용량 통계 조회
-    const tokenStats = await chatGPTRAGService.getTokenUsageStats();
+    const systemStatus = await universalWeatherRAGService.getSystemStatus();
     
     return NextResponse.json({
-      name: "날씨 RAG 스킬",
-      version: "2.0.0",
-      description: "ChatGPT와 벡터 검색을 활용한 고도화된 날씨 정보 서비스",
+      service: "카카오 날씨 RAG 스킬 (범용 시스템)",
+      version: "3.0.0",
+      description: "LLM 기반 의도 분석 + 벡터 검색을 활용한 완전 자동화된 날씨 정보 서비스",
+      features: [
+        "🧠 GPT-4o-mini 기반 지능형 의도 분석",
+        "🔍 벡터 검색 기반 RAG",
+        "🌐 실시간 API + 하이브리드 응답",
+        "📅 정확한 날짜/시간 추출",
+        "🎯 하드코딩 없는 범용 처리",
+        "⚡ 자동 폴백 시스템"
+      ],
+      systemStatus,
       endpoints: {
         skill: "/api/kakao/skills/weather-rag",
-        fallback: "/api/kakao/skills/weather"
+        migration: "/api/admin/weather-migration",
+        debug: "/api/debug/weather-rag"
       },
-      capabilities: [
-        "자연어 질문 이해",
-        "벡터 검색 기반 컨텍스트 제공",
-        "ChatGPT 기반 개인화 응답",
-        "실시간 날씨 데이터 연동",
-        "다중 의도 분석",
-        "스마트 추천 시스템"
-      ],
-      supported_locations: [
-        "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
-        "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"
-      ],
-      technology_stack: {
-        ai_model: "gpt-4o-mini",
-        embedding_model: "text-embedding-3-small",
-        vector_search: "cosine_similarity",
-        database: "postgresql",
-        framework: "nextjs"
-      },
-      statistics: {
-        vector_db: vectorStats,
-        token_usage: tokenStats
-      },
-      last_updated: new Date().toISOString()
+      timestamp: new Date().toISOString()
     });
+
   } catch (error) {
-    console.error('RAG 스킬 상태 조회 실패:', error);
+    console.error('❌ 시스템 상태 조회 실패:', error);
     
-    return NextResponse.json({
-      name: "날씨 RAG 스킬",
-      version: "2.0.0",
-      status: "error",
-      error: "상태 조회 중 오류 발생",
-      last_updated: new Date().toISOString()
-    });
+    return NextResponse.json(
+      { 
+        error: "시스템 상태 조회 실패",
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
   }
 }

@@ -12,7 +12,7 @@ import {
   type NewDailyWeatherData, 
   type NewWeatherLocationKey
 } from '@/db/schema';
-import { eq, and, gte, lte, count } from 'drizzle-orm';
+import { eq, and, gte, lte, count, sql } from 'drizzle-orm';
 import type { 
   HourlyWeatherData, 
   DailyWeatherData, 
@@ -106,10 +106,14 @@ export class WeatherDatabaseService {
     weatherData: HourlyWeatherData[],
     cacheKey: string,
     ttlMinutes: number = 10,
-    latitude?: number,
-    longitude?: number,
-    clerkUserId?: string
+    latitude: number,
+    longitude: number,
+    clerkUserId: string // 필수 파라미터로 변경
   ): Promise<void> {
+    if (!clerkUserId) {
+      throw new Error('시간별 날씨 데이터 저장 시 사용자 ID(clerkUserId)는 필수입니다.');
+    }
+    
     try {
       const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
       
@@ -132,11 +136,11 @@ export class WeatherDatabaseService {
         }
         
         return {
-          clerkUserId: clerkUserId || null,
+          clerkUserId,
           locationKey,
-          locationName,
-          latitude: latitude?.toString() || null,
-          longitude: longitude?.toString() || null,
+          locationName: `${latitude},${longitude}`, // 좌표로 대체
+          latitude: latitude.toString(),
+          longitude: longitude.toString(),
           forecastDate, // 환경 무관 KST 기준 날짜
           forecastHour, // 환경 무관 KST 기준 시간 (0-23)
           forecastDateTime: kstDateTime, // KST로 저장
@@ -198,6 +202,44 @@ export class WeatherDatabaseService {
   }
 
   /**
+   * 기존 시간별 날씨 데이터에 대해 임베딩 생성 (캐시에서 가져온 데이터용)
+   */
+  async generateEmbeddingsForExistingHourlyData(
+    weatherData: HourlyWeatherData[],
+    locationName: string,
+    clerkUserId: string
+  ): Promise<void> {
+    try {
+      console.log('🔗 기존 시간별 날씨 데이터 벡터 임베딩 생성 시작...');
+      
+      const embeddingPromises = weatherData.map(async (data) => {
+        // 날씨 데이터에서 예보 날짜와 시간 추출
+        const timestamp = new Date(data.timestamp);
+        const forecastDate = timestamp.toISOString().split('T')[0];
+        const forecastHour = timestamp.getHours();
+        
+        return await weatherVectorDBService.saveWeatherEmbedding(
+          'hourly',
+          locationName,
+          {
+            ...data,
+            forecastDate,
+            forecastHour,
+          },
+          undefined, // weatherDataId가 없는 경우
+          clerkUserId
+        );
+      });
+      
+      await Promise.all(embeddingPromises);
+      console.log('✅ 기존 시간별 날씨 벡터 임베딩 생성 완료');
+    } catch (embeddingError) {
+      console.error('⚠️ 기존 시간별 날씨 벡터 임베딩 생성 실패:', embeddingError);
+      // 에러가 발생해도 메인 로직에는 영향을 주지 않도록 함
+    }
+  }
+
+  /**
    * 시간별 날씨 데이터를 데이터베이스에서 조회
    */
   async getHourlyWeatherData(cacheKey: string): Promise<HourlyWeatherData[] | null> {
@@ -251,21 +293,25 @@ export class WeatherDatabaseService {
     units: string,
     cacheKey: string,
     ttlMinutes: number = 30,
-    latitude?: number,
-    longitude?: number,
-    clerkUserId?: string
+    latitude: number,
+    longitude: number,
+    clerkUserId: string // 필수 파라미터로 변경
   ): Promise<void> {
+    if (!clerkUserId) {
+      throw new Error('일별 날씨 데이터 저장 시 사용자 ID(clerkUserId)는 필수입니다.');
+    }
+    
     try {
       const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
       
       const dbRecords: NewDailyWeatherData[] = weatherResponse.dailyForecasts.map(data => {
         // UTC 시간을 한국 시간으로 변환
         return {
-          clerkUserId: clerkUserId || null,
+          clerkUserId,
           locationKey,
-          locationName,
-          latitude: latitude?.toString() || null,
-          longitude: longitude?.toString() || null,
+          locationName: `${latitude},${longitude}`, // 좌표로 대체
+          latitude: latitude.toString(),
+          longitude: longitude.toString(),
           forecastDate: formatKoreanDate(data.timestamp, true), // 한국 시간 기준 날짜
           dayOfWeek: data.dayOfWeek, // 이미 한국 시간 기준으로 계산됨
           temperature: data.temperature,
@@ -325,6 +371,43 @@ export class WeatherDatabaseService {
     } catch (error) {
       console.error('일별 날씨 DB 저장 실패:', error);
       // 저장 실패해도 서비스는 계속 동작하도록 에러를 던지지 않음
+    }
+  }
+
+  /**
+   * 기존 일별 날씨 데이터에 대해 임베딩 생성 (캐시에서 가져온 데이터용)
+   */
+  async generateEmbeddingsForExistingDailyData(
+    weatherResponse: DailyWeatherResponse,
+    locationName: string,
+    clerkUserId: string
+  ): Promise<void> {
+    try {
+      console.log('🔗 기존 일별 날씨 데이터 벡터 임베딩 생성 시작...');
+      
+      const embeddingPromises = weatherResponse.dailyForecasts.map(async (data) => {
+        // 날씨 데이터에서 예보 날짜 추출
+        const timestamp = new Date(data.timestamp);
+        const forecastDate = timestamp.toISOString().split('T')[0];
+        
+        return await weatherVectorDBService.saveWeatherEmbedding(
+          'daily',
+          locationName,
+          {
+            ...data,
+            forecastDate,
+            dayOfWeek: data.dayOfWeek,
+          },
+          undefined, // weatherDataId가 없는 경우
+          clerkUserId
+        );
+      });
+      
+      await Promise.all(embeddingPromises);
+      console.log('✅ 기존 일별 날씨 벡터 임베딩 생성 완료');
+    } catch (embeddingError) {
+      console.error('⚠️ 기존 일별 날씨 벡터 임베딩 생성 실패:', embeddingError);
+      // 에러가 발생해도 메인 로직에는 영향을 주지 않도록 함
     }
   }
 
@@ -410,6 +493,52 @@ export class WeatherDatabaseService {
       });
     } catch (error) {
       console.error('날씨 캐시 정리 실패:', error);
+    }
+  }
+
+  /**
+   * 특정 위치의 모든 캐시 데이터 강제 삭제 (만료 시간 관계없이)
+   */
+  async forceDeleteLocationCaches(locationCacheKey: string): Promise<void> {
+    try {
+      // 1. 해당 위치의 위치 키 정보 조회
+      const locationKeyData = await db
+        .select()
+        .from(weatherLocationKeys)
+        .where(eq(weatherLocationKeys.cacheKey, locationCacheKey));
+
+      if (locationKeyData.length === 0) {
+        console.log('🔍 해당 위치의 캐시 데이터가 없습니다:', locationCacheKey);
+        return;
+      }
+
+      const locationKey = locationKeyData[0].locationKey;
+      
+      // 2. 해당 위치키와 관련된 모든 캐시 삭제
+      // 시간별 날씨 데이터 삭제 (캐시키에 locationKey가 포함된 모든 데이터)
+      const hourlyDeleted = await db
+        .delete(hourlyWeatherData)
+        .where(sql`${hourlyWeatherData.cacheKey} LIKE '%' || ${locationKey} || '%'`);
+
+      // 일별 날씨 데이터 삭제 (캐시키에 locationKey가 포함된 모든 데이터)
+      const dailyDeleted = await db
+        .delete(dailyWeatherData)
+        .where(sql`${dailyWeatherData.cacheKey} LIKE '%' || ${locationKey} || '%'`);
+
+      // 위치 키 자체도 삭제
+      const locationDeleted = await db
+        .delete(weatherLocationKeys)
+        .where(eq(weatherLocationKeys.locationKey, locationKey));
+
+      console.log('🧹 특정 위치 캐시 강제 삭제 완료:', {
+        locationKey,
+        hourlyDeleted: hourlyDeleted.rowCount,
+        dailyDeleted: dailyDeleted.rowCount,
+        locationDeleted: locationDeleted.rowCount,
+      });
+    } catch (error) {
+      console.error('특정 위치 캐시 강제 삭제 실패:', error);
+      throw error;
     }
   }
 

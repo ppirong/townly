@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { kakaoMessages, webhookLogs } from '@/db/schema';
 import { getClaudeResponse, generateContextualSystemPrompt, validateAndProcessResponse } from '@/lib/services/claude';
+import { weatherIntentDetector } from '@/lib/services/weather-intent-detector';
+import { agentWeatherRAGService } from '@/lib/services/agent-weather-rag';
 
 /**
  * 카카오톡 챗봇 스킬 웹훅 엔드포인트
@@ -148,10 +150,57 @@ export async function POST(request: NextRequest) {
     
     console.log(`👤 사용자 ${userId}: "${userUtterance}"`);
     
-    // Claude를 사용한 챗봇 응답 생성
+    // 🌤️ 날씨 질문 감지 및 라우팅
+    const weatherDetection = weatherIntentDetector.detectWeatherIntent(userUtterance);
+    console.log(`🔍 날씨 질문 감지: ${weatherDetection.isWeatherQuery} (신뢰도: ${weatherDetection.confidence.toFixed(2)})`);
+    
+    let responseResult: any;
+    let aiProcessingTime: string; // 후에 값이 할당되므로 let 사용
     const aiResponseStartTime = Date.now();
-    const responseResult = await generateAITownlyResponseWithMetadata(userUtterance);
-    const aiProcessingTime = `${Date.now() - aiResponseStartTime}ms`;
+    
+    if (weatherDetection.isWeatherQuery) {
+      console.log('🌤️ 날씨 질문으로 감지됨 - 에이전트 RAG 시스템 호출');
+      
+      try {
+        // 에이전트 기반 날씨 RAG 시스템 호출
+        const weatherResponse = await agentWeatherRAGService.processWeatherQuery(
+          userUtterance,
+          '', // 위치 정보 불필요 (사용자 기반)
+          userId
+        );
+        
+        responseResult = {
+          text: weatherResponse.answer,
+          type: 'weather_agent_rag',
+          confidence: weatherResponse.confidence,
+          metadata: {
+            method: weatherResponse.method,
+            agentPipeline: weatherResponse.debugInfo?.agentPipeline,
+            qualityMetrics: weatherResponse.debugInfo?.qualityMetrics
+          }
+        };
+        
+        console.log(`🤖 날씨 에이전트 응답 완료 (신뢰도: ${weatherResponse.confidence.toFixed(2)})`);
+        
+      } catch (weatherError) {
+        console.error('❌ 날씨 에이전트 처리 실패:', weatherError);
+        
+        // 날씨 시스템 실패 시 Claude로 폴백
+        responseResult = await generateAITownlyResponseWithMetadata(userUtterance);
+        responseResult.type = 'claude_fallback';
+        
+        console.log('🔄 Claude 폴백 응답 사용');
+      }
+      
+    } else {
+      console.log('💬 일반 대화로 감지됨 - Claude 시스템 사용');
+      
+      // 일반 대화는 Claude를 사용한 챗봇 응답 생성
+      responseResult = await generateAITownlyResponseWithMetadata(userUtterance);
+    }
+    
+    // eslint-disable-next-line prefer-const
+    aiProcessingTime = `${Date.now() - aiResponseStartTime}ms`;
     
     console.log(`🤖 ${responseResult.type} 응답: "${responseResult.text}"`);
     console.log(`⏱️ AI 응답 생성 시간: ${aiProcessingTime}`);

@@ -115,7 +115,9 @@ export class OpenAIEmbeddingService {
     const date = data.forecastDate || new Date().toISOString().split('T')[0];
     const hour = data.forecastHour || new Date().getHours();
     
-    let text = `${location}의 ${date} ${hour}시 현재 날씨: `;
+    // 위치 정보를 더 강조하여 임베딩에 포함
+    let text = `위치: ${location} 지역의 ${date} ${hour}시 현재 날씨 정보입니다. `;
+    text += `${location}에서 측정된 `;
     text += `온도 ${data.temperature}도, `;
     text += `날씨 상태 ${data.conditions || data.weatherConditions}, `;
     
@@ -123,6 +125,9 @@ export class OpenAIEmbeddingService {
     if (data.precipitationProbability > 0) text += `강수확률 ${data.precipitationProbability}%, `;
     if (data.rainProbability > 0) text += `비확률 ${data.rainProbability}%, `;
     if (data.windSpeed > 0) text += `풍속 ${data.windSpeed}km/h, `;
+    
+    // 위치 키워드를 다시 한번 강조
+    text += ` (측정 지역: ${location})`;
     
     return text.trim().replace(/,$/, '');
   }
@@ -135,12 +140,17 @@ export class OpenAIEmbeddingService {
     const date = data.forecastDate || new Date().toISOString().split('T')[0];
     const hour = data.forecastHour || new Date().getHours();
     
-    let text = `${location}의 ${date} ${hour}시 시간별 날씨 예보: `;
+    // 위치 정보를 강조하여 임베딩에 포함
+    let text = `위치: ${location} 지역의 ${date} ${hour}시 시간별 날씨 예보입니다. `;
+    text += `${location}에서 예측된 `;
     text += `예상 온도 ${data.temperature}도, `;
     text += `날씨 ${data.conditions}, `;
     
     if (data.precipitationProbability > 0) text += `강수확률 ${data.precipitationProbability}%, `;
     if (data.humidity) text += `습도 ${data.humidity}%, `;
+    
+    // 위치 키워드를 다시 한번 강조
+    text += ` (예보 지역: ${location})`;
     
     return text.trim().replace(/,$/, '');
   }
@@ -153,7 +163,9 @@ export class OpenAIEmbeddingService {
     const date = data.forecastDate || new Date().toISOString().split('T')[0];
     const dayOfWeek = data.dayOfWeek || '';
     
-    let text = `${location}의 ${date} ${dayOfWeek}요일 일별 날씨 예보: `;
+    // 위치 정보를 강조하여 임베딩에 포함
+    let text = `위치: ${location} 지역의 ${date} ${dayOfWeek}요일 일별 날씨 예보입니다. `;
+    text += `${location}에서 예측된 `;
     
     if (data.highTemp && data.lowTemp) {
       text += `최고기온 ${data.highTemp}도, 최저기온 ${data.lowTemp}도, `;
@@ -181,6 +193,9 @@ export class OpenAIEmbeddingService {
       }
       text += ', ';
     }
+    
+    // 위치 키워드를 다시 한번 강조
+    text += ` (예보 지역: ${location})`;
     
     return text.trim().replace(/,$/, '');
   }
@@ -214,6 +229,48 @@ export class OpenAIEmbeddingService {
     if (data.humidity) text += `습도 ${data.humidity}%, `;
     
     return text.trim().replace(/,$/, '');
+  }
+
+  /**
+   * ChatGPT 완성 생성 (에이전트용)
+   */
+  async generateChatCompletion(
+    messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
+    options: {
+      model?: string;
+      temperature?: number;
+      max_tokens?: number;
+    } = {}
+  ): Promise<string> {
+    try {
+      const {
+        model = 'gpt-4o-mini',
+        temperature = 0.3,
+        max_tokens = 1000
+      } = options;
+
+      console.log('🤖 ChatGPT 완성 생성:', { model, temperature, max_tokens });
+      
+      const response = await openai.chat.completions.create({
+        model,
+        messages,
+        temperature,
+        max_tokens
+      });
+
+      const completion = response.choices[0]?.message?.content || '';
+      
+      console.log('✅ ChatGPT 완성 생성 완료:', {
+        length: completion.length,
+        tokensUsed: response.usage?.total_tokens || 0
+      });
+
+      return completion;
+      
+    } catch (error) {
+      console.error('❌ ChatGPT 완성 생성 실패:', error);
+      throw new Error(`ChatGPT 완성 생성 실패: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**

@@ -36,20 +36,25 @@ export class ChatGPTRAGService {
     model: 'gpt-4o-mini', // 비용 효율적인 모델
     temperature: 0.3, // 일관성 있는 응답을 위해 낮은 온도
     maxTokens: 800,
-    systemPrompt: `당신은 한국의 날씨 정보를 제공하는 전문적이고 친근한 AI 어시스턴트입니다.
+    systemPrompt: `당신은 한국의 위치별 날씨 정보를 제공하는 전문적이고 친근한 AI 어시스턴트입니다.
 
 주요 역할:
 1. 제공된 날씨 데이터를 바탕으로 정확하고 유용한 정보를 제공합니다.
-2. 사용자의 질문에 대해 구체적이고 실용적인 답변을 제공합니다.
+2. 사용자가 요청한 특정 위치의 날씨 정보만 답변합니다.
 3. 날씨에 따른 생활 조언(옷차림, 우산 필요성 등)을 포함합니다.
 4. 한국어로 자연스럽고 친근하게 대화합니다.
 
 응답 가이드라인:
-- 간결하면서도 충분한 정보를 제공하세요
+- 반드시 제공된 컨텍스트 데이터만 사용하여 답변하세요
+- 사용자가 요청한 위치의 날씨 정보만 제공하세요
 - 온도, 날씨 상태, 강수확률 등 핵심 정보를 포함하세요
+- 위치별로 다른 날씨 정보가 있다면 반드시 지역명을 명시하세요
 - 사용자의 안전과 편의를 위한 실용적 조언을 제공하세요
 - 불확실한 정보에 대해서는 정확히 명시하세요
 - 이모지를 적절히 사용하여 친근함을 표현하세요
+- 답변은 200자 이내로 간결하게 작성하세요
+
+중요: 컨텍스트에 없는 정보나 다른 지역의 정보는 추측하지 마세요.
 
 컨텍스트 정보:
 아래는 사용자의 질문과 관련된 실제 날씨 데이터입니다. 이 정보를 바탕으로 정확한 답변을 제공하세요.`
@@ -70,19 +75,18 @@ export class ChatGPTRAGService {
     try {
       console.log('🤖 ChatGPT RAG 처리 시작:', { userQuestion, userId, locationName });
       
-      // 1. 벡터 검색으로 관련 날씨 정보 수집
+      // 1. 사용자 위치 기반 벡터 검색으로 관련 날씨 정보 수집
       const searchResults = await weatherVectorDBService.searchSimilarWeather(
         userQuestion,
-        locationName,
-        undefined, // 모든 타입 검색
-        5 // 상위 5개 결과
+        userId, // 사용자별 필터링 적용
+        undefined // 모든 타입 검색
       );
 
       // 벡터 데이터가 없으면 기존 날씨 서비스로 폴백
       if (searchResults.length === 0) {
         console.log('🔄 벡터 데이터 없음 - 기존 날씨 서비스로 폴백');
         const { weatherChatbotService } = await import('./weather-chatbot');
-        const fallbackResponse = await weatherChatbotService.processWeatherQuery(userQuestion, locationName);
+        const fallbackResponse = await weatherChatbotService.processWeatherQuery(userQuestion, locationName || 'Seoul', userId);
         
         if (fallbackResponse.success) {
           // 임시로 대화 기록 저장을 비활성화 (테이블이 없는 경우)
