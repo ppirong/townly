@@ -118,13 +118,17 @@ export class WeatherDatabaseService {
         // 절대 추가 변환하지 않음!
         const kstDateTime = new Date(data.timestamp);
         
+        // 환경 무관하게 KST 시간 추출 (ISO 문자열 파싱 사용)
+        const forecastDate = kstDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
+        const forecastHour = parseInt(kstDateTime.toISOString().split('T')[1].split(':')[0], 10); // 0-23
+        
         // 디버깅: 첫 3개 레코드의 시간 확인
         const dataIndex = weatherData.indexOf(data);
         if (dataIndex < 3) {
           console.log(`📅 DB 저장 ${dataIndex}:`);
           console.log(`  - timestamp (KST): ${data.timestamp}`);
-          console.log(`  - forecastDate: ${kstDateTime.toISOString().split('T')[0]}`);
-          console.log(`  - forecastHour: ${kstDateTime.getHours()}`);
+          console.log(`  - forecastDate: ${forecastDate}`);
+          console.log(`  - forecastHour: ${forecastHour}`);
         }
         
         return {
@@ -133,8 +137,8 @@ export class WeatherDatabaseService {
           locationName,
           latitude: latitude?.toString() || null,
           longitude: longitude?.toString() || null,
-          forecastDate: kstDateTime.toISOString().split('T')[0], // KST 기준 날짜
-          forecastHour: kstDateTime.getHours(), // KST 기준 시간 (0-23)
+          forecastDate, // 환경 무관 KST 기준 날짜
+          forecastHour, // 환경 무관 KST 기준 시간 (0-23)
           forecastDateTime: kstDateTime, // KST로 저장
           temperature: data.temperature,
           conditions: data.conditions,
@@ -216,7 +220,7 @@ export class WeatherDatabaseService {
         return results.map(record => ({
           location: record.locationName,
           timestamp: record.forecastDateTime.toISOString(),
-          hour: record.forecastDateTime.toLocaleTimeString('ko-KR', { hour: '2-digit', hour12: false }),
+          hour: `${record.forecastHour.toString().padStart(2, '0')}시`, // forecastHour 필드 사용 (이미 KST)
           temperature: record.temperature,
           conditions: record.conditions,
           weatherIcon: record.weatherIcon,

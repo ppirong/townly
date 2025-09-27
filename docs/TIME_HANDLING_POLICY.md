@@ -15,9 +15,9 @@ AccuWeather API DateTime
 ```
 
 ### 3. 데이터 저장 형식
-- `timestamp`: KST ISO 8601 형식 (예: "2025-09-27T01:00:00.000Z")
+- `timestamp`: KST ISO 8601 형식 (예: "2025-09-27T13:00:00.000Z")
 - `forecastDate`: YYYY-MM-DD 형식 (예: "2025-09-27")
-- `forecastHour`: 0-23 정수 (예: 1)
+- `forecastHour`: 0-23 정수 (예: 13) - **환경 무관 KST 시간**
 - `forecastDateTime`: KST Date 객체
 
 ## 구현
@@ -26,8 +26,8 @@ AccuWeather API DateTime
 
 #### `src/lib/utils/datetime.ts`
 - ✅ **유일한 시간 변환 지점**
-- `convertAccuWeatherDateTimeToKST()`: AccuWeather DateTime → KST 변환
-- `formatKSTTime()`: KST 시간 포맷팅
+- `convertAccuWeatherDateTimeToKST()`: AccuWeather DateTime → KST 변환 (**환경 무관**)
+- `formatKSTTime()`: KST 시간 포맷팅 (**환경 무관**)
 - `detectAccuWeatherTimezone()`: 시간대 자동 감지
 
 #### `src/lib/services/weather.ts`
@@ -37,7 +37,8 @@ AccuWeather API DateTime
 
 #### `src/lib/services/weather-db.ts`
 - ✅ `timestamp`를 그대로 사용 (이미 KST)
-- ✅ `forecastDate`, `forecastHour` 직접 추출
+- ✅ `forecastDate`, `forecastHour` **환경 무관 ISO 파싱으로 추출**
+- ❌ `.getHours()` 등 환경 의존적 메서드 사용 금지
 - ❌ 추가 시간 변환 절대 금지
 
 #### 기타 파일들
@@ -64,10 +65,10 @@ ORDER BY forecast_datetime
 LIMIT 5;
 ```
 
-### 3. 예상 결과
-- `forecast_datetime`: 2025-09-27 01:00:00 → `forecast_hour`: 1
-- `forecast_datetime`: 2025-09-27 02:00:00 → `forecast_hour`: 2
-- **절대로** 10, 11시가 나오면 안됨 (9시간 중복 변환 오류)
+### 3. 예상 결과 (환경 무관)
+- `forecast_datetime`: 2025-09-27 13:00:00 → `forecast_hour`: 13
+- `forecast_datetime`: 2025-09-27 14:00:00 → `forecast_hour`: 14
+- **로컬과 Vercel에서 동일한 결과** (환경 무관 구현)
 
 ## 문제 해결
 
@@ -76,17 +77,19 @@ LIMIT 5;
 POST /api/debug/fix-forecast-hour
 ```
 
-### 새로운 데이터 확인
+### 시간대 일관성 테스트
 ```bash
-GET /api/debug/analyze-existing-time
+GET /api/debug/timezone-test
 ```
 
 ## 주의사항
 
 1. **절대 금지**: 여러 곳에서 시간 변환
 2. **절대 금지**: UTC +9 중복 적용
-3. **필수**: 모든 시간은 KST 기준으로 통일
-4. **필수**: 한 번 변환된 시간은 그대로 사용
+3. **절대 금지**: `.getHours()`, `.toLocaleTimeString()` 등 환경 의존적 메서드
+4. **필수**: 모든 시간은 KST 기준으로 통일
+5. **필수**: 한 번 변환된 시간은 그대로 사용
+6. **필수**: ISO 문자열 파싱으로 환경 무관 구현
 
 ## 개발 가이드
 
@@ -100,3 +103,6 @@ GET /api/debug/analyze-existing-time
 - [ ] 중복 변환 로직이 없는가?
 - [ ] KST 시간을 그대로 사용하는가?
 - [ ] `+9` 시간 계산이 중복되지 않는가?
+- [ ] **환경 의존적 메서드 사용 금지**: `.getHours()`, `.toLocaleTimeString()` 등
+- [ ] **ISO 문자열 파싱 사용**: 환경 무관 시간 추출
+- [ ] **로컬과 Vercel에서 동일한 결과 보장**

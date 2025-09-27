@@ -10,8 +10,7 @@
 /**
  * AccuWeather DateTime을 KST로 변환하는 단일 함수
  * 
- * 중요: 분석 결과 AccuWeather는 이미 KST 시간으로 응답을 제공함!
- * 따라서 추가 시간대 변환 없이 그대로 사용
+ * 환경에 상관없이 항상 KST 시간대를 기준으로 변환합니다.
  */
 export function convertAccuWeatherDateTimeToKST(accuWeatherDateTime: string): {
   kstDateTime: Date;
@@ -20,14 +19,18 @@ export function convertAccuWeatherDateTimeToKST(accuWeatherDateTime: string): {
 } {
   console.log('🕐 AccuWeather DateTime 처리 시작:', accuWeatherDateTime);
   
-  // AccuWeather DateTime을 그대로 파싱 (이미 KST)
-  const kstDateTime = new Date(accuWeatherDateTime);
+  // AccuWeather DateTime을 UTC로 파싱
+  const utcDateTime = new Date(accuWeatherDateTime);
   
-  console.log('🕐 KST 시간 (변환 없음):', kstDateTime.toISOString());
+  // 명시적으로 KST로 변환 (UTC+9)
+  const kstDateTime = new Date(utcDateTime.getTime() + (9 * 60 * 60 * 1000));
   
-  // KST 기준으로 날짜와 시간 추출
+  console.log('🕐 UTC 시간:', utcDateTime.toISOString());
+  console.log('🕐 KST 시간 (UTC+9):', kstDateTime.toISOString());
+  
+  // KST 기준으로 날짜와 시간 추출 (환경 무관하게 UTC 시간 사용)
   const forecastDate = kstDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
-  const forecastHour = kstDateTime.getHours(); // 0-23
+  const forecastHour = parseInt(kstDateTime.toISOString().split('T')[1].split(':')[0], 10); // KST 시간 (0-23)
   
   console.log('📅 최종 결과:', {
     forecastDate,
@@ -65,22 +68,28 @@ export function detectAccuWeatherTimezone(accuWeatherDateTime: string): 'KST' | 
 
 /**
  * KST 시간에서 표시용 시간 문자열 생성
- * 모든 곳에서 동일한 형식 사용
+ * 환경에 상관없이 일관된 형식 사용
  */
 export function formatKSTTime(kstDateTime: Date): {
   hour: string;
   date: string;
   dayOfWeek: string;
 } {
+  // KST DateTime에서 환경 무관하게 시간 추출
+  const hour = parseInt(kstDateTime.toISOString().split('T')[1].split(':')[0], 10);
+  const hourString = `${hour.toString().padStart(2, '0')}시`;
+  
+  // 환경 무관하게 날짜 포맷팅
+  const date = kstDateTime.toISOString().split('T')[0];
+  
+  // 요일 계산 (환경 무관)
+  const dayOfWeekNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const dayOfWeek = dayOfWeekNames[kstDateTime.getUTCDay()];
+  
   return {
-    hour: kstDateTime.toLocaleTimeString('ko-KR', { 
-      hour: '2-digit', 
-      hour12: false 
-    }),
-    date: kstDateTime.toLocaleDateString('ko-KR'),
-    dayOfWeek: kstDateTime.toLocaleDateString('ko-KR', { 
-      weekday: 'short' 
-    })
+    hour: hourString,
+    date: date,
+    dayOfWeek: dayOfWeek
   };
 }
 
