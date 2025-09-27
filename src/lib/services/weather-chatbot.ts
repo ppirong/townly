@@ -22,9 +22,9 @@ export interface WeatherChatbotResponse {
 export class WeatherChatbotService {
   
   /**
-   * 사용자 메시지 처리 및 날씨 정보 응답 생성
+   * 사용자 메시지 처리 및 날씨 정보 응답 생성 (사용자별 데이터 지원)
    */
-  async processWeatherQuery(userMessage: string, userLocation?: string): Promise<WeatherChatbotResponse> {
+  async processWeatherQuery(userMessage: string, userLocation?: string, clerkUserId?: string): Promise<WeatherChatbotResponse> {
     try {
       // 1. FAQ 매칭 시도
       const faqMatch = weatherFAQService.findBestMatch(userMessage);
@@ -54,8 +54,8 @@ export class WeatherChatbotService {
       // 2. 위치 결정 (우선순위: 메시지 > 사용자 설정 > 기본값)
       const targetLocation = intent.location || userLocation || '서울';
       
-      // 3. 의도에 따른 날씨 정보 조회
-      const weatherData = await this.getWeatherByIntent(intent, targetLocation);
+      // 3. 의도에 따른 날씨 정보 조회 (사용자별 데이터 우선)
+      const weatherData = await this.getWeatherByIntent(intent, targetLocation, clerkUserId);
       
       // 4. 응답 메시지 생성
       let responseMessage = await this.formatWeatherResponse(intent, weatherData, targetLocation);
@@ -88,31 +88,31 @@ export class WeatherChatbotService {
   }
   
   /**
-   * 의도에 따른 날씨 정보 조회
+   * 의도에 따른 날씨 정보 조회 (사용자별 데이터 우선)
    */
-  private async getWeatherByIntent(intent: WeatherIntent, location: string): Promise<any> {
+  private async getWeatherByIntent(intent: WeatherIntent, location: string, clerkUserId?: string): Promise<any> {
     const { type, period, date } = intent;
     
     try {
       switch (type) {
         case 'current':
-          return await this.getCurrentWeather(location);
+          return await this.getCurrentWeather(location, clerkUserId);
           
         case 'hourly':
-          return await this.getHourlyWeatherFromDB(location);
+          return await this.getHourlyWeatherFromDB(location, clerkUserId);
           
         case 'daily':
         case 'forecast':
           if (period === 'week') {
-            return await this.getWeeklyWeatherFromDB(location);
+            return await this.getWeeklyWeatherFromDB(location, clerkUserId);
           } else if (period === 'tomorrow' || period === 'specific_date') {
-            return await this.getDayWeatherFromDB(location, date);
+            return await this.getDayWeatherFromDB(location, date, clerkUserId);
           } else {
-            return await this.getDailyWeatherFromDB(location);
+            return await this.getDailyWeatherFromDB(location, clerkUserId);
           }
           
         default:
-          return await this.getCurrentWeather(location);
+          return await this.getCurrentWeather(location, clerkUserId);
       }
     } catch (error) {
       console.error('날씨 데이터 조회 오류:', error);
@@ -122,25 +122,46 @@ export class WeatherChatbotService {
   }
   
   /**
-   * 현재 날씨 정보 조회 (최신 시간별 데이터에서)
+   * 현재 날씨 정보 조회 (최신 시간별 데이터에서, 사용자별 필터링)
    */
-  private async getCurrentWeather(location: string): Promise<any> {
+  private async getCurrentWeather(location: string, clerkUserId?: string): Promise<any> {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     
-    // 데이터베이스에서 오늘의 최신 시간별 날씨 조회
-    const recentWeather = await db
+    // 데이터베이스에서 오늘의 최신 시간별 날씨 조회 (사용자별 필터링)
+    const whereConditions = [
+      gte(hourlyWeatherData.expiresAt, now),
+      eq(hourlyWeatherData.forecastDate, today),
+      eq(hourlyWeatherData.locationName, location)
+    ];
+    
+    // 사용자별 데이터가 있으면 우선 조회
+    if (clerkUserId) {
+      whereConditions.push(eq(hourlyWeatherData.clerkUserId, clerkUserId));
+    }
+    
+    let recentWeather = await db
       .select()
       .from(hourlyWeatherData)
-      .where(
-        and(
-          gte(hourlyWeatherData.expiresAt, now),
-          eq(hourlyWeatherData.forecastDate, today),
-          eq(hourlyWeatherData.locationName, location)
-        )
-      )
+      .where(and(...whereConditions))
       .orderBy(desc(hourlyWeatherData.forecastDateTime))
       .limit(1);
+    
+    // 사용자별 데이터가 없으면 전체 데이터에서 조회
+    if (recentWeather.length === 0 && clerkUserId) {
+      recentWeather = await db
+        .select()
+        .from(hourlyWeatherData)
+        .where(
+          and(
+            gte(hourlyWeatherData.expiresAt, now),
+            eq(hourlyWeatherData.forecastDate, today),
+            eq(hourlyWeatherData.locationName, location)
+          )
+        )
+        .orderBy(desc(hourlyWeatherData.forecastDateTime))
+        .limit(1);
+    }
     
     if (recentWeather.length > 0) {
       return {
@@ -156,24 +177,45 @@ export class WeatherChatbotService {
   }
   
   /**
-   * 시간별 날씨 정보 조회 (DB에서)
+   * 시간별 날씨 정보 조회 (DB에서, 사용자별 필터링)
    */
-  private async getHourlyWeatherFromDB(location: string): Promise<any> {
+  private async getHourlyWeatherFromDB(location: string, clerkUserId?: string): Promise<any> {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     
-    const hourlyData = await db
+    // 사용자별 데이터 우선 조회
+    const whereConditions = [
+      gte(hourlyWeatherData.expiresAt, now),
+      eq(hourlyWeatherData.forecastDate, today),
+      eq(hourlyWeatherData.locationName, location)
+    ];
+    
+    if (clerkUserId) {
+      whereConditions.push(eq(hourlyWeatherData.clerkUserId, clerkUserId));
+    }
+    
+    let hourlyData = await db
       .select()
       .from(hourlyWeatherData)
-      .where(
-        and(
-          gte(hourlyWeatherData.expiresAt, now),
-          eq(hourlyWeatherData.forecastDate, today),
-          eq(hourlyWeatherData.locationName, location)
-        )
-      )
+      .where(and(...whereConditions))
       .orderBy(asc(hourlyWeatherData.forecastDateTime))
       .limit(12); // 12시간
+    
+    // 사용자별 데이터가 없으면 전체 데이터에서 조회
+    if (hourlyData.length === 0 && clerkUserId) {
+      hourlyData = await db
+        .select()
+        .from(hourlyWeatherData)
+        .where(
+          and(
+            gte(hourlyWeatherData.expiresAt, now),
+            eq(hourlyWeatherData.forecastDate, today),
+            eq(hourlyWeatherData.locationName, location)
+          )
+        )
+        .orderBy(asc(hourlyWeatherData.forecastDateTime))
+        .limit(12);
+    }
     
     return {
       type: 'hourly',
@@ -184,22 +226,42 @@ export class WeatherChatbotService {
   }
   
   /**
-   * 일별 날씨 정보 조회 (DB에서)
+   * 일별 날씨 정보 조회 (DB에서, 사용자별 필터링)
    */
-  private async getDailyWeatherFromDB(location: string): Promise<any> {
+  private async getDailyWeatherFromDB(location: string, clerkUserId?: string): Promise<any> {
     const now = new Date();
     
-    const dailyData = await db
+    // 사용자별 데이터 우선 조회
+    const whereConditions = [
+      gte(dailyWeatherData.expiresAt, now),
+      eq(dailyWeatherData.locationName, location)
+    ];
+    
+    if (clerkUserId) {
+      whereConditions.push(eq(dailyWeatherData.clerkUserId, clerkUserId));
+    }
+    
+    let dailyData = await db
       .select()
       .from(dailyWeatherData)
-      .where(
-        and(
-          gte(dailyWeatherData.expiresAt, now),
-          eq(dailyWeatherData.locationName, location)
-        )
-      )
+      .where(and(...whereConditions))
       .orderBy(asc(dailyWeatherData.forecastDate))
       .limit(5); // 5일
+      
+    // 사용자별 데이터가 없으면 전체 데이터에서 조회
+    if (dailyData.length === 0 && clerkUserId) {
+      dailyData = await db
+        .select()
+        .from(dailyWeatherData)
+        .where(
+          and(
+            gte(dailyWeatherData.expiresAt, now),
+            eq(dailyWeatherData.locationName, location)
+          )
+        )
+        .orderBy(asc(dailyWeatherData.forecastDate))
+        .limit(5);
+    }
     
     return {
       type: 'daily',
@@ -210,9 +272,9 @@ export class WeatherChatbotService {
   }
   
   /**
-   * 주간 날씨 정보 조회 (DB에서)
+   * 주간 날씨 정보 조회 (DB에서, 사용자별 필터링)
    */
-  private async getWeeklyWeatherFromDB(location: string): Promise<any> {
+  private async getWeeklyWeatherFromDB(location: string, clerkUserId?: string): Promise<any> {
     const now = new Date();
     
     const weeklyData = await db
@@ -236,9 +298,9 @@ export class WeatherChatbotService {
   }
   
   /**
-   * 특정 날짜 날씨 정보 조회
+   * 특정 날짜 날씨 정보 조회 (사용자별 필터링)
    */
-  private async getDayWeatherFromDB(location: string, date?: string): Promise<any> {
+  private async getDayWeatherFromDB(location: string, date?: string, clerkUserId?: string): Promise<any> {
     if (!date) {
       return await this.getDailyWeatherFromDB(location);
     }

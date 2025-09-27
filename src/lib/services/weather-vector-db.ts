@@ -28,6 +28,7 @@ export interface EmbeddingBatch {
   content: string;
   metadata: Record<string, any>;
   weatherDataId?: string;
+  clerkUserId?: string;
 }
 
 export class WeatherVectorDBService {
@@ -39,7 +40,8 @@ export class WeatherVectorDBService {
     contentType: string,
     locationName: string,
     weatherData: any,
-    weatherDataId?: string
+    weatherDataId?: string,
+    clerkUserId?: string
   ): Promise<string> {
     try {
       // 날씨 데이터를 자연어 텍스트로 변환
@@ -66,6 +68,7 @@ export class WeatherVectorDBService {
 
       // 데이터베이스에 저장
       const insertData: NewWeatherEmbedding = {
+        clerkUserId: clerkUserId || null,
         contentType,
         locationName,
         forecastDate: weatherData.forecastDate,
@@ -103,6 +106,7 @@ export class WeatherVectorDBService {
 
       // 배치 삽입 데이터 준비
       const insertData: NewWeatherEmbedding[] = embeddingBatch.map((item, index) => ({
+        clerkUserId: item.clerkUserId || null,
         contentType: item.contentType,
         locationName: item.locationName,
         forecastDate: item.forecastDate,
@@ -209,13 +213,14 @@ export class WeatherVectorDBService {
   }
 
   /**
-   * 사용자 질의와 유사한 날씨 정보 검색
+   * 사용자 질의와 유사한 날씨 정보 검색 (사용자별 필터링 지원)
    */
   async searchSimilarWeather(
     query: string,
     locationName?: string,
     contentTypes?: string[],
-    limit: number = 5
+    limit: number = 5,
+    clerkUserId?: string
   ): Promise<SearchResult[]> {
     try {
       console.log('🔍 날씨 벡터 검색:', { query, locationName, contentTypes, limit });
@@ -225,6 +230,11 @@ export class WeatherVectorDBService {
       try {
         // 데이터베이스에서 모든 임베딩 가져오기 (필터링 적용)
         const whereConditions = [];
+        
+        // 사용자별 필터링 추가
+        if (clerkUserId) {
+          whereConditions.push(eq(weatherEmbeddings.clerkUserId, clerkUserId));
+        }
         
         if (locationName) {
           whereConditions.push(eq(weatherEmbeddings.locationName, locationName));

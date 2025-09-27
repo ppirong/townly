@@ -21,6 +21,8 @@ import type {
   DailyWeatherData, 
   DailyWeatherResponse 
 } from './weather';
+import { weatherVectorDBService } from './weather-vector-db';
+import { utcToKst, formatKoreanDate } from '@/lib/utils/timezone';
 
 export class WeatherDatabaseService {
 
@@ -108,22 +110,35 @@ export class WeatherDatabaseService {
     cacheKey: string,
     ttlMinutes: number = 10,
     latitude?: number,
-    longitude?: number
+    longitude?: number,
+    clerkUserId?: string
   ): Promise<void> {
     try {
       const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
       
       const dbRecords: NewHourlyWeatherData[] = weatherData.map(data => {
-        const dateTime = new Date(data.timestamp);
+        // weather.ts에서 이미 KST로 변환된 timestamp를 그대로 사용
+        // 절대 추가 변환하지 않음!
+        const kstDateTime = new Date(data.timestamp);
+        
+        // 디버깅: 첫 3개 레코드의 시간 확인
+        const dataIndex = weatherData.indexOf(data);
+        if (dataIndex < 3) {
+          console.log(`📅 DB 저장 ${dataIndex}:`);
+          console.log(`  - timestamp (KST): ${data.timestamp}`);
+          console.log(`  - forecastDate: ${kstDateTime.toISOString().split('T')[0]}`);
+          console.log(`  - forecastHour: ${kstDateTime.getHours()}`);
+        }
         
         return {
+          clerkUserId: clerkUserId || null,
           locationKey,
           locationName,
           latitude: latitude?.toString() || null,
           longitude: longitude?.toString() || null,
-          forecastDate: dateTime.toISOString().split('T')[0],
-          forecastHour: dateTime.getHours(),
-          forecastDateTime: dateTime,
+          forecastDate: kstDateTime.toISOString().split('T')[0], // KST 기준 날짜
+          forecastHour: kstDateTime.getHours(), // KST 기준 시간 (0-23)
+          forecastDateTime: kstDateTime, // KST로 저장
           temperature: data.temperature,
           conditions: data.conditions,
           weatherIcon: data.weatherIcon || null,
@@ -144,7 +159,34 @@ export class WeatherDatabaseService {
         .where(eq(hourlyWeatherData.cacheKey, cacheKey));
 
       if (dbRecords.length > 0) {
-        await db.insert(hourlyWeatherData).values(dbRecords);
+        const results = await db.insert(hourlyWeatherData).values(dbRecords).returning();
+        
+        // 사용자별 날씨 데이터인 경우 벡터 임베딩 생성
+        if (clerkUserId && results.length > 0) {
+          try {
+            console.log('🔗 시간별 날씨 데이터 벡터 임베딩 생성 시작...');
+            
+            const embeddingPromises = weatherData.map(async (data, index) => {
+              const dbRecord = results[index];
+              return await weatherVectorDBService.saveWeatherEmbedding(
+                'hourly',
+                locationName,
+                {
+                  ...data,
+                  forecastDate: dbRecord.forecastDate,
+                  forecastHour: dbRecord.forecastHour,
+                },
+                dbRecord.id,
+                clerkUserId
+              );
+            });
+            
+            await Promise.all(embeddingPromises);
+            console.log('✅ 시간별 날씨 벡터 임베딩 생성 완료');
+          } catch (embeddingError) {
+            console.error('⚠️ 시간별 날씨 벡터 임베딩 생성 실패 (데이터 저장은 성공):', embeddingError);
+          }
+        }
       }
 
       console.log('🗄️ 시간별 날씨 DB 저장:', { cacheKey, count: dbRecords.length });
@@ -177,7 +219,7 @@ export class WeatherDatabaseService {
         return results.map(record => ({
           location: record.locationName,
           timestamp: record.forecastDateTime.toISOString(),
-          hour: record.forecastDateTime.toLocaleTimeString('ko-KR', { hour: '2-digit' }),
+          hour: record.forecastDateTime.toLocaleTimeString('ko-KR', { hour: '2-digit', hour12: false }),
           temperature: record.temperature,
           conditions: record.conditions,
           weatherIcon: record.weatherIcon,
@@ -209,21 +251,22 @@ export class WeatherDatabaseService {
     cacheKey: string,
     ttlMinutes: number = 30,
     latitude?: number,
-    longitude?: number
+    longitude?: number,
+    clerkUserId?: string
   ): Promise<void> {
     try {
       const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
       
       const dbRecords: NewDailyWeatherData[] = weatherResponse.dailyForecasts.map(data => {
-        const dateTime = new Date(data.timestamp);
-        
+        // UTC 시간을 한국 시간으로 변환
         return {
+          clerkUserId: clerkUserId || null,
           locationKey,
           locationName,
           latitude: latitude?.toString() || null,
           longitude: longitude?.toString() || null,
-          forecastDate: dateTime.toISOString().split('T')[0],
-          dayOfWeek: data.dayOfWeek,
+          forecastDate: formatKoreanDate(data.timestamp, true), // 한국 시간 기준 날짜
+          dayOfWeek: data.dayOfWeek, // 이미 한국 시간 기준으로 계산됨
           temperature: data.temperature,
           highTemp: data.highTemp,
           lowTemp: data.lowTemp,
@@ -247,7 +290,34 @@ export class WeatherDatabaseService {
         .where(eq(dailyWeatherData.cacheKey, cacheKey));
 
       if (dbRecords.length > 0) {
-        await db.insert(dailyWeatherData).values(dbRecords);
+        const results = await db.insert(dailyWeatherData).values(dbRecords).returning();
+        
+        // 사용자별 날씨 데이터인 경우 벡터 임베딩 생성
+        if (clerkUserId && results.length > 0) {
+          try {
+            console.log('🔗 일별 날씨 데이터 벡터 임베딩 생성 시작...');
+            
+            const embeddingPromises = weatherResponse.dailyForecasts.map(async (data, index) => {
+              const dbRecord = results[index];
+              return await weatherVectorDBService.saveWeatherEmbedding(
+                'daily',
+                locationName,
+                {
+                  ...data,
+                  forecastDate: dbRecord.forecastDate,
+                  dayOfWeek: dbRecord.dayOfWeek,
+                },
+                dbRecord.id,
+                clerkUserId
+              );
+            });
+            
+            await Promise.all(embeddingPromises);
+            console.log('✅ 일별 날씨 벡터 임베딩 생성 완료');
+          } catch (embeddingError) {
+            console.error('⚠️ 일별 날씨 벡터 임베딩 생성 실패 (데이터 저장은 성공):', embeddingError);
+          }
+        }
       }
 
       console.log('🗄️ 일별 날씨 DB 저장:', { cacheKey, count: dbRecords.length });

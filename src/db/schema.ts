@@ -438,6 +438,9 @@ export const dailyApiStats = pgTable('daily_api_stats', {
 export const hourlyWeatherData = pgTable('hourly_weather_data', {
   id: uuid('id').defaultRandom().primaryKey(),
   
+  // 사용자 정보
+  clerkUserId: text('clerk_user_id'), // Clerk 사용자 ID (사용자별 날씨 데이터 저장용)
+  
   // 위치 정보
   locationKey: text('location_key').notNull(), // AccuWeather 위치 키
   locationName: text('location_name').notNull(), // 위치명
@@ -480,6 +483,9 @@ export const hourlyWeatherData = pgTable('hourly_weather_data', {
  */
 export const dailyWeatherData = pgTable('daily_weather_data', {
   id: uuid('id').defaultRandom().primaryKey(),
+  
+  // 사용자 정보
+  clerkUserId: text('clerk_user_id'), // Clerk 사용자 ID (사용자별 날씨 데이터 저장용)
   
   // 위치 정보
   locationKey: text('location_key').notNull(), // AccuWeather 위치 키
@@ -580,6 +586,10 @@ export type NewRegionalDailyAirQuality = typeof regionalDailyAirQuality.$inferIn
 // 날씨 정보 벡터 임베딩 테이블
 export const weatherEmbeddings = pgTable('weather_embeddings', {
   id: uuid('id').defaultRandom().primaryKey(),
+  
+  // 사용자 정보
+  clerkUserId: text('clerk_user_id'), // Clerk 사용자 ID (사용자별 날씨 임베딩 필터링용)
+  
   contentType: text('content_type').notNull(), // 'current', 'hourly', 'daily', 'forecast'
   locationName: text('location_name').notNull(),
   forecastDate: text('forecast_date'),
@@ -595,7 +605,9 @@ export const weatherEmbeddings = pgTable('weather_embeddings', {
 // ChatGPT 대화 히스토리 테이블
 export const chatGptConversations = pgTable('chatgpt_conversations', {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: text('user_id').notNull(),
+  
+  // 사용자 정보 (Clerk 사용자 ID 사용)
+  clerkUserId: text('clerk_user_id').notNull(), // Clerk 사용자 ID로 변경
   sessionId: text('session_id').notNull(),
   userQuestion: text('user_question').notNull(),
   retrievedContext: jsonb('retrieved_context'), // RAG로 가져온 컨텍스트

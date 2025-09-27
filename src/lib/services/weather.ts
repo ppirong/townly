@@ -8,12 +8,15 @@ import { weatherCache } from './weather-cache';
 import { weatherRateLimiter } from './weather-rate-limiter';
 import { apiTrackingService } from './api-tracking';
 import { weatherDbService } from './weather-db';
+import { utcToKst, getKoreanDayOfWeek } from '@/lib/utils/timezone';
+import { convertAccuWeatherDateTimeToKST, formatKSTTime } from '@/lib/utils/datetime';
 
 export interface WeatherLocation {
   location?: string | null;
   latitude?: number;
   longitude?: number;
   units?: 'metric' | 'imperial';
+  clerkUserId?: string; // 사용자별 날씨 데이터 저장용
 }
 
 export interface HourlyWeatherRequest extends WeatherLocation {
@@ -152,20 +155,35 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
     
     const data = await response.json();
     
-    // 3. AccuWeather 응답을 내부 형식으로 변환
-    const hourlyData: HourlyWeatherData[] = data.map((forecast: any) => {
-      const date = new Date(forecast.DateTime);
+    // 현재 시간 정보 로깅
+    const now = new Date();
+    console.log(`🕐 현재 시간 정보:`);
+    console.log(`  - 서버 시간: ${now.toISOString()}`);
+    console.log(`  - KST 시간: ${now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+    console.log(`  - AccuWeather 응답 개수: ${data.length}`);
+    
+    // 3. AccuWeather 응답을 내부 형식으로 변환 (통일된 시간 처리)
+    const hourlyData: HourlyWeatherData[] = data.map((forecast: any, index: number) => {
+      // AccuWeather DateTime을 KST로 변환 (단일 변환 지점)
+      const { kstDateTime } = convertAccuWeatherDateTimeToKST(forecast.DateTime);
+      const { hour } = formatKSTTime(kstDateTime);
+      
+      // 디버깅: 첫 3개만 로깅
+      if (index < 3) {
+        console.log(`🕐 시간별 예보 ${index}: ${forecast.DateTime} -> ${kstDateTime.toISOString()}`);
+      }
+      
       return {
         location: locationName,
-        timestamp: forecast.DateTime,
-        hour: date.toLocaleTimeString('ko-KR', { hour: '2-digit' }),
+        timestamp: kstDateTime.toISOString(), // KST 시간 저장
+        hour,
         temperature: Math.round(forecast.Temperature.Value),
         conditions: forecast.IconPhrase || '알 수 없음',
         weatherIcon: forecast.WeatherIcon || null,
         humidity: forecast.RelativeHumidity || 0,
-        precipitation: forecast.Rain?.Value || forecast.TotalLiquid?.Value || 0, // 실제 강수량 (mm)
-        precipitationProbability: forecast.PrecipitationProbability || 0, // 강수 확률 (%)
-        rainProbability: forecast.RainProbability || 0, // 비 올 확률 (%)
+        precipitation: forecast.Rain?.Value || forecast.TotalLiquid?.Value || 0,
+        precipitationProbability: forecast.PrecipitationProbability || 0,
+        rainProbability: forecast.RainProbability || 0,
         windSpeed: forecast.Wind?.Speed?.Value ? Math.round(forecast.Wind.Speed.Value) : 0,
         units: params.units || 'metric'
       };
@@ -183,7 +201,8 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
       cacheKey, 
       60, // 1시간
       params.latitude, 
-      params.longitude
+      params.longitude,
+      params.clerkUserId
     );
 
     return hourlyData;
@@ -310,13 +329,14 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
     
     // 3. AccuWeather 응답을 내부 형식으로 변환
     const dailyData: DailyWeatherData[] = data.DailyForecasts.slice(0, days).map((forecast: any) => {
-      const date = new Date(forecast.Date);
-      const dayOfWeek = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+      // AccuWeather Date는 UTC 기준이므로 한국 시간으로 변환
+      const kstDate = utcToKst(forecast.Date);
+      const dayOfWeek = getKoreanDayOfWeek(forecast.Date, true);
       
       return {
         location: locationName,
-        timestamp: forecast.Date,
-        date: `${date.getMonth() + 1}월 ${date.getDate()}일`,
+        timestamp: forecast.Date, // 원본 UTC 시간 유지
+        date: `${kstDate.getMonth() + 1}월 ${kstDate.getDate()}일`,
         dayOfWeek: dayOfWeek,
         temperature: Math.round((forecast.Temperature.Maximum.Value + forecast.Temperature.Minimum.Value) / 2),
         highTemp: Math.round(forecast.Temperature.Maximum.Value),
@@ -381,7 +401,8 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
       cacheKey, 
       120, // 2시간
       params.latitude, 
-      params.longitude
+      params.longitude,
+      params.clerkUserId
     );
 
     return result;

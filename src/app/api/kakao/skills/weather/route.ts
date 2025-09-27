@@ -101,10 +101,15 @@ export async function POST(request: NextRequest) {
     // 사용자 위치 정보 추출 (사용자 속성에서)
     const userLocation = validatedData.userRequest.user.properties?.location;
     
-    // 날씨 챗봇 서비스로 처리
+    // 날씨 챗봇 서비스로 처리 (사용자별 데이터 지원)
+    // 카카오 사용자 ID를 Clerk 사용자 ID로 매핑 (실제로는 별도 매핑 테이블 필요)
+    // 임시로 카카오 사용자 ID를 그대로 사용
+    const clerkUserId = userId; // 추후 실제 Clerk 사용자 ID로 매핑해야 함
+    
     const weatherResponse = await weatherChatbotService.processWeatherQuery(
       userMessage,
-      userLocation
+      userLocation,
+      clerkUserId
     );
     
     console.log('날씨 응답:', weatherResponse);

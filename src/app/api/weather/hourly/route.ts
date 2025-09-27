@@ -8,6 +8,7 @@ const hourlyWeatherSchema = z.object({
   latitude: z.string().nullable().optional().transform(val => val ? parseFloat(val) : undefined),
   longitude: z.string().nullable().optional().transform(val => val ? parseFloat(val) : undefined),
   units: z.enum(['metric', 'imperial']).optional().default('metric'),
+  includeUserId: z.string().optional().default('false'),
 }).refine(data => (data.location && data.location.trim() !== '') || (data.latitude !== undefined && data.longitude !== undefined), {
   message: '위치명 또는 위도/경도가 필요합니다',
 });
@@ -25,17 +26,20 @@ export async function GET(request: NextRequest) {
     const latitude = searchParams.get('latitude');
     const longitude = searchParams.get('longitude');
     const units = searchParams.get('units') as 'metric' | 'imperial' | null;
+    const includeUserId = searchParams.get('includeUserId');
 
     const validatedParams = hourlyWeatherSchema.parse({
       location,
       latitude,
       longitude,
       units: units || 'metric',
+      includeUserId,
     });
 
     const weatherData = await getHourlyWeather({
       ...validatedParams,
       location: validatedParams.location || undefined,
+      clerkUserId: validatedParams.includeUserId === 'true' ? userId : undefined,
     });
 
     return NextResponse.json({
@@ -73,6 +77,7 @@ export async function POST(request: NextRequest) {
     const weatherData = await getHourlyWeather({
       ...validatedParams,
       location: validatedParams.location || undefined,
+      clerkUserId: validatedParams.includeUserId === 'true' ? userId : undefined,
     });
 
     return NextResponse.json({

@@ -10,6 +10,7 @@ import { HourlyWeatherData, DailyWeatherData } from '@/lib/services/weather';
 import { getWeatherIcon } from '@/lib/weather-icons';
 import type { UserLocation } from '@/db/schema';
 import { setUserLocation } from '@/actions/location';
+import { getUserWeatherByCoordinates, getUserLocationWeather } from '@/actions/weather';
 
 interface WeatherApiStats {
   today: {
@@ -66,6 +67,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
   const [apiStats, setApiStats] = useState<WeatherApiStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [cacheClearing, setCacheClearing] = useState(false);
 
   // 온도 범위에 따른 막대 위치와 길이 계산 함수
   const calculateBarProperties = (highTemp: number, lowTemp: number, minTemp: number, maxTemp: number, isDetailed: boolean = true) => {
@@ -121,12 +123,53 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
         setUserLocationState(initialLocation);
       }
       
-      // 자동으로 날씨 정보 조회
+      // 사용자별 날씨 정보 조회
       setTimeout(() => {
-        fetchWeatherData(locationName);
+        fetchUserWeatherData();
       }, 500);
     }
   }, [initialLocation]);
+
+  // 사용자별 날씨 데이터 조회 (새로운 Server Actions 사용)
+  const fetchUserWeatherData = async () => {
+    if (!userLocation) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('🌍 사용자별 날씨 조회 시작:', userLocation);
+      
+      // 사용자 저장된 위치의 날씨 조회
+      const weatherResult = await getUserLocationWeather();
+      
+      if (weatherResult) {
+        setHourlyData(weatherResult.hourlyWeather);
+        
+        // 일별 데이터를 올바른 형식으로 변환
+        if (weatherResult.dailyWeather.dailyForecasts) {
+          setDailyData(weatherResult.dailyWeather.dailyForecasts);
+          setWeatherHeadline(weatherResult.dailyWeather.headline || null);
+        }
+        
+        console.log('✅ 사용자별 날씨 조회 성공');
+      } else {
+        // 사용자별 데이터가 없으면 일반 API 조회로 폴백
+        console.log('ℹ️ 사용자별 날씨 데이터 없음, 일반 API 조회로 폴백');
+        await fetchWeatherData();
+      }
+    } catch (error) {
+      console.error('사용자별 날씨 조회 실패:', error);
+      setError('날씨 정보를 가져오는데 실패했습니다. 다시 시도해주세요.');
+      
+      // 에러 시 일반 API 조회로 폴백
+      await fetchWeatherData();
+    } finally {
+      setLoading(false);
+      // API 통계는 별도로 조회
+      await fetchApiStats();
+    }
+  };
 
   const fetchWeatherData = async (locationName?: string) => {
     const targetLocation = locationName || location;
@@ -174,9 +217,13 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
         console.log('🌍 시간별 날씨 조회 - 위도/경도 사용:', userLocation.latitude, userLocation.longitude);
         params.append('latitude', userLocation.latitude);
         params.append('longitude', userLocation.longitude);
+        // 사용자별 날씨 데이터로 저장하기 위해 사용자 ID 포함
+        params.append('includeUserId', 'true');
       } else if (locationToUse) {
         console.log('🌍 시간별 날씨 조회 - 도시명 사용:', locationToUse);
         params.append('location', locationToUse);
+        // 일반 검색도 사용자가 조회한 경우 사용자 ID 포함
+        params.append('includeUserId', 'true');
       }
       
       params.append('units', units);
@@ -224,9 +271,13 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
         console.log('🌍 일별 날씨 조회 - 위도/경도 사용:', userLocation.latitude, userLocation.longitude);
         params.append('latitude', userLocation.latitude);
         params.append('longitude', userLocation.longitude);
+        // 사용자별 날씨 데이터로 저장하기 위해 사용자 ID 포함
+        params.append('includeUserId', 'true');
       } else if (locationToUse) {
         console.log('🌍 일별 날씨 조회 - 도시명 사용:', locationToUse);
         params.append('location', locationToUse);
+        // 일반 검색도 사용자가 조회한 경우 사용자 ID 포함
+        params.append('includeUserId', 'true');
       }
       
       params.append('days', days.toString());
@@ -261,6 +312,62 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
   };
 
   const getTemperatureUnit = () => units === 'metric' ? '°C' : '°F';
+
+  // 캐시 삭제 및 새로운 데이터 조회 함수
+  const clearCacheAndRefresh = async () => {
+    setCacheClearing(true);
+    setError(null);
+
+    try {
+      console.log('🧹 캐시 삭제 및 새로운 데이터 조회 시작...');
+
+      let requestBody: any = {
+        units: units,
+      };
+
+      // 사용자 위치 정보가 있으면 우선 사용
+      if (userLocation?.latitude && userLocation?.longitude) {
+        requestBody.latitude = userLocation.latitude;
+        requestBody.longitude = userLocation.longitude;
+      } else if (location && location.trim()) {
+        requestBody.location = location;
+      } else {
+        throw new Error('위치 정보가 필요합니다.');
+      }
+
+      const response = await fetch('/api/weather/cache-clear', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // 새로운 데이터로 UI 업데이트
+        setHourlyData(result.data.hourlyData);
+        setDailyData(result.data.dailyData);
+        setWeatherHeadline(result.data.headline || null);
+        
+        setError('✅ 캐시가 삭제되고 새로운 날씨 데이터가 저장되었습니다!');
+        setTimeout(() => setError(null), 5000);
+        
+        console.log('✅ 캐시 삭제 및 데이터 갱신 완료');
+        console.log('📊 캐시 통계:', result.data.cacheStats);
+      } else {
+        throw new Error(result.error || '캐시 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('캐시 삭제 실패:', error);
+      setError(error instanceof Error ? error.message : '캐시 삭제에 실패했습니다.');
+    } finally {
+      setCacheClearing(false);
+      // API 통계 새로고침
+      await fetchApiStats();
+    }
+  };
 
   // 현재 위치 새로고침 함수
   const refreshLocation = async () => {
@@ -341,9 +448,9 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
           // 성공 메시지 먼저 표시
           setError('✅ 위치가 성공적으로 업데이트되었습니다!');
           
-          // 새로운 위치로 날씨 조회 (실패해도 위치 업데이트는 성공으로 처리)
+          // 새로운 위치로 사용자별 날씨 조회 (실패해도 위치 업데이트는 성공으로 처리)
           try {
-            await fetchWeatherData(cityName);
+            await fetchUserWeatherData();
             // 날씨 조회도 성공하면 메시지 업데이트
             setError('✅ 위치 및 날씨 정보가 성공적으로 업데이트되었습니다!');
           } catch (weatherError) {
@@ -579,10 +686,37 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
             
             <div className="flex flex-wrap gap-2">
               <Button 
-                onClick={() => fetchWeatherData()} 
-                disabled={loading || !location.trim()}
+                onClick={() => userLocation ? fetchUserWeatherData() : fetchWeatherData()} 
+                disabled={loading || cacheClearing || (!userLocation && !location.trim())}
               >
-                {loading ? '조회 중...' : '새로 고침'}
+                {loading ? '조회 중...' : userLocation ? '내 위치 날씨 새로고침' : '새로 고침'}
+              </Button>
+              {userLocation && (
+                <Button 
+                  variant="outline"
+                  onClick={() => fetchWeatherData()} 
+                  disabled={loading || cacheClearing || !location.trim()}
+                >
+                  {loading ? '조회 중...' : '일반 검색'}
+                </Button>
+              )}
+              <Button 
+                variant="outline"
+                onClick={clearCacheAndRefresh}
+                disabled={loading || cacheClearing || (!userLocation && !location.trim())}
+                className="flex items-center gap-2"
+              >
+                {cacheClearing ? (
+                  <>
+                    <span className="animate-spin">🗑️</span>
+                    캐시 삭제 중...
+                  </>
+                ) : (
+                  <>
+                    <span>🗑️</span>
+                    캐시 삭제 & 새로고침
+                  </>
+                )}
               </Button>
             </div>
 

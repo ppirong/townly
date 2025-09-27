@@ -71,6 +71,13 @@
       "when": 1758860913814,
       "tag": "0009_lyrical_killmonger",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1758876868819,
+      "tag": "0010_tricky_pete_wisdom",
+      "breakpoints": true
     }
   ]
 }

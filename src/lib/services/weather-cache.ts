@@ -42,6 +42,10 @@ class WeatherCache {
     this.cache.clear();
   }
 
+  clearAll(): void {
+    this.cache.clear();
+  }
+
   // 캐시 키 생성 헬퍼 함수들
   getLocationKeyCacheKey(location?: string, latitude?: number, longitude?: number): string {
     if (location) return `locationKey:${location}`;
