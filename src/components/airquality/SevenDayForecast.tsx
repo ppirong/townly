@@ -66,7 +66,13 @@ const SevenDayForecastComponent = ({ defaultRegion = '서울' }: SevenDayForecas
       setForecastData(data);
     } catch (err) {
       console.error('7일간 예보 로드 실패:', err);
-      setError(err instanceof Error ? err.message : '데이터를 불러오는데 실패했습니다.');
+      // 공공데이터포털 점검 상황 안내
+      const errorMessage = err instanceof Error ? err.message : '데이터를 불러오는데 실패했습니다.';
+      if (errorMessage.includes('API 요청 실패: 404') || errorMessage.includes('시스템 점검')) {
+        setError('⚠️ 현재 공공데이터포털이 시스템 점검 중입니다.\n한국환경공단 서비스 복구 후 자동으로 정상화됩니다.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

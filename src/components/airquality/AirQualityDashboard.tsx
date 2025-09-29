@@ -196,13 +196,24 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
           setCurrentData(processed);
           console.log(`${stationName} 측정소 현재 데이터 로드 완료: ${processed.length}개 항목`);
           
-          // 새로고침 성공 메시지
-          const currentTime = new Date().toLocaleTimeString('ko-KR', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          });
-          setSuccessMessage(`✅ ${currentTime}에 새로고침 완료`);
-          setTimeout(() => setSuccessMessage(null), 2000);
+          // 데이터 시간 확인 (3일 이상 오래된 데이터인 경우 경고)
+          if (processed.length > 0) {
+            const dataTime = new Date(processed[0].dataTime);
+            const now = new Date();
+            const diffHours = (now.getTime() - dataTime.getTime()) / (1000 * 60 * 60);
+            
+            if (diffHours > 72) { // 3일 이상
+              setError(`⚠️ 현재 공공데이터포털이 시스템 점검 중입니다.\n표시된 데이터는 ${dataTime.toLocaleDateString('ko-KR')} ${dataTime.toLocaleTimeString('ko-KR')} 시점의 정보입니다.`);
+            } else {
+              // 새로고침 성공 메시지
+              const currentTime = new Date().toLocaleTimeString('ko-KR', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              });
+              setSuccessMessage(`✅ ${currentTime}에 새로고침 완료`);
+              setTimeout(() => setSuccessMessage(null), 2000);
+            }
+          }
         } else {
           console.warn(`${stationName} 측정소의 현재 데이터를 찾을 수 없습니다.`);
           
@@ -219,8 +230,19 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
             setCurrentData(processed);
             console.log(`부분 일치로 ${partialMatchData[0].stationName} 측정소 데이터 로드: ${processed.length}개 항목`);
             
-            setSuccessMessage(`✅ ${partialMatchData[0].stationName} 측정소 데이터 로드 완료 (부분 일치)`);
-            setTimeout(() => setSuccessMessage(null), 3000);
+            // 데이터 시간 확인
+            if (processed.length > 0) {
+              const dataTime = new Date(processed[0].dataTime);
+              const now = new Date();
+              const diffHours = (now.getTime() - dataTime.getTime()) / (1000 * 60 * 60);
+              
+              if (diffHours > 72) { // 3일 이상
+                setError(`⚠️ 현재 공공데이터포털이 시스템 점검 중입니다.\n표시된 데이터는 ${dataTime.toLocaleDateString('ko-KR')} ${dataTime.toLocaleTimeString('ko-KR')} 시점의 정보입니다.`);
+              } else {
+                setSuccessMessage(`✅ ${partialMatchData[0].stationName} 측정소 데이터 로드 완료 (부분 일치)`);
+                setTimeout(() => setSuccessMessage(null), 3000);
+              }
+            }
           } else {
             // 정확한 일치도 부분 일치도 없으면 첫 번째 측정소 데이터 사용
             console.log('부분 일치도 실패, 첫 번째 측정소 데이터 사용');
@@ -228,8 +250,19 @@ function AirQualityDashboardContent({ className }: AirQualityDashboardProps) {
             const processed = processAirQualityData(firstStationData);
             setCurrentData(processed);
             
-            setSuccessMessage(`✅ ${firstStationData[0].stationName} 측정소 데이터 로드 완료 (대체)`);
-            setTimeout(() => setSuccessMessage(null), 3000);
+            // 데이터 시간 확인
+            if (processed.length > 0) {
+              const dataTime = new Date(processed[0].dataTime);
+              const now = new Date();
+              const diffHours = (now.getTime() - dataTime.getTime()) / (1000 * 60 * 60);
+              
+              if (diffHours > 72) { // 3일 이상
+                setError(`⚠️ 현재 공공데이터포털이 시스템 점검 중입니다.\n표시된 데이터는 ${dataTime.toLocaleDateString('ko-KR')} ${dataTime.toLocaleTimeString('ko-KR')} 시점의 정보입니다.`);
+              } else {
+                setSuccessMessage(`✅ ${firstStationData[0].stationName} 측정소 데이터 로드 완료 (대체)`);
+                setTimeout(() => setSuccessMessage(null), 3000);
+              }
+            }
           }
         }
       } else {
