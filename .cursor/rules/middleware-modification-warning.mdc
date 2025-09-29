@@ -1,0 +1,146 @@
+---
+alwaysApply: true
+description: "미들웨어 수정 시 주의사항 및 안전 가이드"
+---
+
+# 미들웨어 수정 시 주의사항
+
+이 규칙은 Next.js + Clerk 환경에서 미들웨어 수정 시 발생할 수 있는 문제를 예방하기 위한 가이드입니다.
+
+## ⚠️ 핵심 주의사항
+
+### 1. 미들웨어는 매우 민감한 파일입니다
+- **`src/middleware.ts`**는 모든 라우트의 인증을 담당하는 핵심 파일입니다
+- 잘못 수정하면 전체 애플리케이션의 인증이 중단됩니다
+- **기존 정상 작동하는 코드를 함부로 변경하지 마세요**
+
+### 2. 발생했던 문제 사례
+**상황**: 이메일 관리 기능 개발 중 미들웨어를 수정한 후, 미세먼지 및 카카오 관리 페이지 접근 불가
+
+**원인**: 
+```typescript
+// ❌ 문제가 된 코드 (잘못된 수정)
+export default clerkMiddleware((auth, req) => {
+  if (isProtectedRoute(req)) {
+    auth().protect();  // 이 방식이 문제
+  }
+});
+
+// ✅ 원래 정상 작동하던 코드
+export default clerkMiddleware(async (auth, req) => {
+  const { userId } = await auth();
+  
+  if (isProtectedRoute(req) && !userId) {
+    const signInUrl = new URL('/sign-in', req.url);
+    return NextResponse.redirect(signInUrl);
+  }
+});
+```
+
+## 📋 미들웨어 수정 시 안전 체크리스트
+
+### 수정 전 필수 확인사항
+- [ ] 현재 미들웨어가 정상 작동하는지 확인
+- [ ] 기존 코드를 백업 (git commit 또는 복사)
+- [ ] 변경 이유가 명확한지 확인
+
+### 수정 중 준수사항
+- [ ] 기존 함수 시그니처 유지: `async (auth, req)`
+- [ ] `await auth()` 패턴 유지
+- [ ] `NextResponse.redirect()` 방식 유지
+- [ ] 보호된 라우트 목록 변경 시 신중히 검토
+
+### 수정 후 필수 테스트
+- [ ] 모든 보호된 페이지 접근 테스트
+  - `/dashboard`
+  - `/profile` 
+  - `/admin/kakao`
+  - `/admin/email-management`
+  - `/airquality`
+- [ ] 로그인 상태에서 접근 가능 확인
+- [ ] 비로그인 상태에서 리다이렉션 확인
+
+## 🚨 문제 발생 시 대응법
+
+### 1. 즉시 원복
+```bash
+# Git으로 이전 정상 상태로 복원
+git checkout HEAD -- src/middleware.ts
+```
+
+### 2. 원래 정상 코드 템플릿
+```typescript
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+
+const isProtectedRoute = createRouteMatcher([
+  '/dashboard(.*)',
+  '/profile(.*)',
+  '/settings(.*)',
+  '/admin(.*)',
+  '/airquality(.*)',
+]);
+
+export default clerkMiddleware(async (auth, req) => {
+  const { userId } = await auth();
+  
+  if (isProtectedRoute(req) && !userId) {
+    const signInUrl = new URL('/sign-in', req.url);
+    return NextResponse.redirect(signInUrl);
+  }
+});
+
+export const config = {
+  matcher: [
+    "/((?!_next|[^?]*\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
+};
+```
+
+## 💡 권장사항
+
+### 새 기능 추가 시
+1. **미들웨어 수정 대신 페이지 레벨 인증 고려**
+   ```typescript
+   // 페이지에서 직접 인증 체크
+   export default async function MyPage() {
+     const { userId } = await auth();
+     if (!userId) {
+       redirect('/sign-in');
+     }
+     // ...
+   }
+   ```
+
+2. **미들웨어 수정이 꼭 필요한 경우**
+   - 단계적 접근: 로그 추가 → 테스트 → 변경 → 테스트
+   - 변경 범위 최소화
+   - 즉시 테스트 및 검증
+
+### 디버깅 팁
+```typescript
+// 임시 로그 추가 (운영 환경에서는 제거)
+export default clerkMiddleware(async (auth, req) => {
+  console.log('🔄 Middleware for:', req.nextUrl.pathname);
+  
+  const { userId } = await auth();
+  console.log('👤 UserId:', userId);
+  
+  if (isProtectedRoute(req) && !userId) {
+    console.log('❌ Redirecting to sign-in');
+    const signInUrl = new URL('/sign-in', req.url);
+    return NextResponse.redirect(signInUrl);
+  }
+  
+  console.log('✅ Access granted');
+});
+```
+
+## 📚 참고사항
+
+- Clerk v6+ 에서는 `async/await` 패턴이 표준입니다
+- `auth().protect()` 방식은 특별한 경우에만 사용하세요
+- 미들웨어는 서버 사이드에서만 실행되므로 클라이언트 상태와 다를 수 있습니다
+
+**기억하세요: 미들웨어는 전체 앱의 관문입니다. 신중하게 다루세요!**

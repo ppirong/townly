@@ -28,6 +28,20 @@ export const env = {
   // 한국환경공단 에어코리아 API
   AIRKOREA_API_KEY: process.env.AIRKOREA_API_KEY,
   
+  // Gmail API 설정
+  GMAIL_CLIENT_ID: process.env.GMAIL_CLIENT_ID!,
+  GMAIL_CLIENT_SECRET: process.env.GMAIL_CLIENT_SECRET!,
+  GMAIL_REDIRECT_URI: process.env.GMAIL_REDIRECT_URI!,
+  GMAIL_REFRESH_TOKEN: process.env.GMAIL_REFRESH_TOKEN,
+  GMAIL_ACCESS_TOKEN: process.env.GMAIL_ACCESS_TOKEN,
+  GMAIL_FROM_EMAIL: process.env.GMAIL_FROM_EMAIL!,
+  
+  // 클라이언트 사이드용 환경변수
+  NEXT_PUBLIC_GMAIL_CLIENT_ID: process.env.NEXT_PUBLIC_GMAIL_CLIENT_ID!,
+  
+  // 크론 작업 보안
+  CRON_SECRET: process.env.CRON_SECRET || 'cron-secret-key',
+  
   // 서버 설정
   NODE_ENV: process.env.NODE_ENV || 'development',
   VERCEL_URL: process.env.VERCEL_URL,

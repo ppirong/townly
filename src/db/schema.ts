@@ -627,7 +627,169 @@ export type DailyWeatherData = typeof dailyWeatherData.$inferSelect;
 export type NewDailyWeatherData = typeof dailyWeatherData.$inferInsert;
 export type WeatherLocationKey = typeof weatherLocationKeys.$inferSelect;
 export type NewWeatherLocationKey = typeof weatherLocationKeys.$inferInsert;
+/**
+ * 이메일 발송 스케줄 테이블
+ * 매일 정해진 시간에 날씨 안내 이메일 발송을 관리
+ */
+export const emailSchedules = pgTable('email_schedules', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  
+  // 스케줄 기본 정보
+  title: text('title').notNull(), // 스케줄 제목 (예: "아침 날씨 안내", "저녁 날씨 안내")
+  description: text('description'), // 스케줄 설명
+  
+  // 이메일 내용 템플릿 설정
+  emailSubject: text('email_subject').notNull(), // 이메일 제목
+  emailTemplate: text('email_template').notNull(), // 이메일 템플릿 ('weather_summary', 'custom')
+  
+  // 발송 스케줄 설정
+  scheduleTime: text('schedule_time').notNull(), // 'HH:MM' 형식 (예: '06:00', '18:00')
+  timezone: text('timezone').default('Asia/Seoul').notNull(),
+  
+  // 발송 대상 설정
+  targetType: text('target_type').default('all_users').notNull(), // 'all_users', 'active_users', 'specific_users'
+  targetUserIds: jsonb('target_user_ids'), // 특정 사용자 타겟팅 시 Clerk userId 배열
+  
+  // 활성화 상태
+  isActive: boolean('is_active').default(true).notNull(),
+  
+  // 발송 이력
+  lastSentAt: timestamp('last_sent_at'),
+  nextSendAt: timestamp('next_send_at').notNull(),
+  totalSentCount: integer('total_sent_count').default(0).notNull(),
+  
+  // 생성자 정보 (관리자)
+  createdBy: text('created_by').notNull(), // Clerk userId
+  
+  // 시간 정보
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+/**
+ * 이메일 발송 로그 테이블
+ * 실제 이메일 발송 결과를 기록
+ */
+export const emailSendLogs = pgTable('email_send_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  
+  // 연결된 스케줄 (수동 발송의 경우 null)
+  emailScheduleId: uuid('email_schedule_id').references(() => emailSchedules.id),
+  
+  // 발송 기본 정보
+  emailType: text('email_type').notNull(), // 'scheduled', 'manual', 'test'
+  subject: text('subject').notNull(), // 발송된 이메일 제목
+  
+  // 발송 대상 정보
+  recipientCount: integer('recipient_count').notNull(), // 총 발송 대상자 수
+  successCount: integer('success_count').notNull(), // 성공한 발송 수
+  failureCount: integer('failure_count').default(0).notNull(), // 실패한 발송 수
+  
+  // 날씨 데이터 정보
+  weatherDataUsed: jsonb('weather_data_used'), // 사용된 날씨 데이터 정보
+  aiSummary: text('ai_summary'), // AI가 생성한 날씨 요약
+  forecastPeriod: text('forecast_period'), // 예보 기간 (예: "12시간", "24시간")
+  
+  // 발송 결과
+  sentAt: timestamp('sent_at').defaultNow().notNull(),
+  executionTime: integer('execution_time'), // 실행 시간 (ms)
+  isSuccessful: boolean('is_successful').default(true).notNull(),
+  
+  // 에러 정보
+  errorMessage: text('error_message'),
+  failedEmails: jsonb('failed_emails'), // 실패한 이메일 주소들과 에러 정보
+  
+  // 발송자 정보
+  initiatedBy: text('initiated_by').notNull(), // Clerk userId (수동 발송 시 관리자, 자동 발송 시 'system')
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * 사용자 이메일 설정 테이블
+ * 사용자별 이메일 수신 설정 관리
+ */
+export const userEmailSettings = pgTable('user_email_settings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  
+  // Clerk 사용자 ID
+  clerkUserId: text('clerk_user_id').notNull().unique(),
+  
+  // 이메일 주소
+  email: text('email').notNull(), // Clerk에서 가져온 이메일 주소
+  
+  // 수신 설정
+  receiveWeatherEmails: boolean('receive_weather_emails').default(true).notNull(), // 날씨 이메일 수신 여부
+  receiveMorningEmail: boolean('receive_morning_email').default(true).notNull(), // 아침 이메일 수신 여부
+  receiveEveningEmail: boolean('receive_evening_email').default(true).notNull(), // 저녁 이메일 수신 여부
+  
+  // 개인화 설정
+  preferredLanguage: text('preferred_language').default('ko').notNull(), // 이메일 언어 설정
+  timezone: text('timezone').default('Asia/Seoul').notNull(), // 사용자 시간대
+  
+  // 구독 상태
+  isSubscribed: boolean('is_subscribed').default(true).notNull(), // 전체 구독 상태
+  unsubscribedAt: timestamp('unsubscribed_at'), // 구독 취소 시간
+  unsubscribeReason: text('unsubscribe_reason'), // 구독 취소 이유
+  
+  // 이메일 발송 통계
+  totalEmailsSent: integer('total_emails_sent').default(0).notNull(), // 총 발송된 이메일 수
+  lastEmailSentAt: timestamp('last_email_sent_at'), // 마지막 이메일 발송 시간
+  
+  // 시간 정보
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+/**
+ * 개별 이메일 발송 기록 테이블
+ * 각 사용자에게 발송된 개별 이메일 상세 기록
+ */
+export const individualEmailLogs = pgTable('individual_email_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  
+  // 연결 정보
+  emailSendLogId: uuid('email_send_log_id').references(() => emailSendLogs.id).notNull(),
+  clerkUserId: text('clerk_user_id').notNull(), // 수신자 Clerk userId
+  
+  // 이메일 정보
+  recipientEmail: text('recipient_email').notNull(), // 수신자 이메일 주소
+  subject: text('subject').notNull(), // 이메일 제목
+  emailContent: text('email_content'), // 실제 발송된 이메일 내용 (선택적)
+  
+  // 발송 결과
+  status: text('status').notNull(), // 'sent', 'failed', 'bounced', 'delivered'
+  sentAt: timestamp('sent_at'),
+  deliveredAt: timestamp('delivered_at'),
+  
+  // Gmail API 정보
+  gmailMessageId: text('gmail_message_id'), // Gmail API에서 반환된 메시지 ID
+  gmailThreadId: text('gmail_thread_id'), // Gmail 스레드 ID
+  
+  // 에러 정보
+  errorCode: text('error_code'), // Gmail API 에러 코드
+  errorMessage: text('error_message'), // 에러 메시지
+  
+  // 사용자 반응 (향후 확장용)
+  isOpened: boolean('is_opened').default(false), // 이메일 열림 여부
+  openedAt: timestamp('opened_at'), // 열린 시간
+  isClicked: boolean('is_clicked').default(false), // 링크 클릭 여부
+  clickedAt: timestamp('clicked_at'), // 클릭 시간
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export type WeatherEmbedding = typeof weatherEmbeddings.$inferSelect;
 export type NewWeatherEmbedding = typeof weatherEmbeddings.$inferInsert;
 export type ChatGptConversation = typeof chatGptConversations.$inferSelect;
 export type NewChatGptConversation = typeof chatGptConversations.$inferInsert;
+
+// 이메일 관련 타입 정의
+export type EmailSchedule = typeof emailSchedules.$inferSelect;
+export type NewEmailSchedule = typeof emailSchedules.$inferInsert;
+export type EmailSendLog = typeof emailSendLogs.$inferSelect;
+export type NewEmailSendLog = typeof emailSendLogs.$inferInsert;
+export type UserEmailSettings = typeof userEmailSettings.$inferSelect;
+export type NewUserEmailSettings = typeof userEmailSettings.$inferInsert;
+export type IndividualEmailLog = typeof individualEmailLogs.$inferSelect;
+export type NewIndividualEmailLog = typeof individualEmailLogs.$inferInsert;
