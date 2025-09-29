@@ -31,7 +31,7 @@ export function EmailScheduleForm({
     formState: { errors },
     setValue,
     watch,
-  } = useForm<CreateEmailScheduleInput>({
+  } = useForm({
     resolver: zodResolver(createEmailScheduleSchema),
     defaultValues: {
       title: initialData?.title || '',

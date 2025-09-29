@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
-export default function GmailCallbackPage() {
+function GmailCallbackContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
@@ -194,5 +194,20 @@ export default function GmailCallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function GmailCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto py-8 max-w-2xl">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>페이지를 로딩 중입니다...</p>
+        </div>
+      </div>
+    }>
+      <GmailCallbackContent />
+    </Suspense>
   );
 }

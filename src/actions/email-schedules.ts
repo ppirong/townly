@@ -155,7 +155,7 @@ export async function sendManualEmail(input: SendManualEmailInput) {
     
     if (validatedData.targetType === 'test' && validatedData.testEmail) {
       recipients = [{ clerkUserId: userId, email: validatedData.testEmail }];
-    } else {
+    } else if (validatedData.targetType !== 'test') {
       recipients = await getEmailRecipients(validatedData.targetType, validatedData.targetUserIds);
     }
     

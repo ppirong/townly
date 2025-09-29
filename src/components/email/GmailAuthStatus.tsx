@@ -189,7 +189,7 @@ export function GmailAuthStatus({ showActions = true }: GmailAuthStatusProps) {
                   이메일 발송 기능을 사용하려면 Gmail API 인증이 필요합니다.
                 </p>
                 <div className="text-xs text-yellow-600 space-y-1">
-                  <div>1. "Gmail 인증 설정" 버튼을 클릭하세요</div>
+                  <div>1. &quot;Gmail 인증 설정&quot; 버튼을 클릭하세요</div>
                   <div>2. Google 계정으로 로그인하고 권한을 승인하세요</div>
                   <div>3. 발급받은 토큰을 환경변수에 설정하세요</div>
                 </div>

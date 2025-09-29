@@ -36,8 +36,8 @@ export function ClerkClientStatus() {
     setRetryCount(prev => prev + 1);
     try {
       console.log('🔄 Clerk 재시도 중...');
-      await clerk.load();
-      setClerkError(null);
+      // 페이지 새로고침으로 Clerk 재초기화
+      window.location.reload();
     } catch (error) {
       console.error('❌ Clerk 재시도 실패:', error);
       setClerkError(error instanceof Error ? error.message : 'Unknown error');

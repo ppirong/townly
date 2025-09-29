@@ -30,7 +30,7 @@ export function ManualEmailSender({
     setValue,
     watch,
     reset,
-  } = useForm<SendManualEmailInput>({
+  } = useForm({
     resolver: zodResolver(sendManualEmailSchema),
     defaultValues: {
       subject: '',

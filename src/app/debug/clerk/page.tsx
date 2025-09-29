@@ -1,4 +1,5 @@
 import { auth } from '@clerk/nextjs/server';
+import Link from 'next/link';
 import { ClerkClientDebug } from '@/components/debug/ClerkClientDebug';
 
 export default async function ClerkDebugPage() {
@@ -91,7 +92,7 @@ export default async function ClerkDebugPage() {
               {!authResult?.userId && clerkSecretKey && clerkPublishableKey && (
                 <div>
                   <p>• 환경변수는 설정되어 있지만 로그인이 안되어 있습니다</p>
-                  <p>• <a href="/sign-in" className="underline">로그인 페이지</a>에서 로그인하세요</p>
+                  <p>• <Link href="/sign-in" className="underline">로그인 페이지</Link>에서 로그인하세요</p>
                 </div>
               )}
             </div>
@@ -112,24 +113,24 @@ export default async function ClerkDebugPage() {
         )}
         
         <div className="flex gap-4">
-          <a 
+          <Link 
             href="/sign-in" 
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             로그인 페이지
-          </a>
-          <a 
+          </Link>
+          <Link 
             href="/admin/email-management/test" 
             className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
           >
             이메일 관리 테스트
-          </a>
-          <a 
+          </Link>
+          <Link 
             href="/" 
             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
           >
             홈으로 이동
-          </a>
+          </Link>
         </div>
       </div>
     </div>

@@ -48,6 +48,11 @@ export async function getUserEmailSettings() {
       timezone: 'Asia/Seoul',
       isSubscribed: true,
       totalEmailsSent: 0,
+      unsubscribedAt: null,
+      unsubscribeReason: null,
+      lastEmailSentAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
     
     await db.insert(userEmailSettings).values(newSettings);
@@ -183,11 +188,8 @@ export async function getAllSubscribers() {
       limit: 100, // 필요에 따라 조정
     });
     
-    console.log('Clerk API response:', JSON.stringify(clerkUsersResponse, null, 2));
-    
     // Clerk v6에서는 응답이 { data: User[], totalCount: number } 형태
     const clerkUsers = clerkUsersResponse?.data || [];
-    console.log('Extracted users count:', clerkUsers.length);
     
     // 데이터베이스에서 기존 이메일 설정 가져오기
     const existingSettings = await db
@@ -207,43 +209,7 @@ export async function getAllSubscribers() {
     }
     
     if (clerkUsers.length === 0) {
-      console.log('No users found in Clerk, creating mock user for testing');
-      
-      // 임시: 현재 로그인한 사용자의 정보를 사용
-      const currentClerkUser = await currentUser();
-      if (currentClerkUser) {
-        const mockUsers = [{
-          id: currentClerkUser.id,
-          firstName: currentClerkUser.firstName,
-          lastName: currentClerkUser.lastName,
-          imageUrl: currentClerkUser.imageUrl,
-          emailAddresses: currentClerkUser.emailAddresses,
-          primaryEmailAddressId: currentClerkUser.primaryEmailAddressId,
-          createdAt: currentClerkUser.createdAt,
-          lastSignInAt: currentClerkUser.lastSignInAt,
-        }];
-        
-        return mockUsers.map(user => {
-          const primaryEmail = user.emailAddresses.find(email => email.id === user.primaryEmailAddressId);
-          return {
-            clerkUserId: user.id,
-            email: primaryEmail?.emailAddress || '',
-            firstName: user.firstName,
-            lastName: user.lastName,
-            imageUrl: user.imageUrl,
-            createdAt: user.createdAt,
-            lastSignInAt: user.lastSignInAt,
-            receiveWeatherEmails: true,
-            receiveMorningEmail: true,
-            receiveEveningEmail: true,
-            isSubscribed: true,
-            totalEmailsSent: 0,
-            lastEmailSentAt: null,
-            hasEmailSettings: false,
-          };
-        });
-      }
-      
+      console.log('No users found in Clerk');
       return [];
     }
     
@@ -258,8 +224,8 @@ export async function getAllSubscribers() {
         firstName: user.firstName,
         lastName: user.lastName,
         imageUrl: user.imageUrl,
-        createdAt: user.createdAt,
-        lastSignInAt: user.lastSignInAt,
+        createdAt: new Date(user.createdAt), // timestamp를 Date 객체로 변환
+        lastSignInAt: user.lastSignInAt ? new Date(user.lastSignInAt) : null,
         // 이메일 설정 (기본값 또는 저장된 값)
         receiveWeatherEmails: userSetting?.receiveWeatherEmails ?? true,
         receiveMorningEmail: userSetting?.receiveMorningEmail ?? true,
@@ -273,7 +239,7 @@ export async function getAllSubscribers() {
     
     // 생성일 순으로 정렬 (최신순)
     return allSubscribers.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      b.createdAt.getTime() - a.createdAt.getTime()
     );
     
   } catch (error) {
@@ -364,7 +330,13 @@ export async function updateUserEmailSettingsAdmin(
           receiveWeatherEmails: settings.receiveWeatherEmails ?? true,
           receiveMorningEmail: settings.receiveMorningEmail ?? true,
           receiveEveningEmail: settings.receiveEveningEmail ?? true,
+          preferredLanguage: 'ko',
+          timezone: 'Asia/Seoul',
           isSubscribed: settings.isSubscribed ?? true,
+          totalEmailsSent: 0,
+          unsubscribedAt: null,
+          unsubscribeReason: null,
+          lastEmailSentAt: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         });

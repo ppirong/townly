@@ -16,14 +16,14 @@ export class WeatherDataCollectorService {
       });
 
       // 요청된 시간 수만큼 자르기
-      return hourlyData.slice(0, hours).map(hour => ({
-        forecastDateTime: hour.forecastDateTime,
-        temperature: hour.temperature,
-        conditions: hour.conditions,
-        precipitationProbability: hour.precipitationProbability,
-        rainProbability: hour.rainProbability,
-        windSpeed: hour.windSpeed,
-        humidity: hour.humidity,
+      return hourlyData.slice(0, hours).map((hour: any) => ({
+        forecastDateTime: hour.forecastDateTime || hour.dateTime || new Date().toISOString(),
+        temperature: hour.temperature || hour.temp || 0,
+        conditions: hour.conditions || hour.description || '',
+        precipitationProbability: hour.precipitationProbability || hour.pop || 0,
+        rainProbability: hour.rainProbability || hour.pop || 0,
+        windSpeed: hour.windSpeed || hour.wind || 0,
+        humidity: hour.humidity || 0,
       }));
     } catch (error) {
       console.error('Hourly weather data collection error:', error);
@@ -38,18 +38,18 @@ export class WeatherDataCollectorService {
     try {
       const dailyData = await getDailyWeather({
         location,
-        days,
+        days: Math.min(days, 15) as 1 | 5 | 10 | 15, // 허용된 값으로 제한
         units: 'metric',
       });
 
-      return dailyData.dailyForecasts.map(day => ({
-        forecastDate: day.forecastDate,
-        dayOfWeek: day.dayOfWeek,
-        highTemp: day.highTemp,
-        lowTemp: day.lowTemp,
-        conditions: day.conditions,
-        precipitationProbability: day.precipitationProbability,
-        rainProbability: day.rainProbability,
+      return dailyData.dailyForecasts.map((day: any) => ({
+        forecastDate: day.forecastDate || day.date || new Date().toISOString().split('T')[0],
+        dayOfWeek: day.dayOfWeek || new Date().getDay(),
+        highTemp: day.highTemp || day.maxTemp || 0,
+        lowTemp: day.lowTemp || day.minTemp || 0,
+        conditions: day.conditions || day.description || '',
+        precipitationProbability: day.precipitationProbability || day.pop || 0,
+        rainProbability: day.rainProbability || day.pop || 0,
       }));
     } catch (error) {
       console.error('Daily weather data collection error:', error);

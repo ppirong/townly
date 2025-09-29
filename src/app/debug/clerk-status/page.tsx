@@ -33,12 +33,12 @@ export default async function ClerkStatusPage() {
             </div>
           </div>
 
-          {error && (
+          {error ? (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <h2 className="font-semibold text-red-800 mb-2">❌ 오류</h2>
-              <p className="text-sm text-red-700">{error.toString()}</p>
+              <p className="text-sm text-red-700">{String(error)}</p>
             </div>
-          )}
+          ) : null}
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h2 className="font-semibold text-blue-800 mb-2">🔧 해결 방법</h2>

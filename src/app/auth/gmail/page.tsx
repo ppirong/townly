@@ -203,7 +203,7 @@ export default function GmailAuthPage() {
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
                   <h4 className="font-semibold text-blue-800 mb-2">인증 과정 안내</h4>
                   <ol className="text-sm text-blue-700 space-y-1">
-                    <li>1. "Gmail 인증하기" 버튼을 클릭합니다</li>
+                    <li>1. &quot;Gmail 인증하기&quot; 버튼을 클릭합니다</li>
                     <li>2. Google 로그인 페이지에서 이메일 발송용 계정으로 로그인합니다</li>
                     <li>3. Gmail 발송 권한을 승인합니다</li>
                     <li>4. 자동으로 이 페이지로 돌아옵니다</li>

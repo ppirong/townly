@@ -1,9 +1,10 @@
 import { headers, cookies } from 'next/headers';
 import { auth } from '@clerk/nextjs/server';
+import Link from 'next/link';
 
 export default async function HeadersDebugPage() {
-  const headersList = headers();
-  const cookieStore = cookies();
+  const headersList = await headers();
+  const cookieStore = await cookies();
   
   // Clerk 인증 시도
   let authResult;
@@ -28,7 +29,7 @@ export default async function HeadersDebugPage() {
   ];
 
   // Clerk 관련 쿠키들 수집
-  const clerkCookies = [];
+  const clerkCookies: Array<{ name: string; value: string; }> = [];
   cookieStore.getAll().forEach(cookie => {
     if (cookie.name.includes('clerk') || cookie.name.includes('__clerk') || cookie.name.includes('__session')) {
       clerkCookies.push(cookie);
@@ -154,24 +155,24 @@ export default async function HeadersDebugPage() {
         </div>
 
         <div className="flex gap-4">
-          <a 
+          <Link 
             href="/debug/clerk" 
             className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
           >
             Clerk 디버그
-          </a>
-          <a 
+          </Link>
+          <Link 
             href="/sign-out" 
             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
           >
             로그아웃
-          </a>
-          <a 
+          </Link>
+          <Link 
             href="/sign-in" 
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             로그인
-          </a>
+          </Link>
         </div>
       </div>
     </div>
