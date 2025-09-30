@@ -65,10 +65,25 @@ export async function getScheduledMessages() {
   }
   
   try {
-    const messages = await db
+    const messagesRaw = await db
       .select()
       .from(scheduledMessages)
       .orderBy(desc(scheduledMessages.createdAt));
+    
+    // 데이터베이스 결과를 plain object로 변환하여 직렬화 가능하게 만듦
+    const messages = messagesRaw.map(msg => ({
+      id: msg.id,
+      title: msg.title,
+      content: msg.content,
+      scheduleType: msg.scheduleType,
+      scheduledAt: msg.scheduledAt,
+      timezone: msg.timezone,
+      isActive: msg.isActive,
+      sentAt: msg.sentAt,
+      createdBy: msg.createdBy,
+      createdAt: msg.createdAt,
+      updatedAt: msg.updatedAt,
+    }));
     
     return { success: true, messages };
   } catch (error) {

@@ -47,18 +47,58 @@ class WeatherCache {
   }
 
   // 캐시 키 생성 헬퍼 함수들
-  getLocationKeyCacheKey(location?: string, latitude?: number, longitude?: number): string {
-    if (location) return `locationKey:${location}`;
-    if (latitude !== undefined && longitude !== undefined) return `locationKey:${latitude},${longitude}`;
-    throw new Error('Invalid parameters for location key cache.');
+  getLocationKeyCacheKey(location?: string, latitude?: number, longitude?: number, userId?: string): string {
+    let baseKey: string;
+    if (location) {
+      baseKey = `locationKey:${location}`;
+    } else if (latitude !== undefined && longitude !== undefined) {
+      baseKey = `locationKey:${latitude},${longitude}`;
+    } else {
+      throw new Error('Invalid parameters for location key cache.');
+    }
+    
+    // 사용자별 캐시 키 생성 (선택적)
+    return userId ? `${baseKey}:user:${userId}` : baseKey;
   }
 
-  getHourlyWeatherCacheKey(locationKey: string, units: 'metric' | 'imperial'): string {
-    return `hourlyWeather:${locationKey}:${units}`;
+  getHourlyWeatherCacheKey(locationKey: string, units: 'metric' | 'imperial', userId?: string): string {
+    const baseKey = `hourlyWeather:${locationKey}:${units}`;
+    return userId ? `${baseKey}:user:${userId}` : baseKey;
   }
 
-  getDailyWeatherCacheKey(locationKey: string, days: number, units: 'metric' | 'imperial'): string {
-    return `dailyWeather:${locationKey}:${days}:${units}`;
+  getDailyWeatherCacheKey(locationKey: string, days: number, units: 'metric' | 'imperial', userId?: string): string {
+    const baseKey = `dailyWeather:${locationKey}:${days}:${units}`;
+    return userId ? `${baseKey}:user:${userId}` : baseKey;
+  }
+
+  /**
+   * 사용자별 캐시 키 생성 (스마트 TTL 지원)
+   */
+  getUserSpecificCacheKey(baseKey: string, userId: string, additionalSuffix?: string): string {
+    const userKey = `${baseKey}:user:${userId}`;
+    return additionalSuffix ? `${userKey}:${additionalSuffix}` : userKey;
+  }
+
+  /**
+   * 캐시 키에서 사용자 ID 추출
+   */
+  extractUserIdFromCacheKey(cacheKey: string): string | null {
+    const userMatch = cacheKey.match(/:user:([^:]+)/);
+    return userMatch ? userMatch[1] : null;
+  }
+
+  /**
+   * 사용자별 캐시 통계
+   */
+  getUserCacheStats(userId: string): { size: number; keys: string[] } {
+    const userKeys = Array.from(this.cache.keys()).filter(key => 
+      this.extractUserIdFromCacheKey(key) === userId
+    );
+    
+    return {
+      size: userKeys.length,
+      keys: userKeys,
+    };
   }
 
   private cleanup(): void {

@@ -89,6 +89,12 @@ export default function RootLayout({
                       >
                         이메일 관리
                       </Link>
+                      <Link 
+                        href="/admin/smart-ttl" 
+                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                      >
+                        스마트 TTL
+                      </Link>
                     </nav>
                   </SignedIn>
                 </div>

@@ -58,6 +58,12 @@ export class GmailService {
     try {
       const { to, subject, htmlContent, textContent } = options;
 
+      // 제목 인코딩 로깅 (디버깅용)
+      const encodedSubject = this.encodeSubject(subject);
+      console.log(`📧 이메일 발송 - 받는이: ${to}`);
+      console.log(`📧 제목 원본: ${subject}`);
+      console.log(`📧 제목 인코딩: ${encodedSubject}`);
+
       // 이메일 메시지 구성
       const message = this.createEmailMessage({
         from: env.GMAIL_FROM_EMAIL,
@@ -75,13 +81,15 @@ export class GmailService {
         },
       });
 
+      console.log(`✅ 이메일 발송 성공 - ID: ${response.data.id}`);
+
       return {
         success: true,
         messageId: response.data.id,
         threadId: response.data.threadId,
       };
     } catch (error: any) {
-      console.error('Gmail Send Error:', error);
+      console.error('❌ Gmail 발송 오류:', error);
       
       return {
         success: false,
@@ -170,22 +178,25 @@ export class GmailService {
   }): string {
     const { from, to, subject, htmlContent, textContent } = options;
 
+    // 제목에 한글이 포함된 경우 RFC 2047 방식으로 인코딩
+    const encodedSubject = this.encodeSubject(subject);
+
     const messageParts = [
       `From: ${from}`,
       `To: ${to}`,
-      `Subject: ${subject}`,
+      `Subject: ${encodedSubject}`,
       'MIME-Version: 1.0',
       'Content-Type: multipart/alternative; boundary="boundary-12345"',
       '',
       '--boundary-12345',
       'Content-Type: text/plain; charset=utf-8',
-      'Content-Transfer-Encoding: 7bit',
+      'Content-Transfer-Encoding: 8bit',
       '',
       textContent,
       '',
       '--boundary-12345',
       'Content-Type: text/html; charset=utf-8',
-      'Content-Transfer-Encoding: 7bit',
+      'Content-Transfer-Encoding: 8bit',
       '',
       htmlContent,
       '',
@@ -200,6 +211,21 @@ export class GmailService {
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
+  }
+
+  /**
+   * 이메일 제목 인코딩 (RFC 2047 방식으로 한글 인코딩)
+   */
+  private encodeSubject(subject: string): string {
+    // ASCII만 포함된 경우 인코딩 불필요
+    if (/^[\x20-\x7F]*$/.test(subject)) {
+      return subject;
+    }
+
+    // 한글이나 다른 멀티바이트 문자가 포함된 경우 RFC 2047 방식으로 인코딩
+    // =?charset?encoding?encoded-text?= 형식
+    const encoded = Buffer.from(subject, 'utf8').toString('base64');
+    return `=?UTF-8?B?${encoded}?=`;
   }
 
   /**
@@ -274,6 +300,17 @@ export class GmailService {
         return false;
       }
     }
+  }
+
+  /**
+   * 한글 제목 인코딩 테스트 (디버깅용)
+   */
+  testSubjectEncoding(subject: string): string {
+    console.log(`🧪 제목 인코딩 테스트:`);
+    console.log(`  원본: ${subject}`);
+    const encoded = this.encodeSubject(subject);
+    console.log(`  인코딩: ${encoded}`);
+    return encoded;
   }
 }
 

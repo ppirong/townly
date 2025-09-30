@@ -80,7 +80,22 @@ export async function getUserLocation() {
       return { success: true, data: null };
     }
     
-    return { success: true, data: location[0] };
+    // 데이터베이스 결과를 plain object로 변환하여 직렬화 가능하게 만듦
+    const loc = location[0];
+    return { 
+      success: true, 
+      data: {
+        id: loc.id,
+        clerkUserId: loc.clerkUserId,
+        locationName: loc.locationName,
+        address: loc.address,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        isDefault: loc.isDefault,
+        createdAt: loc.createdAt,
+        updatedAt: loc.updatedAt,
+      }
+    };
   } catch (error) {
     console.error('위치 조회 실패:', error);
     throw new Error('위치 정보를 조회하는데 실패했습니다.');

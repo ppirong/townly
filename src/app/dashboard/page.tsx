@@ -1,12 +1,20 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { getUserEmailSettings } from '@/actions/user-email-settings';
 
 export default async function DashboardPage() {
   const { userId } = await auth();
 
   if (!userId) {
     redirect('/sign-in');
+  }
+
+  // 사용자 이메일 설정 자동 생성 (없으면 기본값으로 생성)
+  try {
+    await getUserEmailSettings();
+  } catch (error) {
+    console.error('이메일 설정 생성 실패:', error);
   }
 
   return (

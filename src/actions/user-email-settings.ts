@@ -59,7 +59,25 @@ export async function getUserEmailSettings() {
     settings = [newSettings];
   }
   
-  return settings[0];
+  // 데이터베이스 결과를 plain object로 변환하여 직렬화 가능하게 만듦
+  const setting = settings[0];
+  return {
+    id: setting.id,
+    clerkUserId: setting.clerkUserId,
+    email: setting.email,
+    receiveWeatherEmails: setting.receiveWeatherEmails,
+    receiveMorningEmail: setting.receiveMorningEmail,
+    receiveEveningEmail: setting.receiveEveningEmail,
+    preferredLanguage: setting.preferredLanguage,
+    timezone: setting.timezone,
+    isSubscribed: setting.isSubscribed,
+    totalEmailsSent: setting.totalEmailsSent,
+    unsubscribedAt: setting.unsubscribedAt,
+    unsubscribeReason: setting.unsubscribeReason,
+    lastEmailSentAt: setting.lastEmailSentAt,
+    createdAt: setting.createdAt,
+    updatedAt: setting.updatedAt,
+  };
 }
 
 /**
@@ -192,9 +210,28 @@ export async function getAllSubscribers() {
     const clerkUsers = clerkUsersResponse?.data || [];
     
     // 데이터베이스에서 기존 이메일 설정 가져오기
-    const existingSettings = await db
+    const existingSettingsRaw = await db
       .select()
       .from(userEmailSettings);
+    
+    // 데이터베이스 결과를 plain object로 변환
+    const existingSettings = existingSettingsRaw.map(setting => ({
+      id: setting.id,
+      clerkUserId: setting.clerkUserId,
+      email: setting.email,
+      receiveWeatherEmails: setting.receiveWeatherEmails,
+      receiveMorningEmail: setting.receiveMorningEmail,
+      receiveEveningEmail: setting.receiveEveningEmail,
+      preferredLanguage: setting.preferredLanguage,
+      timezone: setting.timezone,
+      isSubscribed: setting.isSubscribed,
+      totalEmailsSent: setting.totalEmailsSent,
+      unsubscribedAt: setting.unsubscribedAt,
+      unsubscribeReason: setting.unsubscribeReason,
+      lastEmailSentAt: setting.lastEmailSentAt,
+      createdAt: setting.createdAt,
+      updatedAt: setting.updatedAt,
+    }));
     
     // 설정을 userId로 인덱싱
     const settingsMap = new Map(
@@ -261,7 +298,26 @@ export async function getSubscriberStats() {
   // TODO: 관리자 권한 체크 추가
   
   // 전체 사용자 수 조회
-  const allUsers = await db.select().from(userEmailSettings);
+  const allUsersRaw = await db.select().from(userEmailSettings);
+  
+  // 데이터베이스 결과를 plain object로 변환
+  const allUsers = allUsersRaw.map(user => ({
+    id: user.id,
+    clerkUserId: user.clerkUserId,
+    email: user.email,
+    receiveWeatherEmails: user.receiveWeatherEmails,
+    receiveMorningEmail: user.receiveMorningEmail,
+    receiveEveningEmail: user.receiveEveningEmail,
+    preferredLanguage: user.preferredLanguage,
+    timezone: user.timezone,
+    isSubscribed: user.isSubscribed,
+    totalEmailsSent: user.totalEmailsSent,
+    unsubscribedAt: user.unsubscribedAt,
+    unsubscribeReason: user.unsubscribeReason,
+    lastEmailSentAt: user.lastEmailSentAt,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  }));
   
   const stats = {
     totalUsers: allUsers.length,

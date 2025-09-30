@@ -55,27 +55,30 @@ export function ManualEmailSender({
 
   const quickSendOptions = [
     {
-      label: '아침 날씨 안내 (전체 발송)',
+      label: '개인화 아침 날씨 안내 (전체 발송)',
+      description: '사용자별 맞춤형 아침 날씨',
       onClick: () => {
-        setValue('subject', '[날씨 안내] 아침 날씨 정보');
+        setValue('subject', '[맞춤] 아침 날씨 정보');
         setValue('timeOfDay', 'morning');
         setValue('targetType', 'all_users');
         setValue('location', '서울');
       },
     },
     {
-      label: '저녁 날씨 안내 (전체 발송)',
+      label: '개인화 저녁 날씨 안내 (전체 발송)',
+      description: '사용자별 맞춤형 저녁 날씨',
       onClick: () => {
-        setValue('subject', '[날씨 안내] 저녁 날씨 정보');
+        setValue('subject', '[맞춤] 저녁 날씨 정보');
         setValue('timeOfDay', 'evening');
         setValue('targetType', 'all_users');
         setValue('location', '서울');
       },
     },
     {
-      label: '테스트 이메일',
+      label: '개인화 테스트 이메일',
+      description: '본인에게 맞춤형 테스트 발송',
       onClick: () => {
-        setValue('subject', '[테스트] 날씨 안내 이메일');
+        setValue('subject', '[테스트] 개인화 날씨 안내');
         setValue('timeOfDay', 'morning');
         setValue('targetType', 'test');
         setValue('location', '서울');
@@ -107,6 +110,7 @@ export function ManualEmailSender({
               >
                 <div className="text-left">
                   <div className="font-medium">{option.label}</div>
+                  <div className="text-sm text-muted-foreground mt-1">{option.description}</div>
                 </div>
               </Button>
             ))}
@@ -241,6 +245,28 @@ export function ManualEmailSender({
               <span className="text-sm text-muted-foreground">(권장)</span>
             </div>
 
+            {/* 개인화 안내 메시지 */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex">
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">
+                    🎯 개인화된 날씨 이메일
+                  </h3>
+                  <div className="mt-2 text-sm text-blue-700">
+                    <p>
+                      각 사용자별로 저장된 시간별 날씨 정보를 기반으로 개인화된 요약을 생성합니다.
+                    </p>
+                    <ul className="mt-2 list-disc list-inside space-y-1">
+                      <li>사용자별 저장된 날씨 데이터 우선 활용</li>
+                      <li>개인 맞춤형 AI 요약 및 조언 제공</li>
+                      <li>데이터 출처에 따른 신뢰도 조정</li>
+                      <li>개인화 실패 시 일반 날씨 데이터로 자동 폴백</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* 발송 경고 메시지 */}
             {currentTargetType !== 'test' && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
@@ -251,9 +277,9 @@ export function ManualEmailSender({
                     </h3>
                     <div className="mt-2 text-sm text-yellow-700">
                       <p>
-                        선택한 대상에게 실제 이메일이 발송됩니다. 
-                        {currentTargetType === 'all_users' && ' 모든 구독자에게 발송됩니다.'}
-                        {currentTargetType === 'active_users' && ' 활성 구독자에게 발송됩니다.'}
+                        선택한 대상에게 개인화된 실제 이메일이 발송됩니다. 
+                        {currentTargetType === 'all_users' && ' 모든 구독자에게 각자 맞춤형 이메일이 발송됩니다.'}
+                        {currentTargetType === 'active_users' && ' 활성 구독자에게 각자 맞춤형 이메일이 발송됩니다.'}
                       </p>
                     </div>
                   </div>

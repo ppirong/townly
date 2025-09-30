@@ -13,11 +13,13 @@ export class EmailTemplateService {
     timeOfDay: 'morning' | 'evening';
     weatherSummary: WeatherSummaryResponse;
     unsubscribeUrl?: string;
+    clerkUserId?: string; // 개인화 표시용
   }): string {
-    const { recipientName, location, timeOfDay, weatherSummary, unsubscribeUrl } = options;
+    const { recipientName, location, timeOfDay, weatherSummary, unsubscribeUrl, clerkUserId } = options;
     
     const timeText = timeOfDay === 'morning' ? '아침' : '저녁';
     const greeting = recipientName ? `${recipientName}님` : '안녕하세요';
+    const personalizedBadge = clerkUserId ? '🎯 개인 맞춤형' : '';
     
     const alertLevelColor = this.getAlertLevelColor(weatherSummary.alertLevel);
     const alertLevelText = this.getAlertLevelText(weatherSummary.alertLevel);
@@ -97,6 +99,36 @@ export class EmailTemplateService {
             margin-bottom: 10px;
             border-radius: 0 8px 8px 0;
         }
+        .precipitation-section {
+            margin-bottom: 25px;
+        }
+        .precipitation-section h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .precipitation-info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            white-space: pre-line;
+        }
+        .warnings {
+            margin-bottom: 25px;
+        }
+        .warnings h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 0 8px 8px 0;
+        }
         .recommendations {
             margin-bottom: 25px;
         }
@@ -153,12 +185,12 @@ export class EmailTemplateService {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌤️ ${location} ${timeText} 날씨 안내</h1>
+            <h1>🌤️ ${location} ${timeText} 날씨 안내 ${personalizedBadge}</h1>
             <div class="subtitle">${new Date().toLocaleDateString('ko-KR', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric',
-              weekday: 'long'
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                weekday: 'long'
             })}</div>
             <div class="alert-badge" style="background-color: ${alertLevelColor}; color: white;">
                 ${alertLevelText}
@@ -166,26 +198,48 @@ export class EmailTemplateService {
         </div>
 
         <div class="time-info">
-            📅 예보 기간: ${weatherSummary.forecastPeriod}
+            📅 ${weatherSummary.forecastPeriod}
         </div>
 
         <div class="summary-section">
-            <p class="summary-text">${greeting}, ${weatherSummary.summary}</p>
+            <p class="summary-text">사용자 위치: ${location}</p>
+            <p class="summary-text">기온: ${weatherSummary.temperatureRange}</p>
+            <p class="summary-text">${weatherSummary.summary}</p>
         </div>
 
+        <div class="precipitation-section">
+            <h3>🌧️ 강수 정보</h3>
+            <div class="precipitation-info">
+                ${weatherSummary.precipitationInfo.replace(/\n/g, '<br>')}
+            </div>
+        </div>
+
+        ${weatherSummary.warnings && weatherSummary.warnings.length > 0 ? `
+        <div class="warnings">
+            <h3>⚠️ 주의사항</h3>
+            ${weatherSummary.warnings.map(warning => `
+                <div class="warning">${warning}</div>
+            `).join('')}
+        </div>
+        ` : ''}
+
+        ${weatherSummary.keyPoints && weatherSummary.keyPoints.length > 0 ? `
         <div class="key-points">
             <h3>🔍 주요 날씨 정보</h3>
             ${weatherSummary.keyPoints.map(point => `
                 <div class="key-point">${point}</div>
             `).join('')}
         </div>
+        ` : ''}
 
+        ${weatherSummary.recommendations && weatherSummary.recommendations.length > 0 ? `
         <div class="recommendations">
             <h3>💡 추천 사항</h3>
             ${weatherSummary.recommendations.map(rec => `
                 <div class="recommendation">${rec}</div>
             `).join('')}
         </div>
+        ` : ''}
 
         <div class="footer">
             <p>
@@ -215,15 +269,17 @@ export class EmailTemplateService {
     timeOfDay: 'morning' | 'evening';
     weatherSummary: WeatherSummaryResponse;
     unsubscribeUrl?: string;
+    clerkUserId?: string; // 개인화 표시용
   }): string {
-    const { recipientName, location, timeOfDay, weatherSummary, unsubscribeUrl } = options;
+    const { recipientName, location, timeOfDay, weatherSummary, unsubscribeUrl, clerkUserId } = options;
     
     const timeText = timeOfDay === 'morning' ? '아침' : '저녁';
     const greeting = recipientName ? `${recipientName}님` : '안녕하세요';
+    const personalizedText = clerkUserId ? ' (개인 맞춤형)' : '';
     const alertLevelText = this.getAlertLevelText(weatherSummary.alertLevel);
 
     return `
-${location} ${timeText} 날씨 안내
+${location} ${timeText} 날씨 안내${personalizedText}
 ${new Date().toLocaleDateString('ko-KR', { 
   year: 'numeric', 
   month: 'long', 
@@ -232,15 +288,30 @@ ${new Date().toLocaleDateString('ko-KR', {
 })}
 
 경고 수준: ${alertLevelText}
-예보 기간: ${weatherSummary.forecastPeriod}
+${weatherSummary.forecastPeriod}
 
-${greeting}, ${weatherSummary.summary}
+사용자 위치: ${location}
 
+기온: ${weatherSummary.temperatureRange}
+
+${weatherSummary.summary}
+
+${weatherSummary.precipitationInfo}
+
+${weatherSummary.warnings && weatherSummary.warnings.length > 0 ? `
+주의사항:
+${weatherSummary.warnings.map((warning, index) => `${index + 1}. ${warning}`).join('\n')}
+` : ''}
+
+${weatherSummary.keyPoints && weatherSummary.keyPoints.length > 0 ? `
 주요 날씨 정보:
 ${weatherSummary.keyPoints.map((point, index) => `${index + 1}. ${point}`).join('\n')}
+` : ''}
 
+${weatherSummary.recommendations && weatherSummary.recommendations.length > 0 ? `
 추천 사항:
 ${weatherSummary.recommendations.map((rec, index) => `${index + 1}. ${rec}`).join('\n')}
+` : ''}
 
 ---
 이 날씨 안내는 AI가 분석한 정보입니다.

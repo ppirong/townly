@@ -1,0 +1,624 @@
+---
+alwaysApply: true
+---
+
+# Next.js + TypeScript + Clerk 빌드 오류 방지 규칙
+
+이 문서는 Next.js 애플리케이션 개발 시 빌드 오류를 방지하기 위한 체크리스트와 해결 방법을 정리한 것입니다.
+
+## 1. Clerk 인증 관련 오류
+
+### 문제: `Export auth doesn't exist in target module`
+**원인**: Clerk v6에서 import 경로가 변경됨
+**해결책**:
+```typescript
+// ❌ 잘못된 방법
+import { auth } from '@clerk/nextjs';
+
+// ✅ 올바른 방법 (서버 사이드)
+import { auth } from '@clerk/nextjs/server';
+```
+
+**적용 위치**:
+- Server Actions (`src/actions/`)
+- API Routes (`src/app/api/`)
+- Server Components
+
+### 문제: `auth()` 함수 사용 시 동기/비동기 오류
+**원인**: Clerk v6에서 `auth()` 함수가 비동기로 변경됨
+**해결책**:
+```typescript
+// ❌ 잘못된 방법
+const { userId } = auth();
+
+// ✅ 올바른 방법
+const { userId } = await auth();
+```
+
+### 문제: `clerkClient` 초기화 오류
+**원인**: Clerk v6에서 `clerkClient` 초기화 방법 변경
+**해결책**:
+```typescript
+// ❌ 잘못된 방법
+import { clerkClient } from '@clerk/nextjs/server';
+
+// ✅ 올바른 방법
+import { createClerkClient } from '@clerk/nextjs/server';
+const clerkClient = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
+```
+
+### 문제: Clerk API 응답 구조 변경
+**원인**: `getUserList()` 응답이 배열에서 객체로 변경
+**해결책**:
+```typescript
+// ❌ 잘못된 방법
+const users = await clerkClient.users.getUserList();
+
+// ✅ 올바른 방법
+const response = await clerkClient.users.getUserList();
+const users = response?.data || [];
+```
+
+## 2. TypeScript 타입 오류
+
+### 문제: Zod 스키마와 React Hook Form 타입 충돌
+**원인**: `default()` 값이 있는 필드가 `optional`로 처리되지 않음
+**해결책**:
+```typescript
+// ❌ 문제가 되는 패턴
+isActive: z.boolean().default(true),
+
+// ✅ 올바른 패턴
+isActive: z.boolean().optional().default(true),
+
+// useForm에서 제네릭 타입 제거
+const form = useForm({ // <CreateEmailScheduleInput> 제거
+  resolver: zodResolver(createEmailScheduleSchema),
+});
+```
+
+### 문제: `any` 타입 사용으로 인한 타입 안전성 문제
+**원인**: 외부 API 응답 구조가 불명확할 때 `any` 사용
+**해결책**:
+```typescript
+// ✅ 타입 안전성을 위한 패턴
+const hour: any = hourlyData[index];
+const processedHour = {
+  temperature: hour.temperature || hour.temp || 0,
+  conditions: hour.conditions || hour.description || '',
+  // fallback 값으로 안전성 보장
+};
+```
+
+### 문제: `unknown` 타입을 ReactNode에 할당
+**원인**: Error 객체의 타입이 `unknown`
+**해결책**:
+```typescript
+// ❌ 문제가 되는 코드
+{error}
+
+// ✅ 올바른 해결책
+{error ? String(error) : null}
+```
+
+### 문제: 배열 타입 명시 누락
+**원인**: TypeScript가 배열 요소 타입을 추론하지 못함
+**해결책**:
+```typescript
+// ❌ 문제가 되는 코드
+const clerkCookies = [];
+
+// ✅ 올바른 해결책
+const clerkCookies: Array<{ name: string; value: string; }> = [];
+```
+
+## 3. Next.js 관련 오류
+
+### 문제: `useSearchParams()` Suspense 경계 오류
+**원인**: 정적 생성 시 `useSearchParams()` 사용
+**해결책**:
+```typescript
+// ✅ Suspense 경계로 감싸기
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ComponentUsingSearchParams />
+    </Suspense>
+  );
+}
+```
+
+### 문제: Dynamic Server Usage 오류
+**원인**: 정적 페이지에서 `headers()`, `cookies()` 사용
+**해결책**:
+```typescript
+// ✅ async/await 사용
+const headersList = await headers();
+const cookieStore = await cookies();
+```
+
+### 문제: ESLint 경고 (`react/no-unescaped-entities`)
+**원인**: JSX에서 따옴표 이스케이프 누락
+**해결책**:
+```typescript
+// ❌ 문제가 되는 코드
+<div>"Gmail API 인증"</div>
+
+// ✅ 올바른 해결책
+<div>&quot;Gmail API 인증&quot;</div>
+```
+
+### 문제: `<a>` 태그 대신 `<Link>` 사용 경고
+**원인**: Next.js에서 내부 링크에 `<a>` 태그 사용
+**해결책**:
+```typescript
+// ❌ 문제가 되는 코드
+<a href="/admin">관리자</a>
+
+// ✅ 올바른 해결책
+import Link from 'next/link';
+<Link href="/admin">관리자</Link>
+```
+
+## 4. 데이터베이스 스키마 오류
+
+### 문제: 필수 필드 누락으로 인한 삽입 오류
+**원인**: Drizzle 스키마에 정의된 필수 필드를 제공하지 않음
+**해결책**:
+```typescript
+// ✅ 모든 필수 필드 포함
+await db.insert(userEmailSettings).values({
+  id: crypto.randomUUID(),
+  clerkUserId: targetUserId,
+  email: primaryEmail.emailAddress,
+  receiveWeatherEmails: true,
+  receiveMorningEmail: true,
+  receiveEveningEmail: true,
+  isSubscribed: true,
+  preferredLanguage: 'ko',
+  timezone: 'Asia/Seoul',
+  totalEmailsSent: 0,
+  unsubscribedAt: null,
+  unsubscribeReason: null,
+  lastEmailSentAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+```
+
+### 문제: 타입 제한으로 인한 매개변수 오류
+**원인**: 함수 매개변수가 특정 유니온 타입으로 제한됨
+**해결책**:
+```typescript
+// ❌ 문제가 되는 코드
+const days = 5;
+await getDailyWeather({ days });
+
+// ✅ 올바른 해결책
+const days = Math.min(5, 15) as 1 | 5 | 10 | 15;
+await getDailyWeather({ days });
+```
+
+## 5. 빌드 전 체크리스트
+
+### TypeScript 관련
+- [ ] 모든 `auth()` 호출에 `await` 추가
+- [ ] Clerk import 경로 확인 (`@clerk/nextjs/server`)
+- [ ] `any` 타입 사용 시 fallback 값 제공
+- [ ] Zod 스키마에서 `optional().default()` 패턴 사용
+- [ ] `useForm` 제네릭 타입 제거 (zodResolver 사용 시)
+
+### React/Next.js 관련
+- [ ] `useSearchParams()` 사용 시 Suspense 경계 추가
+- [ ] JSX에서 따옴표 이스케이프 (`&quot;`)
+- [ ] 내부 링크에 `<Link>` 컴포넌트 사용
+- [ ] `headers()`, `cookies()` 호출 시 `await` 추가
+
+### 데이터베이스 관련
+- [ ] 모든 필수 스키마 필드 제공
+- [ ] 유니온 타입 매개변수 적절히 캐스팅
+- [ ] 타임스탬프 변환 시 `new Date()` 사용
+
+### 빌드 명령어
+```bash
+# 빌드 전 타입 체크
+npm run build
+
+# 개발 서버 재시작 (환경변수 변경 시)
+npm run dev
+```
+
+## 6. 환경별 주의사항
+
+### 개발 환경
+- 환경변수 변경 시 서버 재시작 필요
+- Clerk Debug 모드 활성화 가능 (`CLERK_DEBUG=true`)
+
+### 프로덕션 환경
+- 모든 환경변수 검증 필요
+- Suspense 경계 필수
+- 정적 생성 페이지에서 동적 함수 사용 금지
+
+## 7. 실제 발생한 빌드 오류 사례
+
+### 오류 1: Clerk Import 경로 문제
+```
+Export auth doesn't exist in target module @clerk/nextjs
+```
+**해결**: `@clerk/nextjs/server`로 import 경로 변경
+
+### 오류 2: useSearchParams Suspense 경계 누락
+```
+useSearchParams() should be wrapped in a suspense boundary
+```
+**해결**: 컴포넌트를 Suspense로 감싸기
+
+### 오류 3: TypeScript 타입 충돌
+```
+Type 'Resolver<...>' is not assignable to type 'Resolver<...>'
+```
+**해결**: useForm에서 제네릭 타입 제거, Zod 스키마에 optional() 추가
+
+### 오류 4: 배열 타입 추론 실패
+```
+clerkUsers.map is not a function
+```
+**해결**: Clerk API 응답에서 data 배열 추출 (`response?.data || []`)
+
+이 규칙들을 따라 개발하면 빌드 시 대부분의 오류를 사전에 방지할 수 있습니다.# Next.js + TypeScript + Clerk 빌드 오류 방지 규칙
+
+이 문서는 Next.js 애플리케이션 개발 시 빌드 오류를 방지하기 위한 체크리스트와 해결 방법을 정리한 것입니다.
+
+## 1. Clerk 인증 관련 오류
+
+### 문제: `Export auth doesn't exist in target module`
+**원인**: Clerk v6에서 import 경로가 변경됨
+**해결책**:
+```typescript
+// ❌ 잘못된 방법
+import { auth } from '@clerk/nextjs';
+
+// ✅ 올바른 방법 (서버 사이드)
+import { auth } from '@clerk/nextjs/server';
+```
+
+**적용 위치**:
+- Server Actions (`src/actions/`)
+- API Routes (`src/app/api/`)
+- Server Components
+
+### 문제: `auth()` 함수 사용 시 동기/비동기 오류
+**원인**: Clerk v6에서 `auth()` 함수가 비동기로 변경됨
+**해결책**:
+```typescript
+// ❌ 잘못된 방법
+const { userId } = auth();
+
+// ✅ 올바른 방법
+const { userId } = await auth();
+```
+
+### 문제: `clerkClient` 초기화 오류
+**원인**: Clerk v6에서 `clerkClient` 초기화 방법 변경
+**해결책**:
+```typescript
+// ❌ 잘못된 방법
+import { clerkClient } from '@clerk/nextjs/server';
+
+// ✅ 올바른 방법
+import { createClerkClient } from '@clerk/nextjs/server';
+const clerkClient = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
+```
+
+### 문제: Clerk API 응답 구조 변경
+**원인**: `getUserList()` 응답이 배열에서 객체로 변경
+**해결책**:
+```typescript
+// ❌ 잘못된 방법
+const users = await clerkClient.users.getUserList();
+
+// ✅ 올바른 방법
+const response = await clerkClient.users.getUserList();
+const users = response?.data || [];
+```
+
+## 2. TypeScript 타입 오류
+
+### 문제: Zod 스키마와 React Hook Form 타입 충돌
+**원인**: `default()` 값이 있는 필드가 `optional`로 처리되지 않음
+**해결책**:
+```typescript
+// ❌ 문제가 되는 패턴
+isActive: z.boolean().default(true),
+
+// ✅ 올바른 패턴
+isActive: z.boolean().optional().default(true),
+
+// useForm에서 제네릭 타입 제거
+const form = useForm({ // <CreateEmailScheduleInput> 제거
+  resolver: zodResolver(createEmailScheduleSchema),
+});
+```
+
+### 문제: `any` 타입 사용으로 인한 타입 안전성 문제
+**원인**: 외부 API 응답 구조가 불명확할 때 `any` 사용
+**해결책**:
+```typescript
+// ✅ 타입 안전성을 위한 패턴
+const hour: any = hourlyData[index];
+const processedHour = {
+  temperature: hour.temperature || hour.temp || 0,
+  conditions: hour.conditions || hour.description || '',
+  // fallback 값으로 안전성 보장
+};
+```
+
+### 문제: `unknown` 타입을 ReactNode에 할당
+**원인**: Error 객체의 타입이 `unknown`
+**해결책**:
+```typescript
+// ❌ 문제가 되는 코드
+{error}
+
+// ✅ 올바른 해결책
+{error ? String(error) : null}
+```
+
+### 문제: 배열 타입 명시 누락
+**원인**: TypeScript가 배열 요소 타입을 추론하지 못함
+**해결책**:
+```typescript
+// ❌ 문제가 되는 코드
+const clerkCookies = [];
+
+// ✅ 올바른 해결책
+const clerkCookies: Array<{ name: string; value: string; }> = [];
+```
+
+## 3. Next.js 관련 오류
+
+### 문제: `useSearchParams()` Suspense 경계 오류
+**원인**: 정적 생성 시 `useSearchParams()` 사용
+**해결책**:
+```typescript
+// ✅ Suspense 경계로 감싸기
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ComponentUsingSearchParams />
+    </Suspense>
+  );
+}
+```
+
+### 문제: Dynamic Server Usage 오류
+**원인**: 정적 페이지에서 `headers()`, `cookies()` 사용
+**해결책**:
+```typescript
+// ✅ async/await 사용
+const headersList = await headers();
+const cookieStore = await cookies();
+```
+
+### 문제: ESLint 경고 (`react/no-unescaped-entities`)
+**원인**: JSX에서 따옴표 이스케이프 누락
+**해결책**:
+```typescript
+// ❌ 문제가 되는 코드
+<div>"Gmail API 인증"</div>
+
+// ✅ 올바른 해결책
+<div>&quot;Gmail API 인증&quot;</div>
+```
+
+### 문제: `<a>` 태그 대신 `<Link>` 사용 경고
+**원인**: Next.js에서 내부 링크에 `<a>` 태그 사용
+**해결책**:
+```typescript
+// ❌ 문제가 되는 코드
+<a href="/admin">관리자</a>
+
+// ✅ 올바른 해결책
+import Link from 'next/link';
+<Link href="/admin">관리자</Link>
+```
+
+## 4. 데이터베이스 스키마 오류
+
+### 문제: 필수 필드 누락으로 인한 삽입 오류
+**원인**: Drizzle 스키마에 정의된 필수 필드를 제공하지 않음
+**해결책**:
+```typescript
+// ✅ 모든 필수 필드 포함
+await db.insert(userEmailSettings).values({
+  id: crypto.randomUUID(),
+  clerkUserId: targetUserId,
+  email: primaryEmail.emailAddress,
+  receiveWeatherEmails: true,
+  receiveMorningEmail: true,
+  receiveEveningEmail: true,
+  isSubscribed: true,
+  preferredLanguage: 'ko',
+  timezone: 'Asia/Seoul',
+  totalEmailsSent: 0,
+  unsubscribedAt: null,
+  unsubscribeReason: null,
+  lastEmailSentAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+```
+
+### 문제: 타입 제한으로 인한 매개변수 오류
+**원인**: 함수 매개변수가 특정 유니온 타입으로 제한됨
+**해결책**:
+```typescript
+// ❌ 문제가 되는 코드
+const days = 5;
+await getDailyWeather({ days });
+
+// ✅ 올바른 해결책
+const days = Math.min(5, 15) as 1 | 5 | 10 | 15;
+await getDailyWeather({ days });
+```
+
+## 5. 빌드 전 체크리스트
+
+### TypeScript 관련
+- [ ] 모든 `auth()` 호출에 `await` 추가
+- [ ] Clerk import 경로 확인 (`@clerk/nextjs/server`)
+- [ ] `any` 타입 사용 시 fallback 값 제공
+- [ ] Zod 스키마에서 `optional().default()` 패턴 사용
+- [ ] `useForm` 제네릭 타입 제거 (zodResolver 사용 시)
+
+### React/Next.js 관련
+- [ ] `useSearchParams()` 사용 시 Suspense 경계 추가
+- [ ] JSX에서 따옴표 이스케이프 (`&quot;`)
+- [ ] 내부 링크에 `<Link>` 컴포넌트 사용
+- [ ] `headers()`, `cookies()` 호출 시 `await` 추가
+
+### 데이터베이스 관련
+- [ ] 모든 필수 스키마 필드 제공
+- [ ] 유니온 타입 매개변수 적절히 캐스팅
+- [ ] 타임스탬프 변환 시 `new Date()` 사용
+
+### 빌드 명령어
+```bash
+# 빌드 전 타입 체크
+npm run build
+
+# 개발 서버 재시작 (환경변수 변경 시)
+npm run dev
+```
+
+## 6. 환경별 주의사항
+
+### 개발 환경
+- 환경변수 변경 시 서버 재시작 필요
+- Clerk Debug 모드 활성화 가능 (`CLERK_DEBUG=true`)
+
+### 프로덕션 환경
+- 모든 환경변수 검증 필요
+- Suspense 경계 필수
+- 정적 생성 페이지에서 동적 함수 사용 금지
+
+## 7. 실제 발생한 빌드 오류 사례
+
+### 오류 1: Clerk Import 경로 문제
+```
+Export auth doesn't exist in target module @clerk/nextjs
+```
+**해결**: `@clerk/nextjs/server`로 import 경로 변경
+
+### 오류 2: useSearchParams Suspense 경계 누락
+```
+useSearchParams() should be wrapped in a suspense boundary
+```
+**해결**: 컴포넌트를 Suspense로 감싸기
+
+### 오류 3: TypeScript 타입 충돌
+```
+Type 'Resolver<...>' is not assignable to type 'Resolver<...>'
+```
+**해결**: useForm에서 제네릭 타입 제거, Zod 스키마에 optional() 추가
+
+### 오류 4: 배열 타입 추론 실패
+```
+clerkUsers.map is not a function
+```
+**해결**: Clerk API 응답에서 data 배열 추출 (`response?.data || []`)
+
+이 규칙들을 따라 개발하면 빌드 시 대부분의 오류를 사전에 방지할 수 있습니다.
+### 오류 5: Drizzle ORM 쿼리 조건 순서 오류
+```
+Type error: No overload matches this call. Argument of type 'Date' is not assignable to parameter of type 'Column<...>'
+```
+**해결**: Drizzle ORM의 `gte`, `lte` 함수에서 인자 순서 수정
+```typescript
+// ❌ 잘못된 순서
+.where(gte(now, hourlyWeatherData.expiresAt))
+
+// ✅ 올바른 순서
+.where(lte(hourlyWeatherData.expiresAt, now))
+```
+
+### 오류 6: 타입스크립트 Date 변환 오류
+```
+Type error: Type 'string' is not assignable to type 'Date'
+```
+**해결**: 문자열을 Date 객체로 명시적 변환
+```typescript
+// ❌ 문제가 되는 코드
+forecastDateTime: data.timestamp,
+
+// ✅ 올바른 해결책
+forecastDateTime: new Date(data.timestamp),
+```
+
+### 오류 7: null 가능성이 있는 타입을 string에 할당
+```
+Type error: Argument of type 'string | null' is not assignable to parameter of type 'string'
+```
+**해결**: null 체크 및 타입 가드 추가
+```typescript
+// ❌ 문제가 되는 코드
+activeUsers.map(user => this.generateTTLOptimizationRecommendation(user.userId))
+
+// ✅ 올바른 해결책
+activeUsers
+  .filter(user => user.userId) // null이 아닌 userId만 필터링
+  .map(user => this.generateTTLOptimizationRecommendation(user.userId!))
+```
+
+### 오류 8: shadcn/ui 컴포넌트 누락
+```
+Module not found: Can't resolve '@/components/ui/tabs'
+```
+**해결**: 필요한 shadcn/ui 컴포넌트 설치
+```bash
+npx shadcn-ui@latest add tabs
+```
+
+### 오류 9: 외부 라이브러리 누락
+```
+Module not found: Can't resolve 'recharts'
+```
+**해결**: 필요한 npm 패키지 설치
+```bash
+npm install recharts
+```
+
+### 오류 10: 인터페이스 타입 불일치
+```
+Type error: Argument of type 'UserActivityPattern' is not assignable to parameter of type 'UserPattern'
+```
+**해결**: 타입 매핑을 통한 인터페이스 변환
+```typescript
+// 타입 불일치 해결을 위한 매핑
+const userPattern = {
+  frequencyScore: pattern.dailyAverage,
+  preferredLocations: pattern.locationPreferences.map(loc => loc.locationKey),
+  timePreference: pattern.timePreference,
+  totalQueries: pattern.totalQueries,
+  avgQueriesPerDay: pattern.dailyAverage,
+  recentActivityDays: 30,
+};
+```
+
+## 8. 스마트 TTL 시스템 구현 시 주의사항
+
+### 새로운 서비스 클래스 작성 시
+- [ ] 모든 import문에서 타입 정의 확인
+- [ ] Drizzle ORM 쿼리 조건 순서 주의 (컬럼, 값 순서)
+- [ ] 외부 API 응답의 타입 변환 명시적 처리
+- [ ] null 가능성 있는 필드에 대한 타입 가드 추가
+
+### 대시보드 컴포넌트 구현 시
+- [ ] 필요한 UI 컴포넌트 사전 설치 확인
+- [ ] 차트 라이브러리 등 외부 의존성 설치 확인
+- [ ] 인터페이스 간 타입 변환 로직 구현
+
+### API 엔드포인트 구현 시
+- [ ] 요청/응답 타입 정의 및 검증
+- [ ] 사용자 권한 체크 로직 추가
+- [ ] 에러 핸들링 및 적절한 HTTP 상태 코드 반환

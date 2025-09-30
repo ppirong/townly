@@ -8,6 +8,7 @@ import { weatherCache } from './weather-cache';
 import { weatherRateLimiter } from './weather-rate-limiter';
 import { apiTrackingService } from './api-tracking';
 import { weatherDbService } from './weather-db';
+import { smartWeatherDbService } from './smart-weather-db';
 import { utcToKst, getKoreanDayOfWeek } from '@/lib/utils/timezone';
 import { convertAccuWeatherDateTimeToKST, formatKSTTime } from '@/lib/utils/datetime';
 
@@ -228,19 +229,39 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
     weatherCache.set(cacheKey, hourlyData, 10);
     console.log('💾 시간별 날씨 메모리 캐시 저장');
     
-    // 사용자 ID가 없으면 저장하지 않음
+    // 사용자 ID가 있으면 스마트 TTL 저장, 없으면 기존 방식
     if (params.clerkUserId && params.latitude !== undefined && params.longitude !== undefined) {
-      // DB에도 저장 (더 긴 TTL)
-      await weatherDbService.saveHourlyWeatherData(
-        locationKey, 
-        locationName, 
-        hourlyData, 
-        cacheKey, 
-        60, // 1시간
-        params.latitude, 
-        params.longitude,
-        params.clerkUserId
-      );
+      try {
+        // 스마트 TTL을 적용한 저장 (기존 데이터 보존)
+        const saveResult = await smartWeatherDbService.saveHourlyWeatherDataSmart(
+          locationKey,
+          locationName,
+          hourlyData,
+          params.latitude,
+          params.longitude,
+          params.clerkUserId
+        );
+        
+        console.log(`📊 스마트 시간별 날씨 저장 결과:`, {
+          saved: saveResult.saved,
+          updated: saveResult.updated,
+          skipped: saveResult.skipped,
+          avgTTL: Math.round(saveResult.ttlInfo.reduce((sum, ttl) => sum + ttl.personalizedTTL, 0) / saveResult.ttlInfo.length || 0)
+        });
+      } catch (smartError) {
+        console.error('스마트 TTL 저장 실패, 기존 방식으로 대체:', smartError);
+        // 스마트 저장 실패 시 기존 방식으로 대체
+        await weatherDbService.saveHourlyWeatherData(
+          locationKey, 
+          locationName, 
+          hourlyData, 
+          cacheKey, 
+          60, // 1시간
+          params.latitude, 
+          params.longitude,
+          params.clerkUserId
+        );
+      }
     } else {
       console.log('⚠️ 사용자 ID 또는 좌표 정보가 없어 DB 저장을 건너뜁니다.');
     }
@@ -445,21 +466,43 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
     weatherCache.set(cacheKey, result, 30);
     console.log('💾 일별 날씨 메모리 캐시 저장');
     
-    // 사용자 ID가 없으면 저장하지 않음
+    // 사용자 ID가 있으면 스마트 TTL 저장, 없으면 기존 방식
     if (params.clerkUserId && params.latitude !== undefined && params.longitude !== undefined) {
-      // DB에도 저장 (더 긴 TTL)
-      await weatherDbService.saveDailyWeatherData(
-        locationKey, 
-        locationName, 
-        result, 
-        days, 
-        units, 
-        cacheKey, 
-        120, // 2시간
-        params.latitude, 
-        params.longitude,
-        params.clerkUserId
-      );
+      try {
+        // 스마트 TTL을 적용한 저장 (기존 데이터 보존)
+        const saveResult = await smartWeatherDbService.saveDailyWeatherDataSmart(
+          locationKey,
+          locationName,
+          result,
+          days,
+          units,
+          params.latitude,
+          params.longitude,
+          params.clerkUserId
+        );
+        
+        console.log(`📊 스마트 일별 날씨 저장 결과:`, {
+          saved: saveResult.saved,
+          updated: saveResult.updated,
+          skipped: saveResult.skipped,
+          avgTTL: Math.round(saveResult.ttlInfo.reduce((sum, ttl) => sum + ttl.personalizedTTL, 0) / saveResult.ttlInfo.length || 0)
+        });
+      } catch (smartError) {
+        console.error('스마트 TTL 저장 실패, 기존 방식으로 대체:', smartError);
+        // 스마트 저장 실패 시 기존 방식으로 대체
+        await weatherDbService.saveDailyWeatherData(
+          locationKey, 
+          locationName, 
+          result, 
+          days, 
+          units, 
+          cacheKey, 
+          120, // 2시간
+          params.latitude, 
+          params.longitude,
+          params.clerkUserId
+        );
+      }
     } else {
       console.log('⚠️ 사용자 ID 또는 좌표 정보가 없어 DB 저장을 건너뜁니다.');
     }
