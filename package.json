@@ -16,8 +16,6 @@
     "db:studio": "drizzle-kit studio",
     "test:webhook": "node scripts/test-local-webhook.js",
     "test:webhook:help": "node scripts/test-local-webhook.js --help",
-    "email:create-schedules": "tsx scripts/create-email-schedules.ts",
-    "email:test-schedules": "node scripts/test-email-schedules.js",
     "weather:server": "npx -y @timlukahorstmann/mcp-weather",
     "weather:supergateway": "npx -y supergateway --stdio \"npx -y @timlukahorstmann/mcp-weather\" --port 4004 --baseUrl http://127.0.0.1:4004 --ssePath /messages --messagePath /message --cors \"*\""
   },
