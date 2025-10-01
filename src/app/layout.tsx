@@ -78,12 +78,6 @@ export default function RootLayout({
                         카카오 관리
                       </Link>
                       <Link 
-                        href="/admin/scheduled-messages" 
-                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                      >
-                        예약 메시지
-                      </Link>
-                      <Link 
                         href="/admin/email-management" 
                         className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
                       >

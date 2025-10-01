@@ -135,13 +135,12 @@ curl -X POST http://localhost:3000/api/kakao/wallet \
 ### 대시보드 접근
 
 1. **월렛 상태**: `/api/kakao/wallet`
-2. **정기 발송 관리**: `/admin/scheduled-messages`
-3. **메시지 로그**: `/admin/kakao`
+2. **메시지 로그**: `/admin/kakao`
 
 ### 로그 확인
 
 - **서버 로그**: 콘솔에서 실시간 확인
-- **발송 로그**: 데이터베이스 `scheduled_message_logs` 테이블
+- **발송 로그**: 데이터베이스 `webhook_logs` 테이블
 - **월렛 로그**: API 응답에서 확인
 
 ## ⚠️ 주의사항

@@ -83,66 +83,6 @@ export const webhookLogs = pgTable('webhook_logs', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-/**
- * 정기 발송 메시지 스케줄 테이블
- */
-export const scheduledMessages = pgTable('scheduled_messages', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  
-  // 스케줄 정보
-  title: text('title').notNull(), // 스케줄 제목 (관리용)
-  message: text('message').notNull(), // 발송할 메시지 내용
-  
-  // 발송 스케줄 설정
-  scheduleType: text('schedule_type').notNull(), // 'daily', 'weekly', 'monthly', 'once'
-  scheduleTime: text('schedule_time').notNull(), // 'HH:MM' 형식 (예: '09:00')
-  scheduleDay: integer('schedule_day'), // 주간: 0-6 (일-토), 월간: 1-31
-  timezone: text('timezone').default('Asia/Seoul').notNull(),
-  
-  // 발송 대상
-  targetType: text('target_type').default('all').notNull(), // 'all', 'specific', 'segment'
-  targetUsers: jsonb('target_users'), // 특정 사용자 타겟팅 시 사용
-  
-  // 활성화 상태
-  isActive: boolean('is_active').default(true).notNull(),
-  
-  // 발송 이력
-  lastSentAt: timestamp('last_sent_at'),
-  nextSendAt: timestamp('next_send_at').notNull(),
-  totalSentCount: integer('total_sent_count').default(0).notNull(),
-  
-  // 생성자 정보 (관리자)
-  createdBy: text('created_by').notNull(), // Clerk userId
-  
-  // 시간 정보
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
-/**
- * 스케줄 메시지 발송 로그 테이블
- */
-export const scheduledMessageLogs = pgTable('scheduled_message_logs', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  
-  // 연결된 스케줄
-  scheduledMessageId: uuid('scheduled_message_id').references(() => scheduledMessages.id).notNull(),
-  
-  // 발송 결과
-  sentAt: timestamp('sent_at').defaultNow().notNull(),
-  recipientCount: integer('recipient_count').notNull(), // 발송 대상자 수
-  successCount: integer('success_count').notNull(), // 성공한 발송 수
-  failureCount: integer('failure_count').default(0).notNull(), // 실패한 발송 수
-  
-  // 에러 정보
-  errorMessage: text('error_message'),
-  isSuccessful: boolean('is_successful').default(true).notNull(),
-  
-  // 메타데이터
-  executionTime: integer('execution_time'), // 실행 시간 (ms)
-  
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
 
 /**
  * 사용자 위치 정보 테이블
