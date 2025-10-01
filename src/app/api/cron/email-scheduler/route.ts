@@ -38,12 +38,16 @@ export async function GET(request: NextRequest) {
     console.log(`   UTC: ${now.toISOString()}`);
     console.log(`   KST: ${kstNow.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
     
+    // 현재 시간보다 이전이거나 같은 시간에 발송 예정인 스케줄 조회
+    // 1분의 여유를 두어 정확한 시간에 실행되지 않아도 처리되도록 함
+    const oneMinuteFromNow = new Date(now.getTime() + (1 * 60 * 1000));
+    
     const schedulesToExecute = await db
       .select()
       .from(emailSchedules)
       .where(and(
         eq(emailSchedules.isActive, true),
-        lte(emailSchedules.nextSendAt, now)
+        lte(emailSchedules.nextSendAt, oneMinuteFromNow)
       ));
 
     console.log(`📧 발송 대상 스케줄: ${schedulesToExecute.length}개`);
