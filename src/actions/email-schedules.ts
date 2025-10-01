@@ -627,19 +627,31 @@ async function getEmailRecipients(
 }
 
 /**
- * 다음 발송 시간 계산
+ * 다음 발송 시간 계산 (KST → UTC 변환)
  */
 function calculateNextSendTime(scheduleTime: string, timezone: string = 'Asia/Seoul'): Date {
-  const now = new Date();
   const [hours, minutes] = scheduleTime.split(':').map(Number);
   
-  const nextSend = new Date(now);
-  nextSend.setHours(hours, minutes, 0, 0);
+  // 현재 한국시간 기준으로 다음 발송 시간 계산
+  const now = new Date();
+  const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC → KST 변환
+  
+  // 한국시간 기준으로 다음 발송 시간 설정
+  const kstNextSend = new Date(kstNow);
+  kstNextSend.setHours(hours, minutes, 0, 0);
   
   // 오늘 발송 시간이 이미 지났으면 내일로 설정
-  if (nextSend <= now) {
-    nextSend.setDate(nextSend.getDate() + 1);
+  if (kstNextSend <= kstNow) {
+    kstNextSend.setDate(kstNextSend.getDate() + 1);
   }
   
-  return nextSend;
+  // KST → UTC 변환하여 반환 (데이터베이스에는 UTC로 저장)
+  const utcNextSend = new Date(kstNextSend.getTime() - (9 * 60 * 60 * 1000));
+  
+  console.log(`📅 스케줄 시간 계산:`);
+  console.log(`   입력된 시간: ${scheduleTime} (KST)`);
+  console.log(`   KST 다음 발송: ${kstNextSend.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+  console.log(`   UTC 저장 시간: ${utcNextSend.toISOString()}`);
+  
+  return utcNextSend;
 }

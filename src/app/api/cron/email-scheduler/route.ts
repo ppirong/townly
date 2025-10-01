@@ -32,6 +32,12 @@ export async function GET(request: NextRequest) {
 
     // 현재 시간에 발송해야 할 스케줄 조회
     const now = new Date();
+    const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    
+    console.log(`🕐 크론잡 실행 시간:`);
+    console.log(`   UTC: ${now.toISOString()}`);
+    console.log(`   KST: ${kstNow.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+    
     const schedulesToExecute = await db
       .select()
       .from(emailSchedules)
@@ -40,7 +46,15 @@ export async function GET(request: NextRequest) {
         lte(emailSchedules.nextSendAt, now)
       ));
 
-    console.log(`Found ${schedulesToExecute.length} schedules to execute at ${now.toISOString()}`);
+    console.log(`📧 발송 대상 스케줄: ${schedulesToExecute.length}개`);
+    
+    // 각 스케줄의 시간 정보 로깅
+    schedulesToExecute.forEach((schedule, index) => {
+      const scheduleKst = new Date(schedule.nextSendAt.getTime() + (9 * 60 * 60 * 1000));
+      console.log(`   ${index + 1}. ${schedule.title}`);
+      console.log(`      예정 시간(UTC): ${schedule.nextSendAt.toISOString()}`);
+      console.log(`      예정 시간(KST): ${scheduleKst.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+    });
 
     const results = [];
     let totalSuccess = 0;
