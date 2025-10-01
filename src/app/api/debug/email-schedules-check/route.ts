@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
           isNull,
           isUndefined,
           isArray,
-          length: isArray ? schedule.targetUserIds.length : 'N/A'
+          length: isArray ? (schedule.targetUserIds as string[]).length : 'N/A'
         },
         isActive: schedule.isActive,
         nextSendAt: schedule.nextSendAt,
