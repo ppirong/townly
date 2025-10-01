@@ -66,6 +66,12 @@ export default function RootLayout({
                         미세먼지
                       </Link>
                       <Link 
+                        href="/airquality-google" 
+                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                      >
+                        미세먼지(구글)
+                      </Link>
+                      <Link 
                         href="/profile" 
                         className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
                       >

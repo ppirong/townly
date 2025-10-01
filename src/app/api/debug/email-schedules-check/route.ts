@@ -1,91 +1,114 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { emailSchedules } from '@/db/schema';
 import { desc } from 'drizzle-orm';
 
 /**
- * 이메일 스케줄 디버그 조회 API (인증 불필요)
+ * 이메일 스케줄 데이터 디버그 조회 API (인증 불필요)
  * GET /api/debug/email-schedules-check
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 이메일 스케줄 디버그 조회 시작');
-
-    // 현재 시간 정보
-    const now = new Date();
-    const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    console.log('🔍 이메일 스케줄 데이터 디버그 조회 시작');
 
     // 모든 이메일 스케줄 조회
-    const schedules = await db
+    const allSchedules = await db
       .select()
       .from(emailSchedules)
       .orderBy(desc(emailSchedules.createdAt));
 
-    console.log(`📧 발견된 이메일 스케줄 수: ${schedules.length}`);
+    console.log(`📧 총 ${allSchedules.length}개 이메일 스케줄 발견`);
 
-    // 스케줄 분석 및 시간대 변환
-    const processedSchedules = schedules.map(schedule => {
-      const utcNextSend = new Date(schedule.nextSendAt);
-      const kstNextSend = new Date(utcNextSend.getTime() + (9 * 60 * 60 * 1000));
+    // 각 스케줄의 targetUserIds 상태 분석
+    const scheduleAnalysis = allSchedules.map(schedule => {
+      const targetUserIdsType = typeof schedule.targetUserIds;
+      const targetUserIdsValue = schedule.targetUserIds;
+      const isNull = schedule.targetUserIds === null;
+      const isUndefined = schedule.targetUserIds === undefined;
+      const isArray = Array.isArray(schedule.targetUserIds);
       
       return {
         id: schedule.id,
         title: schedule.title,
-        scheduleTime: schedule.scheduleTime, // 입력된 KST 시간
-        timezone: schedule.timezone,
-        status: schedule.isActive ? 'active' : 'inactive',
-        nextSendAt: {
-          utc: utcNextSend.toISOString(),
-          kst: kstNextSend.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-          utcHour: utcNextSend.getUTCHours(),
-          utcMinute: utcNextSend.getUTCMinutes(),
+        scheduleTime: schedule.scheduleTime,
+        targetType: schedule.targetType,
+        targetUserIds: {
+          value: targetUserIdsValue,
+          type: targetUserIdsType,
+          isNull,
+          isUndefined,
+          isArray,
+          length: isArray ? schedule.targetUserIds.length : 'N/A'
         },
-        createdAt: schedule.createdAt,
+        isActive: schedule.isActive,
+        nextSendAt: schedule.nextSendAt,
         lastSentAt: schedule.lastSentAt,
         totalSentCount: schedule.totalSentCount,
+        createdAt: schedule.createdAt
       };
     });
 
-    // 14:40 스케줄 찾기
-    const schedule1440 = processedSchedules.find(s => s.scheduleTime === '14:40');
+    // 통계 정보
+    const stats = {
+      total: allSchedules.length,
+      active: allSchedules.filter(s => s.isActive).length,
+      inactive: allSchedules.filter(s => !s.isActive).length,
+      targetUserIds: {
+        null: allSchedules.filter(s => s.targetUserIds === null).length,
+        undefined: allSchedules.filter(s => s.targetUserIds === undefined).length,
+        array: allSchedules.filter(s => Array.isArray(s.targetUserIds)).length,
+        other: allSchedules.filter(s => 
+          s.targetUserIds !== null && 
+          s.targetUserIds !== undefined && 
+          !Array.isArray(s.targetUserIds)
+        ).length
+      },
+      targetTypes: {
+        all_users: allSchedules.filter(s => s.targetType === 'all_users').length,
+        active_users: allSchedules.filter(s => s.targetType === 'active_users').length,
+        specific_users: allSchedules.filter(s => s.targetType === 'specific_users').length
+      }
+    };
+
+    // 문제가 있는 스케줄 식별
+    const problemSchedules = allSchedules.filter(schedule => {
+      // targetType이 'specific_users'인데 targetUserIds가 null이거나 빈 배열인 경우
+      if (schedule.targetType === 'specific_users') {
+        return !schedule.targetUserIds || 
+               !Array.isArray(schedule.targetUserIds) || 
+               schedule.targetUserIds.length === 0;
+      }
+      return false;
+    });
 
     return NextResponse.json({
-      message: '이메일 스케줄 디버그 조회 성공',
-      currentTime: {
-        utc: now.toISOString(),
-        kst: kstTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-      },
-      totalSchedules: schedules.length,
-      activeSchedules: schedules.filter(s => s.isActive).length,
-      schedules: processedSchedules,
-      schedule1440: schedule1440 ? {
-        found: true,
-        data: schedule1440,
-        explanation: {
-          inputTime: '14:40 (KST 오후 2시 40분)',
-          storedUtc: schedule1440.nextSendAt.utc,
-          storedKst: schedule1440.nextSendAt.kst,
-          requiredCronJob: `${schedule1440.nextSendAt.utcMinute} ${schedule1440.nextSendAt.utcHour} * * *`,
-          currentCronJob: '0 21,9 * * *',
-          willExecute: schedule1440.nextSendAt.utcHour === 20 && schedule1440.nextSendAt.utcMinute === 40 ? 
-            '현재 크론잡으로는 실행되지 않음' : 
-            '현재 크론잡으로는 실행되지 않음'
-        }
-      } : {
-        found: false,
-        message: '14:40 스케줄을 찾을 수 없습니다'
-      },
-      vercelCronStatus: {
-        current: '0 21,9 * * *',
-        meaning: 'UTC 21:00 (KST 06:00), UTC 09:00 (KST 18:00)',
-        note: '14:40 KST 발송을 위해서는 "40 5 * * *" (UTC 05:40 = KST 14:40) 크론잡 추가 필요'
-      }
+      success: true,
+      message: '이메일 스케줄 데이터 분석 완료',
+      stats,
+      schedules: scheduleAnalysis,
+      problemSchedules: problemSchedules.map(s => ({
+        id: s.id,
+        title: s.title,
+        targetType: s.targetType,
+        targetUserIds: s.targetUserIds,
+        issue: 'specific_users 타입인데 targetUserIds가 비어있음'
+      })),
+      recommendations: [
+        'targetType이 all_users인 경우 targetUserIds는 null이어도 정상입니다.',
+        'targetType이 specific_users인 경우 targetUserIds는 배열이어야 합니다.',
+        '현재 크론잡 오류는 Zod 스키마에서 null 값을 처리하지 못해서 발생했습니다.'
+      ],
+      timestamp: new Date().toISOString()
     });
+
   } catch (error) {
     console.error('❌ 이메일 스케줄 디버그 조회 실패:', error);
-    return NextResponse.json({ 
-      message: '이메일 스케줄 디버그 조회 실패', 
-      error: error instanceof Error ? error.message : '알 수 없는 오류'
+    
+    return NextResponse.json({
+      success: false,
+      error: '이메일 스케줄 디버그 조회 실패',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
     }, { status: 500 });
   }
 }

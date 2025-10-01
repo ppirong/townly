@@ -50,7 +50,7 @@ export const sendManualEmailSchema = z.object({
   location: z.string().min(1, '위치는 필수입니다').optional().default('서울'),
   timeOfDay: z.enum(['morning', 'evening']).optional().default('morning'),
   targetType: z.enum(['all_users', 'active_users', 'specific_users', 'test']).optional().default('all_users'),
-  targetUserIds: z.array(z.string()).optional(),
+  targetUserIds: z.array(z.string()).nullable().optional(),
   testEmail: z.string().email().optional(),
   forceRefreshWeather: z.boolean().optional().default(true),
 }).transform((data) => ({
@@ -58,6 +58,7 @@ export const sendManualEmailSchema = z.object({
   location: data.location ?? '서울',
   timeOfDay: data.timeOfDay ?? 'morning',
   targetType: data.targetType ?? 'all_users',
+  targetUserIds: data.targetUserIds || undefined, // null을 undefined로 변환
   forceRefreshWeather: data.forceRefreshWeather ?? true,
 }));
 

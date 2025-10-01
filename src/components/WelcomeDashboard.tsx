@@ -125,6 +125,10 @@ export default function WelcomeDashboard() {
     router.push('/airquality');
   };
 
+  const handleGoogleAirQualityClick = () => {
+    router.push('/airquality-google');
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Welcome Header */}
@@ -227,7 +231,7 @@ export default function WelcomeDashboard() {
       </div>
 
       {/* Information Cards */}
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div 
           className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 cursor-pointer hover:shadow-xl transition-all transform hover:scale-105"
           onClick={handleWeatherClick}
@@ -270,6 +274,27 @@ export default function WelcomeDashboard() {
           </div>
         </div>
         
+        <div 
+          className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 cursor-pointer hover:shadow-xl transition-all transform hover:scale-105"
+          onClick={handleGoogleAirQualityClick}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold">미세먼지(구글)</h3>
+            <div className="text-2xl">🌬️</div>
+          </div>
+          <div className="text-center py-4">
+            <div className="text-3xl font-bold text-blue-600 mb-1">AQI 65</div>
+            <p className="text-gray-600 mb-2">좋은 공기질</p>
+            <p className="text-sm text-gray-500">CAI(KR): 42 • BreezoMeter</p>
+          </div>
+          <div className="bg-blue-50 rounded-lg p-3 text-sm">
+            <p className="text-blue-800 flex items-center justify-between">
+              <span>🌬️ Google AI 기반 정밀 예보</span>
+              <span className="text-blue-600">자세히 보기 →</span>
+            </p>
+          </div>
+        </div>
+        
         <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold">오늘의 할인</h3>
@@ -298,7 +323,7 @@ export default function WelcomeDashboard() {
       {/* Quick Actions */}
       <div className="mt-8 bg-gray-50 rounded-xl p-6">
         <h3 className="text-lg font-bold mb-4">빠른 작업</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <button 
             onClick={handleWeatherClick}
             className="bg-white p-4 rounded-lg hover:shadow-md transition-shadow hover:bg-blue-50"
@@ -312,6 +337,13 @@ export default function WelcomeDashboard() {
           >
             <div className="text-2xl mb-2">😷</div>
             <div className="text-sm font-medium">미세먼지</div>
+          </button>
+          <button 
+            onClick={handleGoogleAirQualityClick}
+            className="bg-white p-4 rounded-lg hover:shadow-md transition-shadow hover:bg-blue-50"
+          >
+            <div className="text-2xl mb-2">🌬️</div>
+            <div className="text-sm font-medium">미세먼지(구글)</div>
           </button>
           <button className="bg-white p-4 rounded-lg hover:shadow-md transition-shadow">
             <div className="text-2xl mb-2">🔔</div>

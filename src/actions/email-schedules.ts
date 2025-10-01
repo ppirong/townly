@@ -658,7 +658,7 @@ export async function executeScheduledEmail(scheduleId: string) {
       location: userLocationName,
       timeOfDay: scheduleData.scheduleTime.startsWith('06') ? 'morning' : 'evening',
       targetType: scheduleData.targetType as any,
-      targetUserIds: scheduleData.targetUserIds as string[] | undefined,
+      targetUserIds: scheduleData.targetUserIds ? scheduleData.targetUserIds as string[] : undefined,
       forceRefreshWeather: true,
     });
     
@@ -797,7 +797,7 @@ async function collectWeatherData(location: string, timeOfDay: 'morning' | 'even
  */
 async function getEmailRecipientsWithoutAuth(
   targetType: 'all_users' | 'active_users' | 'specific_users',
-  targetUserIds?: string[]
+  targetUserIds?: string[] | null
 ) {
   try {
     console.log(`📋 크론잡 Clerk 기반 이메일 수신자 조회: ${targetType}, 대상 ID: ${targetUserIds?.join(', ') || 'none'}`);
@@ -886,7 +886,7 @@ async function getEmailRecipientsWithoutAuth(
  */
 async function getEmailRecipients(
   targetType: 'all_users' | 'active_users' | 'specific_users',
-  targetUserIds?: string[]
+  targetUserIds?: string[] | null
 ) {
   try {
     console.log(`📋 Clerk 기반 이메일 수신자 조회: ${targetType}, 대상 ID: ${targetUserIds?.join(', ') || 'none'}`);
