@@ -28,6 +28,9 @@ export const env = {
   // 한국환경공단 에어코리아 API
   AIRKOREA_API_KEY: process.env.AIRKOREA_API_KEY,
   
+  // Google Air Quality API
+  GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
+  
   // Gmail API 설정
   GMAIL_CLIENT_ID: process.env.GMAIL_CLIENT_ID!,
   GMAIL_CLIENT_SECRET: process.env.GMAIL_CLIENT_SECRET!,

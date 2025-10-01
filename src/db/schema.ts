@@ -793,3 +793,113 @@ export type UserEmailSettings = typeof userEmailSettings.$inferSelect;
 export type NewUserEmailSettings = typeof userEmailSettings.$inferInsert;
 export type IndividualEmailLog = typeof individualEmailLogs.$inferSelect;
 export type NewIndividualEmailLog = typeof individualEmailLogs.$inferInsert;
+
+/**
+ * Google Air Quality API 시간별 대기질 데이터 테이블
+ * Google Air Quality API에서 가져온 시간별 대기질 데이터를 캐시
+ */
+export const googleHourlyAirQualityData = pgTable('google_hourly_air_quality_data', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  
+  // 사용자 정보
+  clerkUserId: text('clerk_user_id'), // Clerk 사용자 ID (사용자별 대기질 데이터 저장용)
+  
+  // 위치 정보
+  latitude: text('latitude').notNull(), // 위도
+  longitude: text('longitude').notNull(), // 경도
+  locationName: text('location_name'), // 위치명
+  
+  // 시간 정보
+  forecastDate: text('forecast_date').notNull(), // 예보 날짜 (YYYY-MM-DD)
+  forecastHour: integer('forecast_hour').notNull(), // 예보 시간 (0-23)
+  forecastDateTime: timestamp('forecast_datetime').notNull(), // 정확한 예보 시간
+  
+  // PM 농도 정보 (μg/m³)
+  pm10: integer('pm10'), // PM10 농도
+  pm25: integer('pm25'), // PM2.5 농도
+  
+  // 대기질 지수
+  caiKr: integer('cai_kr'), // CAI (Korea) 지수
+  breezoMeterAqi: integer('breezo_meter_aqi'), // BreezoMeter AQI
+  
+  // 추가 오염물질 (선택사항)
+  no2: integer('no2'), // 이산화질소 (μg/m³)
+  o3: integer('o3'), // 오존 (μg/m³)
+  so2: integer('so2'), // 아황산가스 (μg/m³)
+  co: integer('co'), // 일산화탄소 (mg/m³)
+  
+  // 메타데이터
+  units: text('units').default('metric').notNull(), // 단위 시스템
+  rawData: jsonb('raw_data'), // 원본 API 응답 데이터 (백업용)
+  
+  // 캐시 정보
+  cacheKey: text('cache_key').notNull(), // 캐시 키
+  expiresAt: timestamp('expires_at').notNull(), // 캐시 만료 시간
+  
+  // 시간 정보
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+/**
+ * Google Air Quality API 일별 대기질 데이터 테이블
+ * Google Air Quality API에서 가져온 일별 대기질 데이터를 캐시
+ */
+export const googleDailyAirQualityData = pgTable('google_daily_air_quality_data', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  
+  // 사용자 정보
+  clerkUserId: text('clerk_user_id'), // Clerk 사용자 ID (사용자별 대기질 데이터 저장용)
+  
+  // 위치 정보
+  latitude: text('latitude').notNull(), // 위도
+  longitude: text('longitude').notNull(), // 경도
+  locationName: text('location_name'), // 위치명
+  
+  // 날짜 정보
+  forecastDate: text('forecast_date').notNull(), // 예보 날짜 (YYYY-MM-DD)
+  dayOfWeek: text('day_of_week').notNull(), // 요일
+  
+  // PM 농도 정보 (일 평균, μg/m³)
+  pm10: integer('pm10'), // PM10 농도 (일 평균)
+  pm10Max: integer('pm10_max'), // PM10 최대값
+  pm10Min: integer('pm10_min'), // PM10 최소값
+  
+  pm25: integer('pm25'), // PM2.5 농도 (일 평균)
+  pm25Max: integer('pm25_max'), // PM2.5 최대값
+  pm25Min: integer('pm25_min'), // PM2.5 최소값
+  
+  // 대기질 지수 (일 평균)
+  caiKr: integer('cai_kr'), // CAI (Korea) 지수
+  caiKrMax: integer('cai_kr_max'), // CAI (Korea) 최대값
+  caiKrMin: integer('cai_kr_min'), // CAI (Korea) 최소값
+  
+  breezoMeterAqi: integer('breezo_meter_aqi'), // BreezoMeter AQI
+  breezoMeterAqiMax: integer('breezo_meter_aqi_max'), // BreezoMeter AQI 최대값
+  breezoMeterAqiMin: integer('breezo_meter_aqi_min'), // BreezoMeter AQI 최소값
+  
+  // 추가 오염물질 (일 평균)
+  no2: integer('no2'), // 이산화질소 (μg/m³)
+  o3: integer('o3'), // 오존 (μg/m³)
+  so2: integer('so2'), // 아황산가스 (μg/m³)
+  co: integer('co'), // 일산화탄소 (mg/m³)
+  
+  // 메타데이터
+  units: text('units').default('metric').notNull(), // 단위 시스템
+  forecastDays: integer('forecast_days').default(7).notNull(), // 예보 일수
+  rawData: jsonb('raw_data'), // 원본 API 응답 데이터 (백업용)
+  
+  // 캐시 정보
+  cacheKey: text('cache_key').notNull(), // 캐시 키
+  expiresAt: timestamp('expires_at').notNull(), // 캐시 만료 시간
+  
+  // 시간 정보
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Google Air Quality API 관련 타입 정의
+export type GoogleHourlyAirQualityData = typeof googleHourlyAirQualityData.$inferSelect;
+export type NewGoogleHourlyAirQualityData = typeof googleHourlyAirQualityData.$inferInsert;
+export type GoogleDailyAirQualityData = typeof googleDailyAirQualityData.$inferSelect;
+export type NewGoogleDailyAirQualityData = typeof googleDailyAirQualityData.$inferInsert;

@@ -87,7 +87,7 @@ export async function getUserLocation() {
       data: {
         id: loc.id,
         clerkUserId: loc.clerkUserId,
-        locationName: loc.locationName,
+        locationName: loc.cityName || loc.address || '알 수 없는 위치',
         address: loc.address,
         latitude: loc.latitude,
         longitude: loc.longitude,

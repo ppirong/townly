@@ -67,10 +67,10 @@ export async function getEmailSchedules() {
   return schedules.map(schedule => ({
     id: schedule.id,
     title: schedule.title,
+    description: schedule.description,
     emailSubject: schedule.emailSubject,
-    scheduleType: schedule.scheduleType,
+    emailTemplate: schedule.emailTemplate,
     scheduleTime: schedule.scheduleTime,
-    scheduleDay: schedule.scheduleDay,
     timezone: schedule.timezone,
     targetType: schedule.targetType,
     targetUserIds: schedule.targetUserIds,
@@ -389,8 +389,8 @@ export async function executeScheduledEmail(scheduleId: string) {
       const locationResult = await getUserLocation();
       
       if (locationResult.success && locationResult.data) {
-        // 사용자가 설정한 실제 위치 사용 (address 우선, 없으면 cityName 사용)
-        userLocationName = locationResult.data.address || locationResult.data.cityName || '서울';
+        // 사용자가 설정한 실제 위치 사용 (address 우선, 없으면 locationName 사용)
+        userLocationName = locationResult.data.address || locationResult.data.locationName || '서울';
         console.log(`📍 스케줄 이메일에 사용자 위치 적용: ${userLocationName}`);
       }
     } catch (error) {

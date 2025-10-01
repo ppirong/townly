@@ -23,7 +23,21 @@ export default function WelcomeDashboard() {
     try {
       const result = await getUserLocation();
       if (result.success && result.data) {
-        setSavedLocation(result.data);
+        const mappedLocation: UserLocation = {
+          id: result.data.id,
+          clerkUserId: result.data.clerkUserId,
+          latitude: result.data.latitude,
+          longitude: result.data.longitude,
+          address: result.data.address,
+          cityName: result.data.locationName,
+          isDefault: result.data.isDefault,
+          nickname: null,
+          accuracy: null,
+          source: 'gps',
+          createdAt: result.data.createdAt,
+          updatedAt: result.data.updatedAt,
+        };
+        setSavedLocation(mappedLocation);
         setLocationPermission('granted');
         setCurrentLocation(result.data.address || `위도: ${parseFloat(result.data.latitude).toFixed(4)}, 경도: ${parseFloat(result.data.longitude).toFixed(4)}`);
       }
