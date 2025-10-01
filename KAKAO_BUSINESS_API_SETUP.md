@@ -21,7 +21,7 @@ KAKAO_SENDER_KEY=your_sender_key_here
 KAKAO_TEMPLATE_ID=your_template_id_here
 
 # 크론잡 보안 토큰 (선택적)
-CRON_SECRET_TOKEN=your_cron_secret_token_here
+CRON_SECRET=your_cron_secret_here
 ```
 
 ### 환경변수 설명
