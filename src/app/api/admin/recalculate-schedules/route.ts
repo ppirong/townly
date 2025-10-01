@@ -12,7 +12,6 @@ export async function POST(request: NextRequest) {
     const result = await recalculateAllScheduleTimes();
     
     return NextResponse.json({
-      success: true,
       ...result,
       timestamp: new Date().toISOString(),
     });
