@@ -11,9 +11,9 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🕐 스케줄 메시지 크론잡 실행 시작:', new Date().toISOString());
     
-    // 인증 토큰 확인 (보안) - 토큰이 없으면 무조건 거부
+    // 인증 토큰 확인 (보안) - 다른 크론잡과 동일한 환경변수 사용
     const authHeader = request.headers.get('authorization');
-    const expectedToken = process.env.CRON_SECRET_TOKEN;
+    const expectedToken = process.env.CRON_SECRET;
     
     if (!expectedToken) {
       console.log('❌ 크론잡 시크릿 토큰이 설정되지 않음');
@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
     
     if (authHeader !== `Bearer ${expectedToken}`) {
       console.log('❌ 크론잡 인증 실패');
+      console.log(`   받은 헤더: ${authHeader}`);
+      console.log(`   예상 헤더: Bearer ${expectedToken}`);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
