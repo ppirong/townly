@@ -97,42 +97,86 @@ export class WeatherAISummaryService {
   private getSystemPrompt(timeOfDay: 'morning' | 'evening', currentMonth: number): string {
     const season = this.getSeason(currentMonth);
     const timeContext = timeOfDay === 'morning' ? '아침' : '저녁';
+    const isWinter = currentMonth === 12 || currentMonth <= 2;
 
-    return `당신은 한국의 날씨 전문가입니다. 사용자에게 간략하고 실용적인 날씨 안내를 제공해야 합니다.
+    return `당신은 한국의 날씨 전문가입니다. 사용자에게 날씨 안내 이메일을 작성해야 합니다.
 
 현재 상황:
 - 시간대: ${timeContext}
 - 계절: ${season}
 - 월: ${currentMonth}월
 
-응답 규칙:
-1. 간략하고 요점만 전달 (불필요한 설명 제거)
-2. 구체적인 수치와 시간대 중심으로 작성
-3. 실질적인 주의사항만 포함
+**중요한 작성 규칙:**
 
-**중요: 응답은 반드시 순수한 JSON 형식만 제공하세요. 다른 텍스트나 설명 없이 오직 JSON만 반환해야 합니다.**
+1. **사용자 위치 표시**: 반드시 데이터베이스 user_locations 테이블의 address 필드 값을 사용하세요
+2. **날짜 표시**: UTC 날짜가 아닌 KST(한국 표준시) 날짜를 표시하세요
+3. **이메일 형식**: 아래 템플릿을 정확히 따라 작성하세요
+
+**${isWinter ? '겨울' : '봄/여름/가을'} 날씨 안내 이메일 템플릿:**
+
+${isWinter ? 
+`**겨울철 템플릿 (12월-2월):**
+
+- 적설 확률이나 강우 확률이 70% 이상인 시간이 있는 경우:
+"1월 10일 저녁6시부터 아침 6시까지 날씨 요약 정보입니다.
+사용자 위치: [user_locations.address 값]
+
+기온: -10도 - 1도
+
+비나 눈이 오는 시간은 다음과 같습니다.
+11시: 적설량 10mm, 적설 확률 70%
+16시: 강우량 20mm, 강우 확률 80%"
+
+- 적설 확률이나 강우 확률이 70% 이상인 시간이 없는 경우:
+"1월 10일 저녁6시부터 아침 6시까지 날씨 요약 정보입니다.
+사용자 위치: [user_locations.address 값]
+
+기온: -10도 - 1도
+
+비나 눈이 내릴 확률이 70% 이상인 시간은 없습니다."` :
+`**봄/여름/가을 템플릿 (3월-11월):**
+
+- 강우 확률이 70% 이상인 시간이 있는 경우:
+"10월 1일 아침 6시부터 저녁 6시까지 날씨 요약 정보입니다.
+사용자 위치: [user_locations.address 값]
+
+기온: 15도 - 25도
+
+비가 오는 시간은 다음과 같습니다.
+11시: 강우량 1mm, 강우 확률 70%
+16시: 강우량 2mm, 강우 확률 80%"
+
+- 강우 확률이 70% 이상인 시간이 없는 경우:
+"10월 1일 아침 6시부터 저녁 6시까지 날씨 요약 정보입니다.
+사용자 위치: [user_locations.address 값]
+
+기온: 15도 - 25도
+
+비가 내릴 확률이 70% 이상인 시간은 없습니다."`}
+
+**주의사항 작성 규칙:**
+비가 내리는 시각, 강수량, 강수 확률을 제시한 후 다음 주의사항을 작성하세요:
+
+- 밤(저녁 6시 - 다음날 오전 6시)에 비가 올 확률이 70% 이상: "새벽 3시에 비가 10mm 내릴 확률이 80%이기 때문에 창문을 잘 닫고 자는 것이 좋습니다."
+- 아침 출근 시간(6시 - 10시)에 비가 올 확률이 70% 이상: "아침 7시에 비가 10mm 내릴 확률이 70%이기 때문에 우산을 가지고 출근하는 것이 좋습니다."
+- 아침 출근 시간(6시 - 10시)에 눈이 올 확률이 70% 이상: "아침 5시에 눈이 10mm 쌓일 확률이 80%이기 때문에 평소 보다 일찍 출근하는 것이 좋습니다."
+- 바람이 강하게 부는 날씨: "강풍에 대한 대비를 하는 것이 좋습니다."
+
+**마지막에 반드시 추가:**
+"자세한 날씨 정보는 다음 링크에서 확인하실 수 있습니다.
+https://townly.vercel.app/weather"
+
+**중요: 응답은 반드시 순수한 JSON 형식만 제공하세요.**
 
 응답 형식:
 {
-  "summary": "기온 범위와 간단한 날씨 상태만 포함 (1문장)",
+  "summary": "위 템플릿 형식을 정확히 따른 전체 이메일 내용",
   "temperatureRange": "최저기온~최고기온",
-  "precipitationInfo": "강수 시간별 정보 또는 계절에 따라 '비가 오지 않습니다.' 또는 '눈이 오지 않습니다.'",
+  "precipitationInfo": "강수 시간별 정보",
   "warnings": ["구체적인 주의사항들"],
   "alertLevel": "low|medium|high",
   "forecastPeriod": "예보 시간 범위"
 }
-
-강수 정보 작성 규칙:
-- 강수량/적설량이 0이 아닌 시간이 있으면: "비가(눈이) 오는 시간은 다음과 같습니다.\n11시: 강우량 10mm, 강우 확률 30%\n16시: 적설량 20mm, 적설 확률 40%"
-- 모든 시간대에서 강수량이 0이면 계절별로:
-  * 겨울철 (12월-2월): "눈이 오지 않습니다."
-  * 그 외 계절: "비가 오지 않습니다."
-
-주의사항 작성 규칙:
-- 밤(전날 22시-다음날 오전 6시) 강우확률 60% 이상: "창문을 잘 닫고 자야 합니다"
-- 출근시간(6시-10시) 강우확률 70% 이상: "우산을 가지고 출근해야 합니다"
-- 출근시간(6시-10시) 적설확률 70% 이상: "출근 시간을 조금 빨리해야 합니다"
-- 풍속 15m/s 이상: "강풍에 대비해야 합니다"
 
 주의사항:
 - JSON 외의 다른 텍스트, 설명, 마크다운은 절대 포함하지 마세요
@@ -144,7 +188,9 @@ export class WeatherAISummaryService {
    * 날씨 프롬프트 생성
    */
   private createWeatherPrompt(request: WeatherSummaryRequest, weatherData: WeatherDataInput): string {
-    let prompt = `${request.location} 지역의 ${request.startDateTime.toLocaleDateString('ko-KR')} 날씨 요약을 작성해주세요.\n\n`;
+    // KST 날짜 생성
+    const kstDate = new Date(request.startDateTime.getTime() + (9 * 60 * 60 * 1000));
+    let prompt = `${request.location} 지역의 ${kstDate.toLocaleDateString('ko-KR')} 날씨 이메일을 작성해주세요.\n\n`;
 
     // 기온 범위 계산
     let minTemp = Infinity;
@@ -152,11 +198,15 @@ export class WeatherAISummaryService {
     
     // 시간별 예보 정보 추가 (강수 중심)
     if (weatherData.hourlyForecasts && weatherData.hourlyForecasts.length > 0) {
-      prompt += `시간별 예보 (${request.startDateTime.toLocaleString('ko-KR', { 
+      // KST 시간으로 변환하여 표시
+      const kstStart = new Date(request.startDateTime.getTime() + (9 * 60 * 60 * 1000));
+      const kstEnd = new Date(request.endDateTime.getTime() + (9 * 60 * 60 * 1000));
+      
+      prompt += `시간별 예보 (${kstStart.toLocaleString('ko-KR', { 
         month: 'short', 
         day: 'numeric', 
         hour: 'numeric' 
-      })} ~ ${request.endDateTime.toLocaleString('ko-KR', { 
+      })} ~ ${kstEnd.toLocaleString('ko-KR', { 
         month: 'short', 
         day: 'numeric', 
         hour: 'numeric' 
@@ -170,16 +220,18 @@ export class WeatherAISummaryService {
         minTemp = Math.min(minTemp, forecast.temperature);
         maxTemp = Math.max(maxTemp, forecast.temperature);
         
-        // 강수량이나 적설량이 0이 아닌 경우만 추가
+        // 강수량이나 적설량이 0이 아닌 경우만 추가 (KST 시간 사용)
         if (forecast.precipitationProbability > 0) {
-          const hour = forecast.dateTime.getHours();
+          const kstForecastTime = new Date(forecast.dateTime.getTime() + (9 * 60 * 60 * 1000));
+          const hour = kstForecastTime.getHours();
           const precipType = forecast.conditions.includes('눈') || forecast.conditions.includes('snow') ? '적설' : '강우';
           precipitationHours.push(`${hour}시: ${precipType}량 ${forecast.precipitationProbability}mm, ${precipType} 확률 ${forecast.rainProbability || forecast.precipitationProbability}%`);
         }
         
-        // 바람 정보 (15m/s 이상인 경우만)
+        // 바람 정보 (15m/s 이상인 경우만, KST 시간 사용)
         if (forecast.windSpeed >= 15) {
-          prompt += `${forecast.dateTime.getHours()}시: 강풍 ${forecast.windSpeed}km/h\n`;
+          const kstForecastTime = new Date(forecast.dateTime.getTime() + (9 * 60 * 60 * 1000));
+          prompt += `${kstForecastTime.getHours()}시: 강풍 ${forecast.windSpeed}km/h\n`;
         }
       });
       
@@ -208,15 +260,14 @@ export class WeatherAISummaryService {
     }
 
     prompt += `분석 요청사항:
-1. 기온 범위(${minTemp}°C~${maxTemp}°C)를 temperatureRange에 포함
-2. 강수가 있는 시간대는 precipitationInfo에 구체적으로 명시 (없으면 계절에 따라 "비가 오지 않습니다." 또는 "눈이 오지 않습니다.")
-3. 다음 주의사항을 warnings에 포함:
-   - 밤시간(22시-06시) 강우확률 60% 이상 → 창문 관련 안내
-   - 출근시간(06시-10시) 강우확률 70% 이상 → 우산 관련 안내  
-   - 출근시간(06시-10시) 적설확률 70% 이상 → 출근시간 조정 안내
-   - 풍속 15m/s 이상 → 강풍 대비 안내
-4. summary는 기온과 날씨상태만 간단히 (1문장)
-5. 불필요한 설명이나 인사말 제거
+1. 위에서 제시한 이메일 템플릿 형식을 정확히 따라 작성하세요
+2. 사용자 위치는 반드시 "사용자 위치: [실제 주소]" 형식으로 표시하세요
+3. 날짜와 시간은 모두 KST(한국 표준시) 기준으로 표시하세요
+4. 기온 범위: ${minTemp}도 - ${maxTemp}도
+5. 강수 확률이 70% 이상인 시간이 있으면 구체적으로 명시하고, 없으면 "확률이 70% 이상인 시간은 없습니다" 표시
+6. 주의사항은 구체적인 시간과 확률을 포함하여 작성
+7. 마지막에 날씨 페이지 링크 반드시 포함
+8. summary에는 전체 이메일 내용을 템플릿 형식으로 작성
 
 ${this.getSimplifiedAnalysisGuidelines(request.currentMonth)}`;
 
@@ -269,10 +320,10 @@ ${this.getSimplifiedAnalysisGuidelines(request.currentMonth)}`;
    */
   private getSimplifiedAnalysisGuidelines(month: number): string {
     let guidelines = `주의사항 판단 기준:
-- 밤시간 강우확률 60% 이상: "창문을 잘 닫고 자야 합니다"
-- 출근시간 강우확률 70% 이상: "우산을 가지고 출근해야 합니다"
-- 출근시간 적설확률 70% 이상: "출근 시간을 조금 빨리해야 합니다"
-- 풍속 15m/s 이상: "강풍에 대비해야 합니다"`;
+- 밤시간(저녁 6시-다음날 오전 6시) 강우확률 70% 이상: "창문을 잘 닫고 자는 것이 좋습니다"
+- 아침 출근시간(6시-10시) 강우확률 70% 이상: "우산을 가지고 출근하는 것이 좋습니다"
+- 아침 출근시간(6시-10시) 적설확률 70% 이상: "평소 보다 일찍 출근하는 것이 좋습니다"
+- 바람이 강하게 부는 날씨: "강풍에 대한 대비를 하는 것이 좋습니다"`;
 
     if (month >= 7 && month <= 8) {
       guidelines += `
@@ -390,8 +441,9 @@ ${this.getSimplifiedAnalysisGuidelines(request.currentMonth)}`;
   private getPersonalizedSystemPrompt(timeOfDay: 'morning' | 'evening', currentMonth: number, userId: string): string {
     const season = this.getSeason(currentMonth);
     const timeContext = timeOfDay === 'morning' ? '아침' : '저녁';
+    const isWinter = currentMonth === 12 || currentMonth <= 2;
 
-    return `당신은 한국의 개인화 날씨 전문가입니다. 특정 사용자(ID: ${userId.slice(0, 8)}...)에게 맞춤형 날씨 안내를 제공해야 합니다.
+    return `당신은 한국의 개인화 날씨 전문가입니다. 특정 사용자(ID: ${userId.slice(0, 8)}...)에게 맞춤형 날씨 안내 이메일을 작성해야 합니다.
 
 현재 상황:
 - 시간대: ${timeContext}
@@ -399,35 +451,78 @@ ${this.getSimplifiedAnalysisGuidelines(request.currentMonth)}`;
 - 월: ${currentMonth}월
 - 사용자 ID: ${userId.slice(0, 8)}...
 
-개인화 응답 규칙:
-1. 사용자가 실제로 저장한 날씨 데이터를 기반으로 분석
-2. 데이터 출처(사용자 DB vs 실시간 API)를 고려하여 신뢰도 조정
-3. 사용자의 위치와 시간대에 맞는 구체적인 조언 제공
-4. 친근하고 개인적인 톤으로 작성
+**중요한 작성 규칙:**
 
-${timeOfDay === 'morning' ? `
-아침 개인화 조언:
-- 사용자의 출근/일정에 맞는 준비물 안내
-- 하루 종일 날씨 변화에 대한 개인 맞춤 예고
-- 사용자 위치 기반 교통/이동 관련 팁
-` : `
-저녁 개인화 조언:
-- 사용자 위치의 밤 시간대 특화 정보
-- 다음 날 아침 준비를 위한 맞춤 안내
-- 개인 일정을 고려한 날씨 대비책
-`}
+1. **사용자 위치 표시**: 반드시 데이터베이스 user_locations 테이블의 address 필드 값을 사용하세요
+2. **날짜 표시**: UTC 날짜가 아닌 KST(한국 표준시) 날짜를 표시하세요
+3. **이메일 형식**: 아래 템플릿을 정확히 따라 작성하세요
+4. **개인화**: 사용자 데이터를 기반으로 친근하고 개인적인 톤으로 작성
+
+**${isWinter ? '겨울' : '봄/여름/가을'} 날씨 안내 이메일 템플릿:**
+
+${isWinter ? 
+`**겨울철 템플릿 (12월-2월):**
+
+- 적설 확률이나 강우 확률이 70% 이상인 시간이 있는 경우:
+"1월 10일 저녁6시부터 아침 6시까지 날씨 요약 정보입니다.
+사용자 위치: [user_locations.address 값]
+
+기온: -10도 - 1도
+
+비나 눈이 오는 시간은 다음과 같습니다.
+11시: 적설량 10mm, 적설 확률 70%
+16시: 강우량 20mm, 강우 확률 80%"
+
+- 적설 확률이나 강우 확률이 70% 이상인 시간이 없는 경우:
+"1월 10일 저녁6시부터 아침 6시까지 날씨 요약 정보입니다.
+사용자 위치: [user_locations.address 값]
+
+기온: -10도 - 1도
+
+비나 눈이 내릴 확률이 70% 이상인 시간은 없습니다."` :
+`**봄/여름/가을 템플릿 (3월-11월):**
+
+- 강우 확률이 70% 이상인 시간이 있는 경우:
+"10월 1일 아침 6시부터 저녁 6시까지 날씨 요약 정보입니다.
+사용자 위치: [user_locations.address 값]
+
+기온: 15도 - 25도
+
+비가 오는 시간은 다음과 같습니다.
+11시: 강우량 1mm, 강우 확률 70%
+16시: 강우량 2mm, 강우 확률 80%"
+
+- 강우 확률이 70% 이상인 시간이 없는 경우:
+"10월 1일 아침 6시부터 저녁 6시까지 날씨 요약 정보입니다.
+사용자 위치: [user_locations.address 값]
+
+기온: 15도 - 25도
+
+비가 내릴 확률이 70% 이상인 시간은 없습니다."`}
+
+**주의사항 작성 규칙:**
+비가 내리는 시각, 강수량, 강수 확률을 제시한 후 다음 주의사항을 작성하세요:
+
+- 밤(저녁 6시 - 다음날 오전 6시)에 비가 올 확률이 70% 이상: "새벽 3시에 비가 10mm 내릴 확률이 80%이기 때문에 창문을 잘 닫고 자는 것이 좋습니다."
+- 아침 출근 시간(6시 - 10시)에 비가 올 확률이 70% 이상: "아침 7시에 비가 10mm 내릴 확률이 70%이기 때문에 우산을 가지고 출근하는 것이 좋습니다."
+- 아침 출근 시간(6시 - 10시)에 눈이 올 확률이 70% 이상: "아침 5시에 눈이 10mm 쌓일 확률이 80%이기 때문에 평소 보다 일찍 출근하는 것이 좋습니다."
+- 바람이 강하게 부는 날씨: "강풍에 대한 대비를 하는 것이 좋습니다."
+
+**마지막에 반드시 추가:**
+"자세한 날씨 정보는 다음 링크에서 확인하실 수 있습니다.
+https://townly.vercel.app/weather"
 
 데이터 신뢰도 기준:
 - 사용자 DB 데이터: 높은 신뢰도 (사용자가 실제 경험한 지역 기반)
 - 실시간 API 데이터: 보통 신뢰도 (일반적인 예보)
 
-**중요: 응답은 반드시 순수한 JSON 형식만 제공하세요. 다른 텍스트나 설명 없이 오직 JSON만 반환해야 합니다.**
+**중요: 응답은 반드시 순수한 JSON 형식만 제공하세요.**
 
 응답 형식:
 {
-  "summary": "개인화된 기온과 날씨상태 (1문장, 사용자 친근한 톤)",
+  "summary": "위 템플릿 형식을 정확히 따른 전체 개인화 이메일 내용",
   "temperatureRange": "최저기온~최고기온",
-  "precipitationInfo": "개인화된 강수 시간별 정보 또는 계절에 따라 '비가 오지 않습니다.' 또는 '눈이 오지 않습니다.'",
+  "precipitationInfo": "강수 시간별 정보",
   "warnings": ["개인화된 구체적 주의사항들"],
   "alertLevel": "low|medium|high",
   "forecastPeriod": "개인화된 예보 기간 설명"
@@ -449,15 +544,23 @@ ${timeOfDay === 'morning' ? `
       dailyForecasts: UserDailyWeatherData[];
     }
   ): string {
-    let prompt = `사용자 맞춤 ${request.location} 지역 날씨 분석을 요청합니다.\n\n`;
+    // KST 날짜 생성
+    const kstDate = new Date(request.startDateTime.getTime() + (9 * 60 * 60 * 1000));
+    let prompt = `사용자 맞춤 ${request.location} 지역의 ${kstDate.toLocaleDateString('ko-KR')} 날씨 이메일을 작성해주세요.\n\n`;
 
     // 사용자별 시간별 예보 정보 추가
     if (userWeatherData.hourlyForecasts && userWeatherData.hourlyForecasts.length > 0) {
-      prompt += `개인화된 시간별 예보 (${request.startDateTime.toLocaleString('ko-KR')} ~ ${request.endDateTime.toLocaleString('ko-KR')}):\n`;
+      // KST 시간으로 변환하여 표시
+      const kstStart = new Date(request.startDateTime.getTime() + (9 * 60 * 60 * 1000));
+      const kstEnd = new Date(request.endDateTime.getTime() + (9 * 60 * 60 * 1000));
+      
+      prompt += `개인화된 시간별 예보 (${kstStart.toLocaleString('ko-KR')} ~ ${kstEnd.toLocaleString('ko-KR')}):\n`;
       
       userWeatherData.hourlyForecasts.forEach((forecast, index) => {
         const dataSource = forecast.source === 'user_database' ? '[사용자 저장 데이터]' : '[실시간 API]';
-        prompt += `${forecast.dateTime.toLocaleString('ko-KR', { 
+        // KST 시간으로 변환하여 표시
+        const kstForecastTime = new Date(forecast.dateTime.getTime() + (9 * 60 * 60 * 1000));
+        prompt += `${kstForecastTime.toLocaleString('ko-KR', { 
           month: 'short', 
           day: 'numeric', 
           hour: 'numeric' 
@@ -490,11 +593,14 @@ ${timeOfDay === 'morning' ? `
     }
 
     prompt += `개인화된 분석 요청사항:
-1. 위 사용자별 날씨 정보를 바탕으로 이 사용자에게 가장 적합한 안내를 제공해주세요
-2. 사용자 저장 데이터와 실시간 API 데이터의 차이점을 고려해주세요
-3. 사용자가 실제로 경험할 수 있는 구체적이고 실용적인 조언을 해주세요
-4. 개인적이고 친근한 톤으로 사용자에게 직접 말하는 것처럼 작성해주세요
-5. 데이터 출처를 고려하여 신뢰도 높은 정보를 우선 활용해주세요
+1. 위에서 제시한 개인화 이메일 템플릿 형식을 정확히 따라 작성하세요
+2. 사용자 위치는 반드시 "사용자 위치: [실제 주소]" 형식으로 표시하세요
+3. 날짜와 시간은 모두 KST(한국 표준시) 기준으로 표시하세요
+4. 사용자 데이터를 기반으로 개인적이고 친근한 톤으로 작성
+5. 데이터 출처(사용자 DB vs 실시간 API)를 고려하여 신뢰도 높은 정보 우선 활용
+6. 주의사항은 구체적인 시간과 확률을 포함하여 작성
+7. 마지막에 날씨 페이지 링크 반드시 포함
+8. summary에는 전체 개인화 이메일 내용을 템플릿 형식으로 작성
 
 ${this.getPersonalizedWeatherAnalysisGuidelines(request.currentMonth)}`;
 
@@ -562,7 +668,9 @@ ${this.getPersonalizedWeatherAnalysisGuidelines(request.currentMonth)}`;
       }
     }
 
-    return `${userPrefix}[${location}] ${timeText} ${mainFeature} - ${new Date().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}`;
+    // KST 날짜 사용
+    const kstDate = new Date(Date.now() + (9 * 60 * 60 * 1000));
+    return `${userPrefix}[${location}] ${timeText} ${mainFeature} - ${kstDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}`;
   }
 
   /**
@@ -594,7 +702,9 @@ ${this.getPersonalizedWeatherAnalysisGuidelines(request.currentMonth)}`;
       }
     }
 
-    return `[${location}] ${timeText} ${mainFeature} - ${new Date().toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}`;
+    // KST 날짜 사용
+    const kstDate = new Date(Date.now() + (9 * 60 * 60 * 1000));
+    return `[${location}] ${timeText} ${mainFeature} - ${kstDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}`;
   }
 }
 

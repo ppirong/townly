@@ -746,6 +746,61 @@ async function collectUserWeatherData(
 }
 
 /**
+ * 개인화된 사용자 날씨 데이터 수집 (사용자 주소 포함)
+ */
+async function collectPersonalizedUserWeatherData(
+  clerkUserId: string,
+  fallbackLocation: string,
+  timeOfDay: 'morning' | 'evening'
+) {
+  try {
+    console.log(`🌤️ 사용자 ${clerkUserId.slice(0, 8)} 개인화 날씨 데이터 수집 시작`);
+    
+    // 1. 사용자 실제 주소 조회
+    const userAddress = await getUserAddressForEmail(clerkUserId, fallbackLocation);
+    
+    // 2. 사용자별 날씨 데이터 수집
+    const weatherData = await collectUserWeatherData(clerkUserId, fallbackLocation, timeOfDay);
+    
+    console.log(`✅ 사용자 ${clerkUserId.slice(0, 8)} 개인화 날씨 데이터 수집 완료`);
+    
+    return {
+      userAddress,
+      weatherData,
+    };
+  } catch (error) {
+    console.error(`❌ 사용자 ${clerkUserId.slice(0, 8)} 개인화 날씨 데이터 수집 실패:`, error);
+    
+    // 실패 시 기본값 반환
+    return {
+      userAddress: fallbackLocation,
+      weatherData: await collectUserWeatherData(clerkUserId, fallbackLocation, timeOfDay),
+    };
+  }
+}
+
+/**
+ * 사용자 위치 정보 조회 (user_locations 테이블의 address 필드 사용)
+ */
+async function getUserAddressForEmail(clerkUserId: string, fallbackLocation: string): Promise<string> {
+  try {
+    const { getUserLocation } = await import('./location');
+    const locationResult = await getUserLocation();
+    
+    if (locationResult.success && locationResult.data?.address) {
+      console.log(`📍 사용자 ${clerkUserId.slice(0, 8)} 주소: ${locationResult.data.address}`);
+      return locationResult.data.address;
+    } else {
+      console.log(`⚠️ 사용자 ${clerkUserId.slice(0, 8)} 주소 없음, 기본 위치 사용: ${fallbackLocation}`);
+      return fallbackLocation;
+    }
+  } catch (error) {
+    console.error(`❌ 사용자 ${clerkUserId.slice(0, 8)} 위치 조회 실패:`, error);
+    return fallbackLocation;
+  }
+}
+
+/**
  * 날씨 데이터 수집 (일반 이메일용 - 폴백 목적)
  */
 async function collectWeatherData(location: string, timeOfDay: 'morning' | 'evening') {
