@@ -535,7 +535,7 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
             <CardHeader>
               <CardTitle>일별 대기질 예보</CardTitle>
               <CardDescription>
-                향후 7일간 일별 대기질 변화 예측
+                향후 2일간 일별 대기질 변화 예측 (12시간 데이터 기반)
               </CardDescription>
             </CardHeader>
             <CardContent className="min-h-[450px]">
@@ -565,7 +565,7 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
                        document.addEventListener('mousemove', handleMouseMove);
                        document.addEventListener('mouseup', handleMouseUp);
                      }}>
-                  {dailyData.slice(0, 7).map((data, index) => {
+                  {dailyData.slice(0, 2).map((data, index) => {
                     const date = new Date(data.dateTime);
                     const dateStr = date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
                     const dayOfWeek = date.toLocaleDateString('ko-KR', { weekday: 'short' });

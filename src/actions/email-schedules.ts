@@ -229,11 +229,34 @@ export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput)
             validatedData.timeOfDay
           );
           
-          // 2-2. 사용자별 AI 요약 생성
+          // 2-2. 사용자 주소 조회
+          const userAddress = await getUserAddressForEmail(recipient.clerkUserId, validatedData.location);
+          
+          // 2-3. 템플릿 기반 이메일 생성 (ChatGPT 사용 안 함)
           const weatherAI = new WeatherAISummaryService();
-          const personalizedSummary = await weatherAI.generatePersonalizedWeatherSummary(
+          const weatherDataInput = {
+            hourlyForecasts: userWeatherData.hourlyForecasts.map(h => ({
+              dateTime: h.dateTime,
+              temperature: h.temperature,
+              conditions: h.conditions,
+              precipitationProbability: h.precipitationProbability,
+              rainProbability: h.rainProbability,
+              windSpeed: h.windSpeed,
+              humidity: h.humidity,
+            })),
+            dailyForecasts: userWeatherData.dailyForecasts.map(d => ({
+              date: d.date,
+              dayOfWeek: d.dayOfWeek,
+              highTemp: d.highTemp,
+              lowTemp: d.lowTemp,
+              conditions: d.conditions,
+              precipitationProbability: d.precipitationProbability,
+              rainProbability: d.rainProbability,
+            }))
+          };
+          
+          const personalizedSummary = await weatherAI.generateWeatherEmailByTemplate(
             {
-              clerkUserId: recipient.clerkUserId,
               location: validatedData.location,
               startDateTime: new Date(),
               endDateTime: new Date(Date.now() + 12 * 60 * 60 * 1000),
@@ -242,15 +265,14 @@ export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput)
               includeHourlyForecast: true,
               includeDailyForecast: true,
             },
-            userWeatherData
+            weatherDataInput,
+            userAddress
           );
           
-          // 2-3. 개인화된 이메일 제목 생성
-          const personalizedSubject = validatedData.subject || await weatherAI.generatePersonalizedEmailSubject(
-            validatedData.location,
-            validatedData.timeOfDay,
-            userWeatherData.hourlyForecasts,
-            recipient.clerkUserId
+          // 2-4. 개인화된 이메일 제목 생성
+          const personalizedSubject = validatedData.subject || weatherAI.generateEmailSubjectByTemplate(
+            new Date(),
+            new Date(Date.now() + 12 * 60 * 60 * 1000)
           );
           
           console.log(`✅ 사용자 ${recipient.clerkUserId.slice(0, 8)} 개인화 완료`);
@@ -283,8 +305,9 @@ export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput)
           
           // 개인화 실패 시 일반 날씨 데이터로 폴백
           const fallbackWeatherData = await collectWeatherData(validatedData.location, validatedData.timeOfDay);
+          const userAddress = validatedData.location; // 폴백 시 기본 위치 사용
           const weatherAI = new WeatherAISummaryService();
-          const fallbackSummary = await weatherAI.generateWeatherSummary(
+          const fallbackSummary = await weatherAI.generateWeatherEmailByTemplate(
             {
               location: validatedData.location,
               startDateTime: new Date(),
@@ -294,13 +317,13 @@ export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput)
               includeHourlyForecast: true,
               includeDailyForecast: true,
             },
-            fallbackWeatherData
+            fallbackWeatherData,
+            userAddress
           );
           
-          const fallbackSubject = validatedData.subject || await weatherAI.generateEmailSubject(
-            validatedData.location,
-            validatedData.timeOfDay,
-            fallbackWeatherData
+          const fallbackSubject = validatedData.subject || weatherAI.generateEmailSubjectByTemplate(
+            new Date(),
+            new Date(Date.now() + 12 * 60 * 60 * 1000)
           );
           
           return {
@@ -441,11 +464,34 @@ export async function sendManualEmail(input: SendManualEmailInput, testUserId?: 
             validatedData.timeOfDay
           );
           
-          // 2-2. 사용자별 AI 요약 생성
+          // 2-2. 사용자 주소 조회
+          const userAddress = await getUserAddressForEmail(recipient.clerkUserId, validatedData.location);
+          
+          // 2-3. 템플릿 기반 이메일 생성 (ChatGPT 사용 안 함)
           const weatherAI = new WeatherAISummaryService();
-          const personalizedSummary = await weatherAI.generatePersonalizedWeatherSummary(
+          const weatherDataInput = {
+            hourlyForecasts: userWeatherData.hourlyForecasts.map(h => ({
+              dateTime: h.dateTime,
+              temperature: h.temperature,
+              conditions: h.conditions,
+              precipitationProbability: h.precipitationProbability,
+              rainProbability: h.rainProbability,
+              windSpeed: h.windSpeed,
+              humidity: h.humidity,
+            })),
+            dailyForecasts: userWeatherData.dailyForecasts.map(d => ({
+              date: d.date,
+              dayOfWeek: d.dayOfWeek,
+              highTemp: d.highTemp,
+              lowTemp: d.lowTemp,
+              conditions: d.conditions,
+              precipitationProbability: d.precipitationProbability,
+              rainProbability: d.rainProbability,
+            }))
+          };
+          
+          const personalizedSummary = await weatherAI.generateWeatherEmailByTemplate(
             {
-              clerkUserId: recipient.clerkUserId,
               location: validatedData.location,
               startDateTime: new Date(),
               endDateTime: new Date(Date.now() + 12 * 60 * 60 * 1000),
@@ -454,15 +500,14 @@ export async function sendManualEmail(input: SendManualEmailInput, testUserId?: 
               includeHourlyForecast: true,
               includeDailyForecast: true,
             },
-            userWeatherData
+            weatherDataInput,
+            userAddress
           );
           
-          // 2-3. 개인화된 이메일 제목 생성
-          const personalizedSubject = validatedData.subject || await weatherAI.generatePersonalizedEmailSubject(
-            validatedData.location,
-            validatedData.timeOfDay,
-            userWeatherData.hourlyForecasts,
-            recipient.clerkUserId
+          // 2-4. 개인화된 이메일 제목 생성
+          const personalizedSubject = validatedData.subject || weatherAI.generateEmailSubjectByTemplate(
+            new Date(),
+            new Date(Date.now() + 12 * 60 * 60 * 1000)
           );
           
           console.log(`✅ 사용자 ${recipient.clerkUserId.slice(0, 8)} 개인화 완료`);
@@ -495,8 +540,9 @@ export async function sendManualEmail(input: SendManualEmailInput, testUserId?: 
           
           // 개인화 실패 시 일반 날씨 데이터로 폴백
           const fallbackWeatherData = await collectWeatherData(validatedData.location, validatedData.timeOfDay);
+          const userAddress = validatedData.location; // 폴백 시 기본 위치 사용
           const weatherAI = new WeatherAISummaryService();
-          const fallbackSummary = await weatherAI.generateWeatherSummary(
+          const fallbackSummary = await weatherAI.generateWeatherEmailByTemplate(
             {
               location: validatedData.location,
               startDateTime: new Date(),
@@ -506,13 +552,13 @@ export async function sendManualEmail(input: SendManualEmailInput, testUserId?: 
               includeHourlyForecast: true,
               includeDailyForecast: true,
             },
-            fallbackWeatherData
+            fallbackWeatherData,
+            userAddress
           );
           
-          const fallbackSubject = validatedData.subject || await weatherAI.generateEmailSubject(
-            validatedData.location,
-            validatedData.timeOfDay,
-            fallbackWeatherData
+          const fallbackSubject = validatedData.subject || weatherAI.generateEmailSubjectByTemplate(
+            new Date(),
+            new Date(Date.now() + 12 * 60 * 60 * 1000)
           );
           
           return {

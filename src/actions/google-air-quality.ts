@@ -21,11 +21,11 @@ const airQualityLocationSchema = z.object({
 });
 
 const hourlyAirQualitySchema = airQualityLocationSchema.extend({
-  hours: z.number().min(1).max(96).default(12),
+  hours: z.number().min(1).max(96).default(12), // Google 공식 문서: 최대 96시간
 });
 
 const dailyAirQualitySchema = airQualityLocationSchema.extend({
-  days: z.number().min(1).max(7).default(7),
+  days: z.number().min(1).max(2).default(2), // 12시간 시간별 데이터로부터 최대 2일 생성 (오늘+내일)
 });
 
 type HourlyAirQualityInput = z.infer<typeof hourlyAirQualitySchema>;
@@ -156,7 +156,7 @@ export async function getUserAirQualityByCoordinates(
       getHourlyAirQuality({ 
         latitude, 
         longitude, 
-        hours: 12,
+        hours: 12, // 12시간 유지
         includeLocalAqi: true,
         includeDominantPollutant: true,
         includeHealthSuggestion: true,
@@ -165,7 +165,7 @@ export async function getUserAirQualityByCoordinates(
       getDailyAirQuality({ 
         latitude, 
         longitude, 
-        days: 7,
+        days: 2, // 12시간 시간별 데이터로부터 2일치 생성 (오늘+내일)
         includeLocalAqi: true,
         includeDominantPollutant: true,
         includeHealthSuggestion: true,

@@ -86,7 +86,7 @@ export default async function GoogleAirQualityPage() {
                   </div>
                   <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
                     <h4 className="font-medium text-purple-600 mb-2">일별 예보</h4>
-                    <p className="text-muted-foreground">향후 7일간 일별 대기질 변화 예측</p>
+                    <p className="text-muted-foreground">향후 2일간 일별 대기질 변화 예측</p>
                   </div>
                   <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
                     <h4 className="font-medium text-orange-600 mb-2">건강 권고사항</h4>
@@ -97,7 +97,7 @@ export default async function GoogleAirQualityPage() {
                 <div className="text-sm space-y-1 mt-4">
                   <div><strong>현재 대기질:</strong> 실시간 PM10/PM2.5 농도와 CAI(KR), BreezoMeter AQI 지수</div>
                   <div><strong>시간별 예보:</strong> 향후 12시간 동안의 시간별 대기질 변화</div>
-                  <div><strong>일별 예보:</strong> 향후 7일간의 일별 대기질 평균 예측</div>
+                  <div><strong>일별 예보:</strong> 향후 2일간의 일별 대기질 평균 예측 (12시간 데이터 기반)</div>
                   <div><strong>건강 권고:</strong> 일반인 및 민감군을 위한 맞춤형 건강 가이드</div>
                 </div>
               </div>
@@ -161,7 +161,7 @@ export default async function GoogleAirQualityPage() {
                     </div>
                     <div>
                       <h4 className="font-medium text-purple-600 mb-1">🔮 예보 기능</h4>
-                      <p className="text-muted-foreground">최대 96시간 시간별, 7일 일별 예보</p>
+                      <p className="text-muted-foreground">최대 12시간 시간별, 2일 일별 예보</p>
                     </div>
                     <div>
                       <h4 className="font-medium text-orange-600 mb-1">💡 건강 가이드</h4>

@@ -706,5 +706,352 @@ ${this.getPersonalizedWeatherAnalysisGuidelines(request.currentMonth)}`;
     const kstDate = new Date(Date.now() + (9 * 60 * 60 * 1000));
     return `[${location}] ${timeText} ${mainFeature} - ${kstDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}`;
   }
+
+  /**
+   * 템플릿 기반 날씨 이메일 생성 (ChatGPT 사용 안 함)
+   */
+  async generateWeatherEmailByTemplate(
+    request: WeatherSummaryRequest,
+    weatherData: WeatherDataInput,
+    userAddress: string
+  ): Promise<WeatherSummaryResponse> {
+    try {
+      const kstNow = new Date(request.startDateTime.getTime() + (9 * 60 * 60 * 1000));
+      const kstEnd = new Date(request.endDateTime.getTime() + (9 * 60 * 60 * 1000));
+      const currentMonth = kstNow.getMonth() + 1;
+      const isWinter = currentMonth === 12 || currentMonth <= 2;
+
+      // 제목 생성
+      const subject = this.generateEmailSubjectByTemplate(kstNow, kstEnd);
+
+      // 본문 생성
+      const body = this.generateEmailBodyByTemplate(
+        weatherData,
+        userAddress,
+        kstNow,
+        kstEnd,
+        isWinter
+      );
+
+      // 기온 범위 계산
+      const temperatures = weatherData.hourlyForecasts?.map(f => f.temperature) || [];
+      const minTemp = temperatures.length > 0 ? Math.min(...temperatures) : 0;
+      const maxTemp = temperatures.length > 0 ? Math.max(...temperatures) : 0;
+      const temperatureRange = `${minTemp}도 ~ ${maxTemp}도`;
+
+      // 강수 정보 추출
+      const precipitationInfo = this.extractPrecipitationInfo(weatherData, isWinter);
+
+      // 경고 수준 및 경고 메시지 생성
+      const { alertLevel, warnings } = this.generateWarnings(weatherData, kstNow, isWinter);
+
+      // 예보 기간 생성
+      const forecastPeriod = this.formatForecastPeriod(kstNow, kstEnd);
+
+      return {
+        summary: body,
+        temperatureRange,
+        precipitationInfo,
+        warnings,
+        alertLevel,
+        forecastPeriod,
+        generatedAt: new Date(),
+      };
+    } catch (error) {
+      console.error('Template-based Weather Email Error:', error);
+      throw new Error('템플릿 기반 날씨 이메일 생성 중 오류가 발생했습니다');
+    }
+  }
+
+  /**
+   * 이메일 제목 생성 (템플릿 기반)
+   */
+  private generateEmailSubjectByTemplate(kstStart: Date, kstEnd: Date): string {
+    const month = kstStart.getMonth() + 1;
+    const day = kstStart.getDate();
+    const startHour = kstStart.getHours();
+    const endHour = kstEnd.getHours();
+
+    const startTimeText = this.formatHourToKorean(startHour);
+    const endTimeText = this.formatHourToKorean(endHour);
+
+    return `${month}월 ${day}일 ${startTimeText}부터 ${endTimeText}까지 날씨 요약`;
+  }
+
+  /**
+   * 시간을 한글로 포맷팅
+   */
+  private formatHourToKorean(hour: number): string {
+    if (hour === 0) return '자정';
+    if (hour === 12) return '정오';
+    if (hour < 12) return `아침 ${hour}시`;
+    if (hour < 18) return `오후 ${hour - 12}시`;
+    return `저녁 ${hour - 12}시`;
+  }
+
+  /**
+   * 이메일 본문 생성 (템플릿 기반)
+   */
+  private generateEmailBodyByTemplate(
+    weatherData: WeatherDataInput,
+    userAddress: string,
+    kstStart: Date,
+    kstEnd: Date,
+    isWinter: boolean
+  ): string {
+    // 기온 범위 계산
+    const temperatures = weatherData.hourlyForecasts?.map(f => f.temperature) || [];
+    const minTemp = temperatures.length > 0 ? Math.min(...temperatures) : 0;
+    const maxTemp = temperatures.length > 0 ? Math.max(...temperatures) : 0;
+
+    // 강수 확률 70% 이상인 시간 필터링
+    const highPrecipHours = this.filterHighPrecipitationHours(weatherData, isWinter);
+
+    // 제목
+    const month = kstStart.getMonth() + 1;
+    const day = kstStart.getDate();
+    const startHour = kstStart.getHours();
+    const endHour = kstEnd.getHours();
+    const startTimeText = this.formatHourToKorean(startHour);
+    const endTimeText = this.formatHourToKorean(endHour);
+
+    let body = `${month}월 ${day}일 ${startTimeText}부터 ${endTimeText}까지 날씨 요약 정보입니다.\n\n`;
+    body += `사용자 위치: ${userAddress}\n\n`;
+    body += `기온: ${minTemp}도 ~ ${maxTemp}도\n\n`;
+
+    // 강수 정보
+    if (highPrecipHours.length > 0) {
+      if (isWinter) {
+        body += `비나 눈이 오는 시간은 다음과 같습니다.\n`;
+      } else {
+        body += `비가 오는 시간은 다음과 같습니다.\n`;
+      }
+
+      highPrecipHours.forEach((hour) => {
+        const kstTime = new Date(hour.dateTime.getTime() + (9 * 60 * 60 * 1000));
+        const hourNum = kstTime.getHours();
+        
+        if (hour.isSnow) {
+          body += `${hourNum}시: 적설량 ${hour.amount}mm, 적설 확률 ${hour.probability}%\n`;
+        } else {
+          body += `${hourNum}시: 강우량 ${hour.amount}mm, 강우 확률 ${hour.probability}%\n`;
+        }
+      });
+    } else {
+      if (isWinter) {
+        body += `비나 눈이 내릴 확률이 70% 이상인 시간은 없습니다.\n`;
+      } else {
+        body += `비가 내릴 확률이 70% 이상인 시간은 없습니다.\n`;
+      }
+    }
+
+    // 주의사항 추가
+    const warnings = this.generateWarningMessages(highPrecipHours, weatherData);
+    if (warnings.length > 0) {
+      body += `\n`;
+      warnings.forEach(warning => {
+        body += `${warning}\n`;
+      });
+    }
+
+    // 링크 추가
+    body += `\n자세한 날씨 정보는 다음 링크에서 확인하실 수 있습니다.\n`;
+    body += `https://townly.vercel.app/weather`;
+
+    return body;
+  }
+
+  /**
+   * 강수 확률 70% 이상인 시간 필터링
+   */
+  private filterHighPrecipitationHours(
+    weatherData: WeatherDataInput,
+    isWinter: boolean
+  ): Array<{
+    dateTime: Date;
+    amount: number;
+    probability: number;
+    isSnow: boolean;
+  }> {
+    if (!weatherData.hourlyForecasts || weatherData.hourlyForecasts.length === 0) {
+      return [];
+    }
+
+    const highPrecipHours: Array<{
+      dateTime: Date;
+      amount: number;
+      probability: number;
+      isSnow: boolean;
+    }> = [];
+
+    weatherData.hourlyForecasts.forEach((forecast) => {
+      const precipProb = forecast.precipitationProbability || 0;
+      const rainProb = forecast.rainProbability || precipProb;
+
+      // 겨울철: 눈 또는 비
+      if (isWinter) {
+        const isSnow = forecast.conditions.includes('눈') || 
+                      forecast.conditions.includes('snow') ||
+                      forecast.conditions.toLowerCase().includes('snow');
+        
+        if (precipProb >= 70 || rainProb >= 70) {
+          highPrecipHours.push({
+            dateTime: forecast.dateTime,
+            amount: forecast.precipitationProbability > 0 ? Math.max(1, Math.round(precipProb / 10)) : 1,
+            probability: Math.max(precipProb, rainProb),
+            isSnow,
+          });
+        }
+      } 
+      // 봄/여름/가을: 비만
+      else {
+        if (precipProb >= 70 || rainProb >= 70) {
+          highPrecipHours.push({
+            dateTime: forecast.dateTime,
+            amount: forecast.precipitationProbability > 0 ? Math.max(1, Math.round(precipProb / 10)) : 1,
+            probability: Math.max(precipProb, rainProb),
+            isSnow: false,
+          });
+        }
+      }
+    });
+
+    return highPrecipHours;
+  }
+
+  /**
+   * 주의사항 메시지 생성
+   */
+  private generateWarningMessages(
+    highPrecipHours: Array<{
+      dateTime: Date;
+      amount: number;
+      probability: number;
+      isSnow: boolean;
+    }>,
+    weatherData: WeatherDataInput
+  ): string[] {
+    const warnings: string[] = [];
+
+    if (highPrecipHours.length === 0) {
+      return warnings;
+    }
+
+    // 밤 시간 (18시 - 익일 6시) 체크
+    const nightRain = highPrecipHours.find((hour) => {
+      const kstTime = new Date(hour.dateTime.getTime() + (9 * 60 * 60 * 1000));
+      const hourNum = kstTime.getHours();
+      return hourNum >= 18 || hourNum < 6;
+    });
+
+    if (nightRain) {
+      const kstTime = new Date(nightRain.dateTime.getTime() + (9 * 60 * 60 * 1000));
+      const hourNum = kstTime.getHours();
+      const precipType = nightRain.isSnow ? '눈' : '비';
+      warnings.push(
+        `새벽 ${hourNum}시에 ${precipType}가 ${nightRain.amount}mm 내릴 확률이 ${nightRain.probability}%이기 때문에 창문을 잘 닫고 자는 것이 좋습니다.`
+      );
+    }
+
+    // 아침 출근 시간 (6시 - 10시) 체크
+    const morningPrecip = highPrecipHours.find((hour) => {
+      const kstTime = new Date(hour.dateTime.getTime() + (9 * 60 * 60 * 1000));
+      const hourNum = kstTime.getHours();
+      return hourNum >= 6 && hourNum < 10;
+    });
+
+    if (morningPrecip) {
+      const kstTime = new Date(morningPrecip.dateTime.getTime() + (9 * 60 * 60 * 1000));
+      const hourNum = kstTime.getHours();
+      
+      if (morningPrecip.isSnow) {
+        warnings.push(
+          `아침 ${hourNum}시에 눈이 ${morningPrecip.amount}mm 쌓일 확률이 ${morningPrecip.probability}%이기 때문에 평소 보다 일찍 출근하는 것이 좋습니다.`
+        );
+      } else {
+        warnings.push(
+          `아침 ${hourNum}시에 비가 ${morningPrecip.amount}mm 내릴 확률이 ${morningPrecip.probability}%이기 때문에 우산을 가지고 출근하는 것이 좋습니다.`
+        );
+      }
+    }
+
+    // 강풍 체크
+    const strongWind = weatherData.hourlyForecasts?.find(
+      (forecast) => forecast.windSpeed >= 15
+    );
+
+    if (strongWind) {
+      warnings.push('강풍에 대한 대비를 하는 것이 좋습니다.');
+    }
+
+    return warnings;
+  }
+
+  /**
+   * 강수 정보 추출
+   */
+  private extractPrecipitationInfo(
+    weatherData: WeatherDataInput,
+    isWinter: boolean
+  ): string {
+    const highPrecipHours = this.filterHighPrecipitationHours(weatherData, isWinter);
+
+    if (highPrecipHours.length === 0) {
+      return '강수 확률이 70% 이상인 시간은 없습니다.';
+    }
+
+    const precipInfo = highPrecipHours.map((hour) => {
+      const kstTime = new Date(hour.dateTime.getTime() + (9 * 60 * 60 * 1000));
+      const hourNum = kstTime.getHours();
+      const precipType = hour.isSnow ? '적설' : '강우';
+      return `${hourNum}시: ${precipType}량 ${hour.amount}mm, ${precipType} 확률 ${hour.probability}%`;
+    });
+
+    return precipInfo.join(', ');
+  }
+
+  /**
+   * 경고 수준 및 경고 메시지 생성
+   */
+  private generateWarnings(
+    weatherData: WeatherDataInput,
+    kstNow: Date,
+    isWinter: boolean
+  ): { alertLevel: 'low' | 'medium' | 'high'; warnings: string[] } {
+    const highPrecipHours = this.filterHighPrecipitationHours(weatherData, isWinter);
+    const warnings = this.generateWarningMessages(highPrecipHours, weatherData);
+
+    let alertLevel: 'low' | 'medium' | 'high' = 'low';
+
+    if (highPrecipHours.length > 0) {
+      alertLevel = 'medium';
+    }
+
+    // 강풍이나 극한 온도가 있으면 high
+    const hasStrongWind = weatherData.hourlyForecasts?.some(
+      (forecast) => forecast.windSpeed >= 15
+    );
+    const hasExtreme = weatherData.hourlyForecasts?.some(
+      (forecast) => forecast.temperature >= 35 || forecast.temperature <= -10
+    );
+
+    if (hasStrongWind || hasExtreme) {
+      alertLevel = 'high';
+    }
+
+    return { alertLevel, warnings };
+  }
+
+  /**
+   * 예보 기간 포맷팅
+   */
+  private formatForecastPeriod(kstStart: Date, kstEnd: Date): string {
+    const startHour = kstStart.getHours();
+    const endHour = kstEnd.getHours();
+    const startTimeText = this.formatHourToKorean(startHour);
+    const endTimeText = this.formatHourToKorean(endHour);
+    
+    return `${startTimeText}부터 ${endTimeText}까지`;
+  }
 }
 
