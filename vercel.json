@@ -10,8 +10,7 @@
     },
     {
       "path": "/api/cron/weather-collector",
-      "schedule": "0 * * * *",
-      "comment": "매시간 실행하되, 함수 내부에서 6시, 12시, 18시, 0시만 실제 작업 수행"
+      "schedule": "0 * * * *"
     }
   ]
 }
