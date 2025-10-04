@@ -21,7 +21,7 @@ const airQualityLocationSchema = z.object({
 });
 
 const hourlyAirQualitySchema = airQualityLocationSchema.extend({
-  hours: z.number().min(1).max(96).default(12), // Google 공식 문서: 최대 96시간
+  hours: z.number().min(1).max(90).default(12), // Google API 실제 제한: 최대 90시간
 });
 
 const dailyAirQualitySchema = airQualityLocationSchema.extend({
@@ -290,5 +290,81 @@ export async function refreshAirQualityData(
   } catch (error) {
     console.error('대기질 데이터 새로고침 실패:', error);
     throw new Error('대기질 데이터를 새로고침하는데 실패했습니다.');
+  }
+}
+
+/**
+ * 사용자별 저장된 90시간 대기질 데이터 조회
+ * (스케줄러가 미리 수집해둔 데이터를 데이터베이스에서 조회)
+ */
+export async function getStored90HourAirQuality(
+  latitude: number,
+  longitude: number
+): Promise<ProcessedAirQualityData[]> {
+  const { userId } = await auth();
+  
+  if (!userId) {
+    throw new Error('로그인이 필요합니다.');
+  }
+  
+  try {
+    console.log(`📊 사용자 ${userId} 저장된 90시간 대기질 조회: ${latitude}, ${longitude}`);
+    
+    const storedData = await googleAirQualityService.getStored90HourData(
+      userId,
+      latitude,
+      longitude
+    );
+    
+    console.log(`✅ 저장된 90시간 데이터: ${storedData.length}개 항목`);
+    return storedData;
+  } catch (error) {
+    console.error('저장된 90시간 대기질 조회 실패:', error);
+    throw new Error('저장된 대기질 정보를 가져오는데 실패했습니다.');
+  }
+}
+
+/**
+ * 수동으로 90시간 대기질 데이터 수집 (디버그용)
+ */
+export async function manualCollect90HourData(
+  latitude: number,
+  longitude: number
+): Promise<{ success: boolean; message: string; dataCount: number }> {
+  const { userId } = await auth();
+  
+  if (!userId) {
+    throw new Error('로그인이 필요합니다.');
+  }
+  
+  try {
+    console.log(`🔄 사용자 ${userId} 수동 90시간 데이터 수집 시작: ${latitude}, ${longitude}`);
+    
+    await googleAirQualityService.collectAndStore90HourDataForUser(
+      userId,
+      latitude,
+      longitude
+    );
+    
+    // 저장된 데이터 개수 확인
+    const storedData = await googleAirQualityService.getStored90HourData(
+      userId,
+      latitude,
+      longitude
+    );
+    
+    console.log(`✅ 수동 90시간 데이터 수집 완료: ${storedData.length}개 항목`);
+    return {
+      success: true,
+      message: `90시간 대기질 데이터 ${storedData.length}개 수집 완료`,
+      dataCount: storedData.length,
+    };
+  } catch (error) {
+    console.error('수동 90시간 데이터 수집 실패:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '데이터 수집 실패',
+      dataCount: 0,
+    };
   }
 }

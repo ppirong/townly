@@ -27,7 +27,7 @@ export interface GoogleAirQualityRequest {
 }
 
 export interface GoogleHourlyAirQualityRequest extends GoogleAirQualityRequest {
-  hours?: number; // 1-96 시간
+  hours?: number; // 1-90 시간 (Google API 제한)
 }
 
 export interface GoogleDailyAirQualityRequest extends GoogleAirQualityRequest {
@@ -222,8 +222,8 @@ class GoogleAirQualityService {
         throw new Error('Google Maps API 키가 설정되지 않았습니다.');
       }
 
-      // Google Air Quality API는 최대 96시간까지 지원
-      const maxHours = 96;
+      // Google Air Quality API는 최대 90시간까지 지원 (실제 테스트 결과)
+      const maxHours = 90;
       const requestedHours = Math.min(request.hours || 12, maxHours);
 
       // period 방식 사용: 시작 시간부터 종료 시간까지
@@ -680,6 +680,145 @@ class GoogleAirQualityService {
         failedCalls: 0,
         avgResponseTime: 0,
       };
+    }
+  }
+
+  /**
+   * 사용자별 90시간 대기질 데이터 수집 및 저장
+   * 스케줄러에서 사용 (6시, 12시, 18시, 24시)
+   */
+  async collectAndStore90HourDataForUser(
+    clerkUserId: string,
+    latitude: number,
+    longitude: number
+  ): Promise<void> {
+    try {
+      console.log(`🌬️ 사용자 ${clerkUserId} 90시간 대기질 데이터 수집 시작`);
+      
+      // 1. 90시간 예보 데이터 조회
+      const request: GoogleHourlyAirQualityRequest = {
+        latitude,
+        longitude,
+        clerkUserId,
+        hours: 90,
+        includeLocalAqi: true,
+        includeDominantPollutant: true,
+        includeHealthSuggestion: true,
+        languageCode: 'ko',
+      };
+
+      const apiResponse = await this.getHourlyForecast(request);
+      const processedData = apiResponse.hourlyForecasts.map(data => this.processAirQualityData(data));
+      
+      console.log(`✅ 90시간 데이터 수집 완료: ${processedData.length}개 항목`);
+
+      // 2. 현재 시간 기준 이전 데이터 삭제 (같은 사용자)
+      const now = new Date();
+      await db
+        .delete(googleHourlyAirQualityData)
+        .where(
+          and(
+            eq(googleHourlyAirQualityData.clerkUserId, clerkUserId),
+            eq(googleHourlyAirQualityData.latitude, latitude.toString()),
+            eq(googleHourlyAirQualityData.longitude, longitude.toString()),
+            lte(googleHourlyAirQualityData.forecastDateTime, now)
+          )
+        );
+      
+      console.log(`🗑️ 이전 시각 데이터 삭제 완료`);
+
+      // 3. 새로운 90시간 데이터 저장
+      const expiresAt = new Date(now.getTime() + 6 * 60 * 60 * 1000); // 6시간 후 만료
+
+      for (const data of processedData) {
+        const forecastDateTime = new Date(data.dateTime);
+        const cacheKey = `google_hourly_${latitude}_${longitude}_${clerkUserId}_${forecastDateTime.toISOString()}`;
+
+        const dbData: NewGoogleHourlyAirQualityData = {
+          clerkUserId,
+          latitude: latitude.toString(),
+          longitude: longitude.toString(),
+          locationName: `${latitude}, ${longitude}`,
+          forecastDate: forecastDateTime.toISOString().split('T')[0],
+          forecastHour: forecastDateTime.getHours(),
+          forecastDateTime,
+          pm10: data.pm10,
+          pm25: data.pm25,
+          caiKr: data.caiKr,
+          breezoMeterAqi: data.breezoMeterAqi,
+          no2: data.no2,
+          o3: data.o3,
+          so2: data.so2,
+          co: data.co,
+          rawData: data.rawData,
+          cacheKey,
+          expiresAt,
+        };
+
+        // Upsert: 기존 데이터 업데이트 또는 신규 삽입
+        const existing = await db
+          .select()
+          .from(googleHourlyAirQualityData)
+          .where(eq(googleHourlyAirQualityData.cacheKey, cacheKey))
+          .limit(1);
+
+        if (existing.length > 0) {
+          await db
+            .update(googleHourlyAirQualityData)
+            .set({ ...dbData, updatedAt: now })
+            .where(eq(googleHourlyAirQualityData.cacheKey, cacheKey));
+        } else {
+          await db.insert(googleHourlyAirQualityData).values(dbData);
+        }
+      }
+
+      console.log(`✅ 사용자 ${clerkUserId} 90시간 데이터 저장 완료: ${processedData.length}개 항목`);
+    } catch (error) {
+      console.error(`❌ 사용자 ${clerkUserId} 90시간 데이터 수집 실패:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 사용자별 저장된 90시간 대기질 데이터 조회 (데이터베이스에서)
+   */
+  async getStored90HourData(
+    clerkUserId: string,
+    latitude: number,
+    longitude: number
+  ): Promise<ProcessedAirQualityData[]> {
+    try {
+      const now = new Date();
+      
+      const storedData = await db
+        .select()
+        .from(googleHourlyAirQualityData)
+        .where(
+          and(
+            eq(googleHourlyAirQualityData.clerkUserId, clerkUserId),
+            eq(googleHourlyAirQualityData.latitude, latitude.toString()),
+            eq(googleHourlyAirQualityData.longitude, longitude.toString()),
+            gte(googleHourlyAirQualityData.forecastDateTime, now)
+          )
+        )
+        .orderBy(googleHourlyAirQualityData.forecastDateTime)
+        .limit(90);
+
+      return storedData.map(data => ({
+        dateTime: data.forecastDateTime.toISOString(),
+        pm10: data.pm10 || undefined,
+        pm25: data.pm25 || undefined,
+        caiKr: data.caiKr || undefined,
+        breezoMeterAqi: data.breezoMeterAqi || undefined,
+        no2: data.no2 || undefined,
+        o3: data.o3 || undefined,
+        so2: data.so2 || undefined,
+        co: data.co || undefined,
+        rawData: data.rawData,
+      }));
+    } catch (error) {
+      console.error('저장된 90시간 데이터 조회 실패:', error);
+      return [];
     }
   }
 }
