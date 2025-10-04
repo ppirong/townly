@@ -18,7 +18,6 @@ import type {
   DailyWeatherData, 
   DailyWeatherResponse 
 } from './weather';
-import { weatherVectorDBService } from './weather-vector-db';
 import { formatKoreanDate } from '@/lib/utils/timezone';
 
 export class WeatherDatabaseService {
@@ -164,34 +163,7 @@ export class WeatherDatabaseService {
         .where(eq(hourlyWeatherData.cacheKey, cacheKey));
 
       if (dbRecords.length > 0) {
-        const results = await db.insert(hourlyWeatherData).values(dbRecords).returning();
-        
-        // 사용자별 날씨 데이터인 경우 벡터 임베딩 생성
-        if (clerkUserId && results.length > 0) {
-          try {
-            console.log('🔗 시간별 날씨 데이터 벡터 임베딩 생성 시작...');
-            
-            const embeddingPromises = weatherData.map(async (data, index) => {
-              const dbRecord = results[index];
-              return await weatherVectorDBService.saveWeatherEmbedding(
-                'hourly',
-                locationName,
-                {
-                  ...data,
-                  forecastDate: dbRecord.forecastDate,
-                  forecastHour: dbRecord.forecastHour,
-                },
-                dbRecord.id,
-                clerkUserId
-              );
-            });
-            
-            await Promise.all(embeddingPromises);
-            console.log('✅ 시간별 날씨 벡터 임베딩 생성 완료');
-          } catch (embeddingError) {
-            console.error('⚠️ 시간별 날씨 벡터 임베딩 생성 실패 (데이터 저장은 성공):', embeddingError);
-          }
-        }
+        await db.insert(hourlyWeatherData).values(dbRecords);
       }
 
       console.log('🗄️ 시간별 날씨 DB 저장:', { cacheKey, count: dbRecords.length });
@@ -203,40 +175,15 @@ export class WeatherDatabaseService {
 
   /**
    * 기존 시간별 날씨 데이터에 대해 임베딩 생성 (캐시에서 가져온 데이터용)
+   * 현재 벡터 임베딩 기능은 비활성화되어 있습니다.
    */
   async generateEmbeddingsForExistingHourlyData(
     weatherData: HourlyWeatherData[],
     locationName: string,
     clerkUserId: string
   ): Promise<void> {
-    try {
-      console.log('🔗 기존 시간별 날씨 데이터 벡터 임베딩 생성 시작...');
-      
-      const embeddingPromises = weatherData.map(async (data) => {
-        // 날씨 데이터에서 예보 날짜와 시간 추출
-        const timestamp = new Date(data.timestamp);
-        const forecastDate = timestamp.toISOString().split('T')[0];
-        const forecastHour = timestamp.getHours();
-        
-        return await weatherVectorDBService.saveWeatherEmbedding(
-          'hourly',
-          locationName,
-          {
-            ...data,
-            forecastDate,
-            forecastHour,
-          },
-          undefined, // weatherDataId가 없는 경우
-          clerkUserId
-        );
-      });
-      
-      await Promise.all(embeddingPromises);
-      console.log('✅ 기존 시간별 날씨 벡터 임베딩 생성 완료');
-    } catch (embeddingError) {
-      console.error('⚠️ 기존 시간별 날씨 벡터 임베딩 생성 실패:', embeddingError);
-      // 에러가 발생해도 메인 로직에는 영향을 주지 않도록 함
-    }
+    // 벡터 임베딩 기능 비활성화됨
+    return;
   }
 
   /**
@@ -337,34 +284,7 @@ export class WeatherDatabaseService {
         .where(eq(dailyWeatherData.cacheKey, cacheKey));
 
       if (dbRecords.length > 0) {
-        const results = await db.insert(dailyWeatherData).values(dbRecords).returning();
-        
-        // 사용자별 날씨 데이터인 경우 벡터 임베딩 생성
-        if (clerkUserId && results.length > 0) {
-          try {
-            console.log('🔗 일별 날씨 데이터 벡터 임베딩 생성 시작...');
-            
-            const embeddingPromises = weatherResponse.dailyForecasts.map(async (data, index) => {
-              const dbRecord = results[index];
-              return await weatherVectorDBService.saveWeatherEmbedding(
-                'daily',
-                locationName,
-                {
-                  ...data,
-                  forecastDate: dbRecord.forecastDate,
-                  dayOfWeek: dbRecord.dayOfWeek,
-                },
-                dbRecord.id,
-                clerkUserId
-              );
-            });
-            
-            await Promise.all(embeddingPromises);
-            console.log('✅ 일별 날씨 벡터 임베딩 생성 완료');
-          } catch (embeddingError) {
-            console.error('⚠️ 일별 날씨 벡터 임베딩 생성 실패 (데이터 저장은 성공):', embeddingError);
-          }
-        }
+        await db.insert(dailyWeatherData).values(dbRecords);
       }
 
       console.log('🗄️ 일별 날씨 DB 저장:', { cacheKey, count: dbRecords.length });
@@ -376,39 +296,15 @@ export class WeatherDatabaseService {
 
   /**
    * 기존 일별 날씨 데이터에 대해 임베딩 생성 (캐시에서 가져온 데이터용)
+   * 현재 벡터 임베딩 기능은 비활성화되어 있습니다.
    */
   async generateEmbeddingsForExistingDailyData(
     weatherResponse: DailyWeatherResponse,
     locationName: string,
     clerkUserId: string
   ): Promise<void> {
-    try {
-      console.log('🔗 기존 일별 날씨 데이터 벡터 임베딩 생성 시작...');
-      
-      const embeddingPromises = weatherResponse.dailyForecasts.map(async (data) => {
-        // 날씨 데이터에서 예보 날짜 추출
-        const timestamp = new Date(data.timestamp);
-        const forecastDate = timestamp.toISOString().split('T')[0];
-        
-        return await weatherVectorDBService.saveWeatherEmbedding(
-          'daily',
-          locationName,
-          {
-            ...data,
-            forecastDate,
-            dayOfWeek: data.dayOfWeek,
-          },
-          undefined, // weatherDataId가 없는 경우
-          clerkUserId
-        );
-      });
-      
-      await Promise.all(embeddingPromises);
-      console.log('✅ 기존 일별 날씨 벡터 임베딩 생성 완료');
-    } catch (embeddingError) {
-      console.error('⚠️ 기존 일별 날씨 벡터 임베딩 생성 실패:', embeddingError);
-      // 에러가 발생해도 메인 로직에는 영향을 주지 않도록 함
-    }
+    // 벡터 임베딩 기능 비활성화됨
+    return;
   }
 
   /**

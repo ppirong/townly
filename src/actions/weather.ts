@@ -2,13 +2,13 @@
 
 import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
-import { 
-  getHourlyWeather, 
-  getDailyWeather,
-  type HourlyWeatherRequest,
-  type DailyWeatherRequest,
-  type HourlyWeatherData,
-  type DailyWeatherResponse
+import { db } from '@/db';
+import { hourlyWeatherData, dailyWeatherData, userLocations } from '@/db/schema';
+import { eq, and, gte, lte } from 'drizzle-orm';
+import type { 
+  HourlyWeatherData,
+  DailyWeatherResponse,
+  DailyWeatherData
 } from '@/lib/services/weather';
 
 // Zod 스키마 정의
@@ -31,7 +31,7 @@ type HourlyWeatherInput = z.infer<typeof hourlyWeatherSchema>;
 type DailyWeatherInput = z.infer<typeof dailyWeatherSchema>;
 
 /**
- * 사용자별 시간별 날씨 조회
+ * 사용자별 시간별 날씨 조회 (DB에서만 조회, API 호출 안 함)
  */
 export async function getUserHourlyWeather(input: HourlyWeatherInput): Promise<HourlyWeatherData[]> {
   const { userId } = await auth();
@@ -44,18 +44,49 @@ export async function getUserHourlyWeather(input: HourlyWeatherInput): Promise<H
   const validatedData = hourlyWeatherSchema.parse(input);
   
   try {
-    console.log(`🌤️ 사용자 ${userId} 시간별 날씨 조회 시작`);
+    console.log(`🌤️ 사용자 ${userId} 시간별 날씨 조회 시작 (DB에서만)`);
     
-    // 사용자 ID를 포함하여 날씨 데이터 조회
-    const weatherRequest: HourlyWeatherRequest = {
-      ...validatedData,
-      clerkUserId: userId, // 사용자 ID 추가
-    };
+    // 현재 시각 이후의 데이터만 조회
+    const now = new Date();
+    const hours = validatedData.hours || 12;
+    const maxForecastTime = new Date(now.getTime() + (hours * 60 * 60 * 1000));
     
-    const hourlyData = await getHourlyWeather(weatherRequest);
+    // DB에서 사용자별 시간별 날씨 데이터 조회
+    const dbRecords = await db
+      .select()
+      .from(hourlyWeatherData)
+      .where(and(
+        eq(hourlyWeatherData.clerkUserId, userId),
+        gte(hourlyWeatherData.forecastDateTime, now),
+        lte(hourlyWeatherData.forecastDateTime, maxForecastTime),
+        gte(hourlyWeatherData.expiresAt, now) // 만료되지 않은 데이터만
+      ))
+      .orderBy(hourlyWeatherData.forecastDateTime)
+      .limit(hours);
     
-    console.log(`✅ 사용자 ${userId} 시간별 날씨 조회 완료: ${hourlyData.length}개 항목`);
-    return hourlyData;
+    if (dbRecords.length === 0) {
+      console.log(`⚠️ 사용자 ${userId}의 시간별 날씨 데이터가 DB에 없습니다. 스케줄러가 실행되기를 기다려주세요.`);
+      return [];
+    }
+    
+    // DB 레코드를 API 형식으로 변환
+    const weatherData: HourlyWeatherData[] = dbRecords.map(record => ({
+      location: record.locationName,
+      timestamp: record.forecastDateTime.toISOString(),
+      hour: `${record.forecastHour.toString().padStart(2, '0')}시`,
+      temperature: record.temperature,
+      conditions: record.conditions,
+      weatherIcon: record.weatherIcon,
+      humidity: record.humidity || 0,
+      precipitation: parseFloat(record.precipitation || '0'),
+      precipitationProbability: record.precipitationProbability || 0,
+      rainProbability: record.rainProbability || 0,
+      windSpeed: record.windSpeed || 0,
+      units: record.units as 'metric' | 'imperial',
+    }));
+    
+    console.log(`✅ 사용자 ${userId} 시간별 날씨 조회 완료: ${weatherData.length}개 항목 (DB)`);
+    return weatherData;
   } catch (error) {
     console.error('사용자 시간별 날씨 조회 실패:', error);
     throw new Error('시간별 날씨 정보를 가져오는데 실패했습니다.');
@@ -63,7 +94,7 @@ export async function getUserHourlyWeather(input: HourlyWeatherInput): Promise<H
 }
 
 /**
- * 사용자별 일별 날씨 조회
+ * 사용자별 일별 날씨 조회 (DB에서만 조회, API 호출 안 함)
  */
 export async function getUserDailyWeather(input: DailyWeatherInput): Promise<DailyWeatherResponse> {
   const { userId } = await auth();
@@ -76,18 +107,60 @@ export async function getUserDailyWeather(input: DailyWeatherInput): Promise<Dai
   const validatedData = dailyWeatherSchema.parse(input);
   
   try {
-    console.log(`🌤️ 사용자 ${userId} 일별 날씨 조회 시작`);
+    console.log(`🌤️ 사용자 ${userId} 일별 날씨 조회 시작 (DB에서만)`);
     
-    // 사용자 ID를 포함하여 날씨 데이터 조회
-    const weatherRequest: DailyWeatherRequest = {
-      ...validatedData,
-      clerkUserId: userId, // 사용자 ID 추가
+    // 오늘 날짜 이후의 데이터만 조회
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const days = validatedData.days || 5;
+    
+    // DB에서 사용자별 일별 날씨 데이터 조회
+    const dbRecords = await db
+      .select()
+      .from(dailyWeatherData)
+      .where(and(
+        eq(dailyWeatherData.clerkUserId, userId),
+        gte(dailyWeatherData.forecastDate, today),
+        gte(dailyWeatherData.expiresAt, now) // 만료되지 않은 데이터만
+      ))
+      .orderBy(dailyWeatherData.forecastDate)
+      .limit(days);
+    
+    if (dbRecords.length === 0) {
+      console.log(`⚠️ 사용자 ${userId}의 일별 날씨 데이터가 DB에 없습니다. 스케줄러가 실행되기를 기다려주세요.`);
+      return {
+        dailyForecasts: [],
+      };
+    }
+    
+    // DB 레코드를 API 형식으로 변환
+    const dailyForecasts: DailyWeatherData[] = dbRecords.map(record => ({
+      location: record.locationName,
+      timestamp: new Date(record.forecastDate + 'T00:00:00').toISOString(),
+      date: record.forecastDate,
+      dayOfWeek: record.dayOfWeek,
+      temperature: record.temperature,
+      highTemp: record.highTemp,
+      lowTemp: record.lowTemp,
+      conditions: record.conditions,
+      weatherIcon: record.weatherIcon,
+      humidity: 0,
+      precipitation: 0,
+      precipitationProbability: record.precipitationProbability || 0,
+      rainProbability: record.rainProbability || 0,
+      windSpeed: 0,
+      units: record.units as 'metric' | 'imperial',
+      dayWeather: record.dayWeather as any,
+      nightWeather: record.nightWeather as any,
+    }));
+    
+    const response: DailyWeatherResponse = {
+      headline: dbRecords[0]?.headline as any,
+      dailyForecasts,
     };
     
-    const dailyData = await getDailyWeather(weatherRequest);
-    
-    console.log(`✅ 사용자 ${userId} 일별 날씨 조회 완료: ${dailyData.dailyForecasts.length}개 항목`);
-    return dailyData;
+    console.log(`✅ 사용자 ${userId} 일별 날씨 조회 완료: ${dailyForecasts.length}개 항목 (DB)`);
+    return response;
   } catch (error) {
     console.error('사용자 일별 날씨 조회 실패:', error);
     throw new Error('일별 날씨 정보를 가져오는데 실패했습니다.');
@@ -95,7 +168,7 @@ export async function getUserDailyWeather(input: DailyWeatherInput): Promise<Dai
 }
 
 /**
- * 사용자 위치 기반 날씨 조회 (위도/경도)
+ * 사용자 위치 기반 날씨 조회 (위도/경도) - DB에서만 조회
  */
 export async function getUserWeatherByCoordinates(
   latitude: number,
@@ -112,22 +185,15 @@ export async function getUserWeatherByCoordinates(
   }
   
   try {
-    console.log(`🌤️ 사용자 ${userId} 좌표 기반 날씨 조회 시작: ${latitude}, ${longitude}`);
-    
-    const baseRequest = {
-      latitude,
-      longitude,
-      units,
-      clerkUserId: userId,
-    };
+    console.log(`🌤️ 사용자 ${userId} 좌표 기반 날씨 조회 시작 (DB에서만): ${latitude}, ${longitude}`);
     
     // 시간별과 일별 날씨를 병렬로 조회
     const [hourlyWeather, dailyWeather] = await Promise.all([
-      getHourlyWeather({ ...baseRequest, hours: 12 }),
-      getDailyWeather({ ...baseRequest, days: 5 }),
+      getUserHourlyWeather({ hours: 12, units }),
+      getUserDailyWeather({ days: 5, units }),
     ]);
     
-    console.log(`✅ 사용자 ${userId} 좌표 기반 날씨 조회 완료`);
+    console.log(`✅ 사용자 ${userId} 좌표 기반 날씨 조회 완료 (DB)`);
     return {
       hourlyWeather,
       dailyWeather,
@@ -139,7 +205,7 @@ export async function getUserWeatherByCoordinates(
 }
 
 /**
- * 사용자 저장된 위치의 날씨 조회
+ * 사용자 저장된 위치의 날씨 조회 - DB에서만 조회
  */
 export async function getUserLocationWeather(): Promise<{
   hourlyWeather: HourlyWeatherData[];
@@ -152,20 +218,23 @@ export async function getUserLocationWeather(): Promise<{
   }
   
   try {
-    // 사용자 위치 정보 조회
-    const { getUserLocation } = await import('./location');
-    const locationResult = await getUserLocation();
+    // 사용자 위치 정보 조회 (user_locations 테이블에서)
+    const userLocationRecords = await db
+      .select()
+      .from(userLocations)
+      .where(eq(userLocations.clerkUserId, userId))
+      .limit(1);
     
-    if (!locationResult.success || !locationResult.data) {
+    if (userLocationRecords.length === 0) {
       console.log(`사용자 ${userId}의 저장된 위치 정보가 없습니다.`);
       return null;
     }
     
-    const userLocation = locationResult.data;
+    const userLocation = userLocationRecords[0];
     
-    console.log(`🌤️ 사용자 ${userId} 저장된 위치 날씨 조회 시작: ${userLocation.latitude}, ${userLocation.longitude}`);
+    console.log(`🌤️ 사용자 ${userId} 저장된 위치 날씨 조회 시작 (DB에서만): ${userLocation.latitude}, ${userLocation.longitude}`);
     
-    // 저장된 위치의 날씨 조회
+    // 저장된 위치의 날씨 조회 (DB에서만)
     return await getUserWeatherByCoordinates(
       parseFloat(userLocation.latitude),
       parseFloat(userLocation.longitude)

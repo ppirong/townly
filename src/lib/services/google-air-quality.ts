@@ -260,7 +260,7 @@ class GoogleAirQualityService {
       const maxPages = 10; // 무한 루프 방지
 
       do {
-        const bodyWithToken = pageToken 
+        const bodyWithToken: typeof requestBody & { pageToken?: string } = pageToken 
           ? { ...requestBody, pageToken }
           : requestBody;
 

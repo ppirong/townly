@@ -113,19 +113,6 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
     if (dbCachedData) {
       console.log('🎯 시간별 날씨 DB 캐시 적중');
       
-      // 사용자별 데이터인 경우 임베딩이 없으면 생성
-      if (params.clerkUserId) {
-        try {
-          await weatherDbService.generateEmbeddingsForExistingHourlyData(
-            dbCachedData,
-            locationName,
-            params.clerkUserId
-          );
-        } catch (embeddingError) {
-          console.error('⚠️ 캐시된 시간별 날씨 데이터 임베딩 생성 실패:', embeddingError);
-        }
-      }
-      
       // DB에서 가져온 데이터를 메모리 캐시에도 저장
       weatherCache.set(cacheKey, dbCachedData, 10);
       return dbCachedData;
@@ -314,19 +301,6 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
     const dbCachedData = await weatherDbService.getDailyWeatherData(cacheKey);
     if (dbCachedData) {
       console.log('🎯 일별 날씨 DB 캐시 적중');
-      
-      // 사용자별 데이터인 경우 임베딩이 없으면 생성
-      if (params.clerkUserId) {
-        try {
-          await weatherDbService.generateEmbeddingsForExistingDailyData(
-            dbCachedData,
-            locationName,
-            params.clerkUserId
-          );
-        } catch (embeddingError) {
-          console.error('⚠️ 캐시된 일별 날씨 데이터 임베딩 생성 실패:', embeddingError);
-        }
-      }
       
       // DB에서 가져온 데이터를 메모리 캐시에도 저장
       weatherCache.set(cacheKey, dbCachedData, 30);

@@ -766,7 +766,7 @@ ${this.getPersonalizedWeatherAnalysisGuidelines(request.currentMonth)}`;
   /**
    * 이메일 제목 생성 (템플릿 기반)
    */
-  private generateEmailSubjectByTemplate(kstStart: Date, kstEnd: Date): string {
+  public generateEmailSubjectByTemplate(kstStart: Date, kstEnd: Date): string {
     const month = kstStart.getMonth() + 1;
     const day = kstStart.getDate();
     const startHour = kstStart.getHours();

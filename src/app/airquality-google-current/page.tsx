@@ -141,7 +141,7 @@ export default async function GoogleCurrentAirQualityPage() {
                   <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                   <span className="text-sm">매우나쁨</span>
                 </div>
-                <span className="text-xs text-muted-foreground">>75/>150</span>
+                <span className="text-xs text-muted-foreground">&gt;75/&gt;150</span>
               </div>
             </CardContent>
           </Card>
