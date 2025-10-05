@@ -5,6 +5,8 @@ import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
 import { getUserLocation } from '@/actions/location';
 import { getStored90HourAirQuality } from '@/actions/google-air-quality';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * 미세먼지(구글 API) 페이지
  * Google Air Quality API를 활용한 대기질 정보 조회

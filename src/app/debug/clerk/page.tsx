@@ -2,6 +2,8 @@ import { auth } from '@clerk/nextjs/server';
 import Link from 'next/link';
 import { ClerkClientDebug } from '@/components/debug/ClerkClientDebug';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ClerkDebugPage() {
   console.log('🔍 Clerk Debug Page Loading...');
   

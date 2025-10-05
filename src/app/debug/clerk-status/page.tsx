@@ -2,6 +2,8 @@ import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { ClerkClientStatus } from '@/components/debug/ClerkClientStatus';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ClerkStatusPage() {
   let authResult;
   let error = null;

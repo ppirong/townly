@@ -218,7 +218,14 @@ export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput)
       throw new Error('발송 대상이 없습니다');
     }
 
-    console.log(`📧 크론잡 개인화된 이메일 발송 시작: ${recipients.length}명`);
+    // useAgent 옵션 확인
+    const useAgent = validatedData.useAgent === true;
+    
+    if (useAgent) {
+      console.log(`🤖 크론잡 에이전트 기반 이메일 발송 시작: ${recipients.length}명`);
+    } else {
+      console.log(`📧 크론잡 템플릿 기반 이메일 발송 시작: ${recipients.length}명`);
+    }
     
     // 2. 각 사용자별로 개인화된 이메일 생성
     const personalizedEmails = await Promise.all(
@@ -226,130 +233,202 @@ export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput)
         try {
           console.log(`🔄 사용자 ${index + 1}/${recipients.length} 개인화 처리 중...`);
           
-          // 2-1. 사용자별 날씨 데이터 수집
-          const userWeatherData = await collectUserWeatherData(
-            recipient.clerkUserId,
-            validatedData.location,
-            validatedData.timeOfDay
-          );
-          
-          // 2-2. 사용자 주소 조회
-          const userAddress = await getUserAddressForEmail(recipient.clerkUserId, validatedData.location);
-          
-          // 2-3. 템플릿 기반 이메일 생성 (ChatGPT 사용 안 함)
-          const weatherAI = new WeatherAISummaryService();
-          const weatherDataInput = {
-            hourlyForecasts: userWeatherData.hourlyForecasts.map(h => ({
-              dateTime: h.dateTime,
-              temperature: h.temperature,
-              conditions: h.conditions,
-              precipitationProbability: h.precipitationProbability,
-              rainProbability: h.rainProbability,
-              windSpeed: h.windSpeed,
-              humidity: h.humidity,
-            })),
-            dailyForecasts: userWeatherData.dailyForecasts.map(d => ({
-              date: d.date,
-              dayOfWeek: d.dayOfWeek,
-              highTemp: d.highTemp,
-              lowTemp: d.lowTemp,
-              conditions: d.conditions,
-              precipitationProbability: d.precipitationProbability,
-              rainProbability: d.rainProbability,
-            }))
-          };
-          
-          const personalizedSummary = await weatherAI.generateWeatherEmailByTemplate(
-            {
-              location: validatedData.location,
-              startDateTime: new Date(),
-              endDateTime: new Date(Date.now() + 12 * 60 * 60 * 1000),
-              timeOfDay: validatedData.timeOfDay,
-              currentMonth: new Date().getMonth() + 1,
-              includeHourlyForecast: true,
-              includeDailyForecast: true,
-            },
-            weatherDataInput,
-            userAddress
-          );
-          
-          // 2-4. 개인화된 이메일 제목 생성
-          const personalizedSubject = validatedData.subject || weatherAI.generateEmailSubjectByTemplate(
-            new Date(),
-            new Date(Date.now() + 12 * 60 * 60 * 1000)
-          );
-          
-          console.log(`✅ 사용자 ${recipient.clerkUserId.slice(0, 8)} 개인화 완료`);
-          
-          return {
-            recipient,
-            weatherData: userWeatherData,
-            summary: personalizedSummary,
-            subject: personalizedSubject,
-            emailData: {
-              to: recipient.email,
-              subject: personalizedSubject,
-              htmlContent: emailTemplateService.generateWeatherEmailHTML({
-                location: validatedData.location,
-                timeOfDay: validatedData.timeOfDay,
-                weatherSummary: personalizedSummary,
-                clerkUserId: recipient.clerkUserId,
-              }),
-              textContent: emailTemplateService.generateWeatherEmailText({
-                location: validatedData.location,
-                timeOfDay: validatedData.timeOfDay,
-                weatherSummary: personalizedSummary,
-                clerkUserId: recipient.clerkUserId,
-              }),
+          if (useAgent) {
+            // 🤖 에이전트 방식: WeatherEmailAgent 사용
+            const sendTime = validatedData.timeOfDay === 'morning' ? 6 : 18;
+            
+            // 사용자별 날씨 데이터 준비
+            const dataPreparer = new WeatherEmailDataPreparer();
+            const weatherData = await dataPreparer.prepareUserWeatherData(
+              recipient.clerkUserId,
+              sendTime as 6 | 18
+            );
+            
+            if (!weatherData) {
+              throw new Error('날씨 데이터를 준비할 수 없습니다');
             }
-          };
+            
+            weatherData.userEmail = recipient.email;
+            
+            // 에이전트로 이메일 생성
+            const agent = new WeatherEmailAgent({
+              maxIterations: 5,
+              minApprovalScore: 80,
+            });
+            
+            const agentResult = await agent.generateEmail(weatherData);
+            
+            console.log(`✅ 사용자 ${recipient.clerkUserId.slice(0, 8)} 에이전트 처리 완료 (점수: ${agentResult.finalScore}/100, 순환: ${agentResult.iterations}회)`);
+            
+            // 이메일 제목 생성
+            const emailSubject = validatedData.subject || `[Townly 날씨 안내] ${weatherData.sendDate} ${sendTime}시 날씨`;
+            
+            // 텍스트를 HTML로 변환
+            const htmlContent = convertTextToHTML(agentResult.finalEmail);
+            
+            return {
+              recipient,
+              weatherData: null,
+              summary: null,
+              subject: emailSubject,
+              agentResult,
+              emailData: {
+                to: recipient.email,
+                subject: emailSubject,
+                htmlContent,
+                textContent: agentResult.finalEmail,
+              }
+            };
+            
+          } else {
+            // 📧 템플릿 방식: WeatherAISummaryService 사용
+            
+            // 2-1. 사용자별 날씨 데이터 수집
+            const userWeatherData = await collectUserWeatherData(
+              recipient.clerkUserId,
+              validatedData.location,
+              validatedData.timeOfDay
+            );
+            
+            // 2-2. 사용자 주소 조회
+            const userAddress = await getUserAddressForEmail(recipient.clerkUserId, validatedData.location);
+            
+            // 2-3. 템플릿 기반 이메일 생성
+            const weatherAI = new WeatherAISummaryService();
+            const weatherDataInput = {
+              hourlyForecasts: userWeatherData.hourlyForecasts.map(h => ({
+                dateTime: h.dateTime,
+                temperature: h.temperature,
+                conditions: h.conditions,
+                precipitationProbability: h.precipitationProbability,
+                rainProbability: h.rainProbability,
+                windSpeed: h.windSpeed,
+                humidity: h.humidity,
+              })),
+              dailyForecasts: userWeatherData.dailyForecasts.map(d => ({
+                date: d.date,
+                dayOfWeek: d.dayOfWeek,
+                highTemp: d.highTemp,
+                lowTemp: d.lowTemp,
+                conditions: d.conditions,
+                precipitationProbability: d.precipitationProbability,
+                rainProbability: d.rainProbability,
+              }))
+            };
+            
+            const personalizedSummary = await weatherAI.generateWeatherEmailByTemplate(
+              {
+                location: validatedData.location,
+                startDateTime: new Date(),
+                endDateTime: new Date(Date.now() + 12 * 60 * 60 * 1000),
+                timeOfDay: validatedData.timeOfDay,
+                currentMonth: new Date().getMonth() + 1,
+                includeHourlyForecast: true,
+                includeDailyForecast: true,
+              },
+              weatherDataInput,
+              userAddress
+            );
+            
+            // 2-4. 개인화된 이메일 제목 생성
+            const personalizedSubject = validatedData.subject || weatherAI.generateEmailSubjectByTemplate(
+              new Date(),
+              new Date(Date.now() + 12 * 60 * 60 * 1000)
+            );
+            
+            console.log(`✅ 사용자 ${recipient.clerkUserId.slice(0, 8)} 템플릿 처리 완료`);
+            
+            return {
+              recipient,
+              weatherData: userWeatherData,
+              summary: personalizedSummary,
+              subject: personalizedSubject,
+              agentResult: null,
+              emailData: {
+                to: recipient.email,
+                subject: personalizedSubject,
+                htmlContent: emailTemplateService.generateWeatherEmailHTML({
+                  location: validatedData.location,
+                  timeOfDay: validatedData.timeOfDay,
+                  weatherSummary: personalizedSummary,
+                  clerkUserId: recipient.clerkUserId,
+                }),
+                textContent: emailTemplateService.generateWeatherEmailText({
+                  location: validatedData.location,
+                  timeOfDay: validatedData.timeOfDay,
+                  weatherSummary: personalizedSummary,
+                  clerkUserId: recipient.clerkUserId,
+                }),
+              }
+            };
+          }
           
         } catch (userError) {
           console.error(`❌ 사용자 ${recipient.clerkUserId.slice(0, 8)} 개인화 실패:`, userError);
           
-          // 개인화 실패 시 일반 날씨 데이터로 폴백
-          const fallbackWeatherData = await collectWeatherData(validatedData.location, validatedData.timeOfDay);
-          const userAddress = validatedData.location; // 폴백 시 기본 위치 사용
-          const weatherAI = new WeatherAISummaryService();
-          const fallbackSummary = await weatherAI.generateWeatherEmailByTemplate(
-            {
-              location: validatedData.location,
-              startDateTime: new Date(),
-              endDateTime: new Date(Date.now() + 12 * 60 * 60 * 1000),
-              timeOfDay: validatedData.timeOfDay,
-              currentMonth: new Date().getMonth() + 1,
-              includeHourlyForecast: true,
-              includeDailyForecast: true,
-            },
-            fallbackWeatherData,
-            userAddress
-          );
-          
-          const fallbackSubject = validatedData.subject || weatherAI.generateEmailSubjectByTemplate(
-            new Date(),
-            new Date(Date.now() + 12 * 60 * 60 * 1000)
-          );
-          
-          return {
-            recipient,
-            weatherData: fallbackWeatherData,
-            summary: fallbackSummary,
-            subject: fallbackSubject,
-            emailData: {
-              to: recipient.email,
-              subject: `[일반] ${fallbackSubject}`,
-              htmlContent: emailTemplateService.generateWeatherEmailHTML({
+          if (useAgent) {
+            // 에이전트 실패 시 폴백 메시지
+            const fallbackMessage = `[자동 생성 실패]\n\n죄송합니다. 현재 날씨 정보를 생성하는 중 오류가 발생했습니다.\n직접 날씨 페이지를 확인해주세요: https://townly.vercel.app/weather`;
+            
+            return {
+              recipient,
+              weatherData: null,
+              summary: null,
+              subject: `[Townly] 날씨 안내 생성 오류`,
+              agentResult: null,
+              emailData: {
+                to: recipient.email,
+                subject: `[Townly] 날씨 안내 생성 오류`,
+                htmlContent: convertTextToHTML(fallbackMessage),
+                textContent: fallbackMessage,
+              }
+            };
+          } else {
+            // 템플릿 방식 실패 시 일반 날씨 데이터로 폴백
+            const fallbackWeatherData = await collectWeatherData(validatedData.location, validatedData.timeOfDay);
+            const userAddress = validatedData.location; // 폴백 시 기본 위치 사용
+            const weatherAI = new WeatherAISummaryService();
+            const fallbackSummary = await weatherAI.generateWeatherEmailByTemplate(
+              {
                 location: validatedData.location,
+                startDateTime: new Date(),
+                endDateTime: new Date(Date.now() + 12 * 60 * 60 * 1000),
                 timeOfDay: validatedData.timeOfDay,
-                weatherSummary: fallbackSummary,
-              }),
-              textContent: emailTemplateService.generateWeatherEmailText({
-                location: validatedData.location,
-                timeOfDay: validatedData.timeOfDay,
-                weatherSummary: fallbackSummary,
-              }),
-            }
-          };
+                currentMonth: new Date().getMonth() + 1,
+                includeHourlyForecast: true,
+                includeDailyForecast: true,
+              },
+              fallbackWeatherData,
+              userAddress
+            );
+            
+            const fallbackSubject = validatedData.subject || weatherAI.generateEmailSubjectByTemplate(
+              new Date(),
+              new Date(Date.now() + 12 * 60 * 60 * 1000)
+            );
+            
+            return {
+              recipient,
+              weatherData: fallbackWeatherData,
+              summary: fallbackSummary,
+              subject: fallbackSubject,
+              agentResult: null,
+              emailData: {
+                to: recipient.email,
+                subject: `[일반] ${fallbackSubject}`,
+                htmlContent: emailTemplateService.generateWeatherEmailHTML({
+                  location: validatedData.location,
+                  timeOfDay: validatedData.timeOfDay,
+                  weatherSummary: fallbackSummary,
+                }),
+                textContent: emailTemplateService.generateWeatherEmailText({
+                  location: validatedData.location,
+                  timeOfDay: validatedData.timeOfDay,
+                  weatherSummary: fallbackSummary,
+                }),
+              }
+            };
+          }
         }
       })
     );
@@ -888,7 +967,7 @@ export async function executeScheduledEmail(scheduleId: string) {
       targetType: scheduleData.targetType as any,
       targetUserIds: scheduleData.targetUserIds ? scheduleData.targetUserIds as string[] : undefined,
       forceRefreshWeather: true,
-      useAgent: false, // 크론잡에서는 기존 템플릿 방식 사용 (빠른 처리를 위해)
+      useAgent: true, // 🤖 에이전트를 사용하여 고품질 날씨 이메일 생성
     });
     
     // 스케줄 정보 업데이트
