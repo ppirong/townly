@@ -38,6 +38,7 @@ export function ManualEmailSender({
       timeOfDay: 'morning',
       targetType: 'all_users',
       forceRefreshWeather: true,
+      useAgent: true, // 에이전트 기본 사용
     },
   });
 
@@ -234,34 +235,72 @@ export function ManualEmailSender({
               </div>
             )}
 
-            {/* 날씨 데이터 새로고침 */}
-            <div className="flex items-center space-x-2">
+            {/* 에이전트 사용 여부 */}
+            <div className="flex items-center space-x-2 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-md">
               <Switch
-                id="forceRefreshWeather"
-                checked={watch('forceRefreshWeather')}
-                onCheckedChange={(checked) => setValue('forceRefreshWeather', checked)}
+                id="useAgent"
+                checked={watch('useAgent')}
+                onCheckedChange={(checked) => setValue('useAgent', checked)}
               />
-              <Label htmlFor="forceRefreshWeather">최신 날씨 데이터 가져오기</Label>
-              <span className="text-sm text-muted-foreground">(권장)</span>
+              <div className="flex-1">
+                <Label htmlFor="useAgent" className="text-purple-900 font-semibold">
+                  🤖 AI 에이전트 사용 (Claude 3.5 + 4.5)
+                </Label>
+                <p className="text-sm text-purple-700 mt-1">
+                  {watch('useAgent') 
+                    ? '에이전트가 날씨 안내를 작성하고 검토합니다. 최대 5회 순환하여 고품질 이메일을 생성합니다.'
+                    : '기존 템플릿 방식으로 이메일을 생성합니다.'}
+                </p>
+              </div>
             </div>
 
+            {/* 날씨 데이터 새로고침 */}
+            {!watch('useAgent') && (
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="forceRefreshWeather"
+                  checked={watch('forceRefreshWeather')}
+                  onCheckedChange={(checked) => setValue('forceRefreshWeather', checked)}
+                />
+                <Label htmlFor="forceRefreshWeather">최신 날씨 데이터 가져오기</Label>
+                <span className="text-sm text-muted-foreground">(권장)</span>
+              </div>
+            )}
+
             {/* 개인화 안내 메시지 */}
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <div className={`p-4 border rounded-md ${watch('useAgent') ? 'bg-purple-50 border-purple-200' : 'bg-blue-50 border-blue-200'}`}>
               <div className="flex">
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-blue-800">
-                    🎯 개인화된 날씨 이메일
+                  <h3 className={`text-sm font-medium ${watch('useAgent') ? 'text-purple-800' : 'text-blue-800'}`}>
+                    {watch('useAgent') ? '🤖 AI 에이전트 개인화 이메일' : '🎯 개인화된 날씨 이메일'}
                   </h3>
-                  <div className="mt-2 text-sm text-blue-700">
-                    <p>
-                      각 사용자별로 저장된 시간별 날씨 정보를 기반으로 개인화된 요약을 생성합니다.
-                    </p>
-                    <ul className="mt-2 list-disc list-inside space-y-1">
-                      <li>사용자별 저장된 날씨 데이터 우선 활용</li>
-                      <li>개인 맞춤형 AI 요약 및 조언 제공</li>
-                      <li>데이터 출처에 따른 신뢰도 조정</li>
-                      <li>개인화 실패 시 일반 날씨 데이터로 자동 폴백</li>
-                    </ul>
+                  <div className={`mt-2 text-sm ${watch('useAgent') ? 'text-purple-700' : 'text-blue-700'}`}>
+                    {watch('useAgent') ? (
+                      <>
+                        <p>
+                          Claude Sonnet 3.5와 4.5가 협업하여 사용자별 맞춤 날씨 안내를 생성합니다.
+                        </p>
+                        <ul className="mt-2 list-disc list-inside space-y-1">
+                          <li>사용자별 데이터베이스 저장 날씨 정보 활용</li>
+                          <li>Claude 3.5: 날씨 안내 작성</li>
+                          <li>Claude 4.5: 품질 검토 및 개선 지시</li>
+                          <li>최대 5회 순환하여 고품질 이메일 생성</li>
+                          <li>강우/적설 확률 70% 이상 시간 모두 제공</li>
+                        </ul>
+                      </>
+                    ) : (
+                      <>
+                        <p>
+                          각 사용자별로 저장된 시간별 날씨 정보를 기반으로 개인화된 요약을 생성합니다.
+                        </p>
+                        <ul className="mt-2 list-disc list-inside space-y-1">
+                          <li>사용자별 저장된 날씨 데이터 우선 활용</li>
+                          <li>개인 맞춤형 AI 요약 및 조언 제공</li>
+                          <li>데이터 출처에 따른 신뢰도 조정</li>
+                          <li>개인화 실패 시 일반 날씨 데이터로 자동 폴백</li>
+                        </ul>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

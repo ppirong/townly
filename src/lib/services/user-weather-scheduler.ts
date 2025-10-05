@@ -294,10 +294,12 @@ async function saveHourlyWeatherToDatabase(
   const { getNextBatchTime } = await import('./smart-ttl-manager');
   const expiresAt = getNextBatchTime(now);
   
+  // AccuWeather DateTime을 KST로 변환하는 유틸 함수 import
+  const { convertAccuWeatherDateTimeToKST } = await import('@/lib/utils/datetime');
+  
   const dbRecords = apiData.map(forecast => {
-    const forecastDateTime = new Date(forecast.DateTime);
-    const forecastDate = forecastDateTime.toISOString().split('T')[0];
-    const forecastHour = forecastDateTime.getHours();
+    // AccuWeather DateTime을 올바르게 KST로 변환
+    const { kstDateTime, forecastDate, forecastHour } = convertAccuWeatherDateTimeToKST(forecast.DateTime);
     
     // 강수량 처리
     let precipitation = 0;
@@ -319,7 +321,7 @@ async function saveHourlyWeatherToDatabase(
       longitude: longitude.toString(),
       forecastDate,
       forecastHour,
-      forecastDateTime,
+      forecastDateTime: kstDateTime, // KST로 변환된 시간 사용
       temperature: Math.round(forecast.Temperature.Value),
       conditions: forecast.IconPhrase || '알 수 없음',
       weatherIcon: forecast.WeatherIcon || null,
@@ -366,12 +368,14 @@ async function saveDailyWeatherToDatabase(
   const dailyForecasts = apiData.DailyForecasts || [];
   
   const dbRecords = dailyForecasts.map((forecast: any) => {
-    const forecastDate = new Date(forecast.Date);
-    const forecastDateString = forecastDate.toISOString().split('T')[0];
+    // AccuWeather Date를 KST로 변환
+    const utcDate = new Date(forecast.Date);
+    const kstDate = new Date(utcDate.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+    const forecastDateString = kstDate.toISOString().split('T')[0];
     
-    // 요일 계산 (한국어)
+    // 요일 계산 (한국어, KST 기준)
     const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-    const dayOfWeek = dayNames[forecastDate.getDay()];
+    const dayOfWeek = dayNames[kstDate.getUTCDay()]; // KST Date 객체에서 UTC day 사용
     
     return {
       clerkUserId,

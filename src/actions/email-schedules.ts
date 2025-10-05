@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server';
 import { db } from '@/db';
-import { emailSchedules, emailSendLogs, individualEmailLogs } from '@/db/schema';
+import { emailSchedules, emailSendLogs, individualEmailLogs, userLocations } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { 
   createEmailScheduleSchema, 
@@ -21,6 +21,10 @@ import { env } from '@/lib/env';
 
 // 사용자별 날씨 데이터 수집을 위한 함수 임포트
 import { getUserHourlyWeather, getUserDailyWeather } from '@/lib/services/user-weather-collector';
+
+// 날씨 안내 이메일 작성 에이전트 임포트
+import { WeatherEmailAgent } from '@/lib/services/weather-email-agent';
+import { WeatherEmailDataPreparer } from '@/lib/services/weather-email-data-preparer';
 
 /**
  * 이메일 스케줄 생성
@@ -422,7 +426,185 @@ export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput)
 }
 
 /**
- * 수동 이메일 발송
+ * 에이전트를 사용한 수동 이메일 발송 (새로운 방식)
+ */
+export async function sendManualEmailWithAgent(input: SendManualEmailInput, testUserId?: string) {
+  const { userId: clerkUserId } = await auth();
+  const userId = clerkUserId || testUserId;
+  
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+  
+  const validatedData = sendManualEmailSchema.parse(input);
+  const startTime = Date.now();
+  
+  try {
+    // 1. 발송 대상 결정
+    let recipients: Array<{ clerkUserId: string; email: string; }> = [];
+    
+    if (validatedData.targetType === 'test' && validatedData.testEmail) {
+      recipients = [{ clerkUserId: userId, email: validatedData.testEmail }];
+    } else if (validatedData.targetType !== 'test') {
+      recipients = await getEmailRecipients(validatedData.targetType, validatedData.targetUserIds);
+    }
+    
+    if (recipients.length === 0) {
+      throw new Error('발송 대상이 없습니다');
+    }
+
+    console.log(`🤖 에이전트 기반 이메일 발송 시작: ${recipients.length}명`);
+    
+    // 2. 발송 시간 결정 (6시 또는 18시)
+    const sendTime = validatedData.timeOfDay === 'morning' ? 6 : 18;
+    
+    // 3. 각 사용자별로 에이전트 처리
+    const agent = new WeatherEmailAgent({
+      maxIterations: 5,
+      minApprovalScore: 80,
+    });
+    
+    const dataPreparer = new WeatherEmailDataPreparer();
+    
+    const personalizedEmails = await Promise.all(
+      recipients.map(async (recipient, index) => {
+        try {
+          console.log(`🤖 사용자 ${index + 1}/${recipients.length} 에이전트 처리 중...`);
+          
+          // 3-1. 사용자별 날씨 데이터 준비
+          const weatherData = await dataPreparer.prepareUserWeatherData(
+            recipient.clerkUserId,
+            sendTime as 6 | 18
+          );
+          
+          if (!weatherData) {
+            throw new Error('날씨 데이터를 준비할 수 없습니다');
+          }
+          
+          weatherData.userEmail = recipient.email;
+          
+          // 3-2. 에이전트로 이메일 생성
+          const agentResult = await agent.generateEmail(weatherData);
+          
+          console.log(`✅ 사용자 ${recipient.clerkUserId.slice(0, 8)} 에이전트 처리 완료 (점수: ${agentResult.finalScore}/100, 순환: ${agentResult.iterations}회)`);
+          
+          // 3-3. 이메일 제목 생성
+          const emailSubject = validatedData.subject || `[Townly 날씨 안내] ${weatherData.sendDate} ${sendTime}시 날씨`;
+          
+          // 3-4. 텍스트를 HTML로 변환 (간단한 포맷팅)
+          const htmlContent = convertTextToHTML(agentResult.finalEmail);
+          
+          return {
+            recipient,
+            agentResult,
+            weatherData,
+            emailData: {
+              to: recipient.email,
+              subject: emailSubject,
+              htmlContent,
+              textContent: agentResult.finalEmail,
+            }
+          };
+          
+        } catch (userError) {
+          console.error(`❌ 사용자 ${recipient.clerkUserId.slice(0, 8)} 에이전트 처리 실패:`, userError);
+          
+          // 에이전트 실패 시 기본 메시지 반환
+          const fallbackMessage = `[자동 생성 실패]\n\n죄송합니다. 현재 날씨 정보를 생성하는 중 오류가 발생했습니다.\n직접 날씨 페이지를 확인해주세요: https://townly.vercel.app/weather`;
+          
+          return {
+            recipient,
+            agentResult: null,
+            weatherData: null,
+            emailData: {
+              to: recipient.email,
+              subject: `[Townly] 날씨 안내 생성 오류`,
+              htmlContent: convertTextToHTML(fallbackMessage),
+              textContent: fallbackMessage,
+            }
+          };
+        }
+      })
+    );
+
+    // 4. 이메일 발송 로그 생성
+    const emailSendLogId = crypto.randomUUID();
+    
+    await db.insert(emailSendLogs).values({
+      id: emailSendLogId,
+      emailType: validatedData.targetType === 'test' ? 'test' : 'manual_agent',
+      subject: validatedData.subject || '에이전트 생성 이메일',
+      recipientCount: recipients.length,
+      successCount: 0,
+      failureCount: 0,
+      weatherDataUsed: null,
+      aiSummary: '에이전트 생성 요약',
+      forecastPeriod: sendTime === 6 ? '6시-18시' : '18시-다음날 6시',
+      isSuccessful: false,
+      initiatedBy: userId,
+    });
+    
+    // 5. 이메일 발송
+    const emailDataArray = personalizedEmails.map(item => item.emailData);
+    const sendResult = await gmailService.sendBulkEmails(emailDataArray);
+    
+    // 6. 발송 결과 업데이트
+    await db
+      .update(emailSendLogs)
+      .set({
+        successCount: sendResult.successCount,
+        failureCount: sendResult.failureCount,
+        isSuccessful: sendResult.failureCount === 0,
+        executionTime: Date.now() - startTime,
+        failedEmails: sendResult.results
+          .filter(r => !r.success)
+          .map(r => ({ email: r.email, error: r.error })),
+      })
+      .where(eq(emailSendLogs.id, emailSendLogId));
+    
+    // 7. 개별 이메일 로그 저장
+    const individualLogs = sendResult.results.map((result, index) => {
+      const personalizedData = personalizedEmails[index];
+      return {
+        id: crypto.randomUUID(),
+        emailSendLogId,
+        clerkUserId: personalizedData?.recipient.clerkUserId || '',
+        recipientEmail: result.email,
+        subject: personalizedData?.emailData.subject || '에이전트 이메일',
+        status: result.success ? 'sent' : 'failed',
+        sentAt: result.success ? new Date() : undefined,
+        gmailMessageId: result.messageId,
+        gmailThreadId: result.threadId,
+        errorMessage: result.error,
+      };
+    });
+    
+    if (individualLogs.length > 0) {
+      await db.insert(individualEmailLogs).values(individualLogs);
+    }
+    
+    revalidatePath('/admin/email-schedules');
+    
+    return {
+      success: true,
+      totalSent: sendResult.totalCount,
+      successCount: sendResult.successCount,
+      failureCount: sendResult.failureCount,
+      executionTime: Date.now() - startTime,
+      agentStats: {
+        averageScore: personalizedEmails.reduce((sum, p) => sum + (p.agentResult?.finalScore || 0), 0) / personalizedEmails.length,
+        averageIterations: personalizedEmails.reduce((sum, p) => sum + (p.agentResult?.iterations || 0), 0) / personalizedEmails.length,
+      }
+    };
+    
+  } catch (error) {
+    console.error('에이전트 이메일 발송 중 오류:', error);
+    throw error;
+  }
+}
+
+/**
+ * 수동 이메일 발송 (기존 템플릿 방식)
  */
 export async function sendManualEmail(input: SendManualEmailInput, testUserId?: string) {
   const { userId: clerkUserId } = await auth();
@@ -706,6 +888,7 @@ export async function executeScheduledEmail(scheduleId: string) {
       targetType: scheduleData.targetType as any,
       targetUserIds: scheduleData.targetUserIds ? scheduleData.targetUserIds as string[] : undefined,
       forceRefreshWeather: true,
+      useAgent: false, // 크론잡에서는 기존 템플릿 방식 사용 (빠른 처리를 위해)
     });
     
     // 스케줄 정보 업데이트
@@ -827,15 +1010,20 @@ async function collectPersonalizedUserWeatherData(
 
 /**
  * 사용자 위치 정보 조회 (user_locations 테이블의 address 필드 사용)
+ * 크론잡에서도 사용 가능하도록 인증 없이 직접 DB 조회
  */
 async function getUserAddressForEmail(clerkUserId: string, fallbackLocation: string): Promise<string> {
   try {
-    const { getUserLocation } = await import('./location');
-    const locationResult = await getUserLocation();
+    // 직접 DB에서 사용자 위치 조회 (인증 없이)
+    const locationData = await db
+      .select()
+      .from(userLocations)
+      .where(eq(userLocations.clerkUserId, clerkUserId))
+      .limit(1);
     
-    if (locationResult.success && locationResult.data?.address) {
-      console.log(`📍 사용자 ${clerkUserId.slice(0, 8)} 주소: ${locationResult.data.address}`);
-      return locationResult.data.address;
+    if (locationData.length > 0 && locationData[0].address) {
+      console.log(`📍 사용자 ${clerkUserId.slice(0, 8)} 주소: ${locationData[0].address}`);
+      return locationData[0].address;
     } else {
       console.log(`⚠️ 사용자 ${clerkUserId.slice(0, 8)} 주소 없음, 기본 위치 사용: ${fallbackLocation}`);
       return fallbackLocation;
@@ -1069,6 +1257,24 @@ async function getEmailRecipients(
     console.error('❌ Clerk 기반 이메일 수신자 조회 실패:', error);
     return [];
   }
+}
+
+/**
+ * 텍스트를 HTML로 변환 (간단한 포맷팅)
+ */
+function convertTextToHTML(text: string): string {
+  // 줄바꿈을 <br>로 변환
+  let html = text.replace(/\n/g, '<br>');
+  
+  // 이메일 주소를 링크로 변환
+  html = html.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" style="color: #2563eb;">$1</a>');
+  
+  // 기본 스타일 적용
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      ${html}
+    </div>
+  `;
 }
 
 /**

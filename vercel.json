@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/air-quality-collector",
-      "schedule": "0 6,12,18,0 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }

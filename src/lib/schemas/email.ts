@@ -53,6 +53,7 @@ export const sendManualEmailSchema = z.object({
   targetUserIds: z.array(z.string()).nullable().optional(),
   testEmail: z.string().email().optional(),
   forceRefreshWeather: z.boolean().optional().default(true),
+  useAgent: z.boolean().optional().default(true), // 에이전트 사용 여부 (기본: true)
 }).transform((data) => ({
   ...data,
   location: data.location ?? '서울',
@@ -60,6 +61,7 @@ export const sendManualEmailSchema = z.object({
   targetType: data.targetType ?? 'all_users',
   targetUserIds: data.targetUserIds || undefined, // null을 undefined로 변환
   forceRefreshWeather: data.forceRefreshWeather ?? true,
+  useAgent: data.useAgent ?? true, // 에이전트 기본 사용
 }));
 
 export type SendManualEmailInput = z.infer<typeof sendManualEmailSchema>;

@@ -22,7 +22,8 @@ import {
   createEmailSchedule, 
   updateEmailSchedule, 
   deleteEmailSchedule,
-  sendManualEmail 
+  sendManualEmail,
+  sendManualEmailWithAgent
 } from '@/actions/email-schedules';
 import type { EmailSchedule, UserEmailSettings } from '@/db/schema';
 
@@ -116,8 +117,16 @@ export function EmailManagementDashboard({
   const handleSendManualEmail = async (data: any) => {
     setIsLoading(true);
     try {
-      const result = await sendManualEmail(data);
-      showAlert('success', `이메일이 발송되었습니다. (성공: ${result.successCount}, 실패: ${result.failureCount})`);
+      // useAgent 옵션에 따라 적절한 함수 호출
+      const result = data.useAgent 
+        ? await sendManualEmailWithAgent(data)
+        : await sendManualEmail(data);
+        
+      const successMessage = data.useAgent && (result as any).agentStats
+        ? `이메일이 발송되었습니다. (성공: ${result.successCount}, 실패: ${result.failureCount}) - 평균 점수: ${(result as any).agentStats.averageScore.toFixed(1)}/100`
+        : `이메일이 발송되었습니다. (성공: ${result.successCount}, 실패: ${result.failureCount})`;
+        
+      showAlert('success', successMessage);
     } catch (error) {
       showAlert('error', '이메일 발송 중 오류가 발생했습니다.');
     } finally {
