@@ -60,6 +60,14 @@ interface TTLRecommendation {
   priority: 'low' | 'medium' | 'high';
 }
 
+interface BatchScheduleInfo {
+  nextBatchTime: string;
+  minutesUntilNextBatch: number;
+  lastBatchTime: string | null;
+  batchHours: number[];
+  currentTTL: number;
+}
+
 interface SystemStats {
   systemPatterns: {
     totalActiveUsers: number;
@@ -87,6 +95,7 @@ interface SystemStats {
     storageEfficiency: number;
     optimizationScore: number;
   };
+  batchSchedule?: BatchScheduleInfo;
 }
 
 export function SmartTTLDashboard() {
@@ -254,6 +263,71 @@ export function SmartTTLDashboard() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          {/* 배치 업데이트 스케줄 정보 */}
+          {systemStats?.batchSchedule && (
+            <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+              <CardHeader>
+                <CardTitle className="flex items-center text-blue-900 dark:text-blue-100">
+                  <Clock className="h-5 w-5 mr-2" />
+                  배치 업데이트 스케줄 (신규 전략)
+                </CardTitle>
+                <CardDescription className="text-blue-700 dark:text-blue-300">
+                  6시간 주기 고정 배치 업데이트 - 6시, 12시, 18시, 24시
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">다음 배치 시간</p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {new Date(systemStats.batchSchedule.nextBatchTime).toLocaleString('ko-KR', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {systemStats.batchSchedule.minutesUntilNextBatch}분 후
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">현재 TTL</p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {Math.floor(systemStats.batchSchedule.currentTTL / 60)}시간 {systemStats.batchSchedule.currentTTL % 60}분
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      다음 배치까지 유효
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">배치 스케줄</p>
+                    <div className="flex gap-2">
+                      {systemStats.batchSchedule.batchHours.map(hour => (
+                        <Badge 
+                          key={hour} 
+                          variant="outline"
+                          className="bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100"
+                        >
+                          {hour}시
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      하루 4회 자동 업데이트
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-white/50 dark:bg-gray-900/50 rounded-md border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-blue-900 dark:text-blue-100">
+                    <strong>새로운 전략:</strong> 사용자 요청과 무관하게 정해진 시각에 모든 사용자 데이터를 배치로 수집합니다. 
+                    TTL은 다음 배치 시간까지 고정되며, API 호출이 예측 가능하고 데이터 신선도가 일관됩니다.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           {/* 현재 상태 요약 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>

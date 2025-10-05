@@ -10,7 +10,7 @@ import { HourlyWeatherData, DailyWeatherData } from '@/lib/services/weather';
 import { getWeatherIcon } from '@/lib/weather-icons';
 import type { UserLocation } from '@/db/schema';
 import { setUserLocation } from '@/actions/location';
-import { getUserLocationWeather } from '@/actions/weather';
+import { getUserLocationWeather, refreshWeatherFromAPI } from '@/actions/weather';
 
 interface WeatherApiStats {
   today: {
@@ -67,6 +67,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
   const [apiStats, setApiStats] = useState<WeatherApiStats | null>(null);
   const [cacheClearing, setCacheClearing] = useState(false);
+  const [apiRefreshing, setApiRefreshing] = useState(false);
 
   // 온도 범위에 따른 막대 위치와 길이 계산 함수
   const calculateBarProperties = (highTemp: number, lowTemp: number, minTemp: number, maxTemp: number, isDetailed: boolean = true) => {
@@ -360,6 +361,39 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       setError(error instanceof Error ? error.message : '캐시 삭제에 실패했습니다.');
     } finally {
       setCacheClearing(false);
+      // API 통계 새로고침
+      await fetchApiStats();
+    }
+  };
+
+  // AccuWeather API 강제 호출 함수 (디버그용)
+  const refreshWeatherFromAPIHandler = async () => {
+    setApiRefreshing(true);
+    setError(null);
+
+    try {
+      console.log('🔄 AccuWeather API 강제 호출 시작 (디버그)...');
+
+      const result = await refreshWeatherFromAPI();
+
+      if (result.success && result.data) {
+        // 새로운 데이터로 UI 업데이트
+        setHourlyData(result.data.hourlyWeather);
+        setDailyData(result.data.dailyWeather.dailyForecasts);
+        setWeatherHeadline(result.data.dailyWeather.headline || null);
+        
+        setError(`✅ ${result.message}`);
+        setTimeout(() => setError(null), 5000);
+        
+        console.log('✅ AccuWeather API 강제 호출 성공');
+      } else {
+        throw new Error(result.error || result.message);
+      }
+    } catch (error) {
+      console.error('AccuWeather API 강제 호출 실패:', error);
+      setError(error instanceof Error ? error.message : 'API 호출에 실패했습니다.');
+    } finally {
+      setApiRefreshing(false);
       // API 통계 새로고침
       await fetchApiStats();
     }
@@ -683,7 +717,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
             <div className="flex flex-wrap gap-2">
               <Button 
                 onClick={() => userLocation ? fetchUserWeatherData() : fetchWeatherData()} 
-                disabled={loading || cacheClearing || (!userLocation && !location.trim())}
+                disabled={loading || cacheClearing || apiRefreshing || (!userLocation && !location.trim())}
               >
                 {loading ? '조회 중...' : userLocation ? '내 위치 날씨 새로고침' : '새로 고침'}
               </Button>
@@ -691,7 +725,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                 <Button 
                   variant="outline"
                   onClick={() => fetchWeatherData()} 
-                  disabled={loading || cacheClearing || !location.trim()}
+                  disabled={loading || cacheClearing || apiRefreshing || !location.trim()}
                 >
                   {loading ? '조회 중...' : '일반 검색'}
                 </Button>
@@ -699,7 +733,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
               <Button 
                 variant="outline"
                 onClick={clearCacheAndRefresh}
-                disabled={loading || cacheClearing || (!userLocation && !location.trim())}
+                disabled={loading || cacheClearing || apiRefreshing || (!userLocation && !location.trim())}
                 className="flex items-center gap-2"
               >
                 {cacheClearing ? (
@@ -714,6 +748,26 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                   </>
                 )}
               </Button>
+              {userLocation && (
+                <Button 
+                  variant="secondary"
+                  onClick={refreshWeatherFromAPIHandler}
+                  disabled={loading || cacheClearing || apiRefreshing}
+                  className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600"
+                >
+                  {apiRefreshing ? (
+                    <>
+                      <span className="animate-spin">⚡</span>
+                      API 호출 중...
+                    </>
+                  ) : (
+                    <>
+                      <span>⚡</span>
+                      날씨 새로고침 (디버그)
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
 
             {error && (
@@ -759,7 +813,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
             <CardContent className="min-h-[300px]">
               {/* 시간별 날씨를 한 행으로 표시하고 가로 스크롤 지원 */}
               <div className="overflow-x-auto pb-4 h-[250px]">
-                <div className="flex gap-3 min-w-max h-full"
+                <div className="flex gap-2 min-w-max h-full"
                      style={{ 
                        scrollBehavior: 'smooth',
                        cursor: 'grab'
@@ -787,36 +841,36 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                   {hourlyData.slice(0, 24).map((weather, index) => (
                     <div 
                       key={index} 
-                      className="bg-gradient-to-b from-sky-50 to-sky-100 dark:from-gray-800 dark:to-gray-900 border rounded-xl p-4 hover:shadow-lg transition-all duration-200 flex flex-col flex-shrink-0 w-28 h-[220px]"
+                      className="bg-gradient-to-b from-sky-50 to-sky-100 dark:from-gray-800 dark:to-gray-900 border rounded-xl p-2.5 hover:shadow-lg transition-all duration-200 flex flex-col flex-shrink-0 w-[70px] h-[220px]"
                       style={{ userSelect: 'none' }}
                     >
                       {/* 시간 표시 */}
-                      <div className="text-center border-b border-sky-200 dark:border-gray-700 mb-3 pb-2">
-                        <div className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                      <div className="text-center border-b border-sky-200 dark:border-gray-700 mb-2 pb-1.5">
+                        <div className="font-bold text-gray-800 dark:text-gray-200 text-xs">
                           {weather.hour}
                         </div>
                       </div>
                       
                       {/* 날씨 아이콘 */}
-                      <div className="text-center mb-3">
-                        <div className="text-3xl mb-2">
+                      <div className="text-center mb-2">
+                        <div className="text-2xl mb-1">
                           {getWeatherIcon(weather.weatherIcon, weather.conditions)}
                         </div>
                       </div>
                       
                       {/* 온도 */}
-                      <div className="text-center mb-3">
-                        <div className="font-bold text-lg text-blue-600 dark:text-blue-400">
+                      <div className="text-center mb-2">
+                        <div className="font-bold text-base text-blue-600 dark:text-blue-400">
                           {weather.temperature}{getTemperatureUnit()}
                         </div>
                       </div>
                       
                         {/* 강수 정보 */}
-                        <div className="text-center space-y-1 mt-auto">
-                          <div className="text-xs text-blue-600 dark:text-blue-400">
+                        <div className="text-center space-y-0.5 mt-auto">
+                          <div className="text-[10px] text-blue-600 dark:text-blue-400">
                             💧 {typeof weather.precipitation === 'number' ? weather.precipitation.toFixed(1) : '0.0'}mm
                           </div>
-                          <div className="text-xs text-green-600 dark:text-green-400">
+                          <div className="text-[10px] text-green-600 dark:text-green-400">
                             ☔ {weather.precipitationProbability || 0}%
                           </div>
                         </div>
@@ -866,7 +920,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
               <CardContent className="min-h-[650px]">
               {/* 일별 날씨를 한 행으로 표시하고 가로 스크롤 지원 */}
               <div className="overflow-x-auto pb-4 h-[600px]">
-                <div className="flex gap-3 min-w-max h-full"
+                <div className="flex gap-2 min-w-max h-full"
                      style={{ 
                        scrollBehavior: 'smooth',
                        cursor: 'grab'
@@ -894,34 +948,34 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                 {dailyData.map((weather, index) => (
                   <div 
                     key={index} 
-                    className="bg-gradient-to-b from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 border rounded-xl p-5 hover:shadow-lg transition-all duration-200 flex flex-col flex-shrink-0 w-48 h-[570px]"
+                    className="bg-gradient-to-b from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 border rounded-xl p-3 hover:shadow-lg transition-all duration-200 flex flex-col flex-shrink-0 w-[120px] h-[570px]"
                     style={{ userSelect: 'none' }}
                   >
                     {/* 헤더: 날짜와 요일 */}
-                    <div className="text-center border-b border-blue-200 dark:border-gray-700 mb-3 pb-2">
-                      <div className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                    <div className="text-center border-b border-blue-200 dark:border-gray-700 mb-2 pb-1.5">
+                      <div className="font-bold text-gray-800 dark:text-gray-200 text-xs">
                         {weather.date}
                       </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                      <div className="text-[10px] text-gray-600 dark:text-gray-400">
                         ({weather.dayOfWeek})
                       </div>
                     </div>
                     
                     {/* 낮 날씨 */}
                     {weather.dayWeather && (
-                      <div className="text-center mb-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3">
-                        <div className="text-xs text-amber-700 dark:text-amber-300 font-medium mb-2">낮</div>
-                        <div className="text-3xl mb-2">
+                      <div className="text-center mb-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2">
+                        <div className="text-[10px] text-amber-700 dark:text-amber-300 font-medium mb-1">낮</div>
+                        <div className="text-2xl mb-1">
                           {getWeatherIcon(weather.dayWeather.icon, weather.dayWeather.conditions)}
                         </div>
-                         <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                         <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
                            ☔ {weather.dayWeather.precipitationProbability || 0}%
                          </div>
                       </div>
                     )}
                     
                     {/* 온도 막대그래프 */}
-                    <div className="flex-1 flex flex-col justify-center items-center my-4">
+                    <div className="flex-1 flex flex-col justify-center items-center my-3">
                       {(() => {
                         const { barHeight, topPosition } = calculateBarProperties(
                           weather.highTemp, 
@@ -934,15 +988,15 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                         return (
                           <div className="relative w-full flex flex-col items-center">
                             {/* 최고 온도 표시 (컨테이너 위쪽 고정) */}
-                            <div className="font-bold text-base text-red-600 dark:text-red-400 mb-3">
+                            <div className="font-bold text-sm text-red-600 dark:text-red-400 mb-2">
                               {weather.highTemp}{getTemperatureUnit()}
                             </div>
                             
                             {/* 온도 막대그래프 컨테이너 */}
-                            <div className="relative w-12 h-40 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div className="relative w-10 h-40 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                               {/* 단일 색상 온도 막대 */}
                               <div 
-                                className="absolute w-10 left-1 bg-gradient-to-b from-blue-500 to-blue-600 dark:from-blue-400 dark:to-blue-500 rounded transition-all duration-300 hover:shadow-lg border border-blue-300 dark:border-blue-400"
+                                className="absolute w-8 left-1 bg-gradient-to-b from-blue-500 to-blue-600 dark:from-blue-400 dark:to-blue-500 rounded transition-all duration-300 hover:shadow-lg border border-blue-300 dark:border-blue-400"
                                 style={{
                                   height: `${barHeight}px`,
                                   top: `${topPosition}px`
@@ -951,7 +1005,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                             </div>
                             
                             {/* 최저 온도 표시 (컨테이너 아래쪽 고정) */}
-                            <div className="font-bold text-base text-blue-600 dark:text-blue-400 mt-3">
+                            <div className="font-bold text-sm text-blue-600 dark:text-blue-400 mt-2">
                               {weather.lowTemp}{getTemperatureUnit()}
                             </div>
                           </div>
@@ -961,12 +1015,12 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                     
                      {/* 밤 날씨 */}
                      {weather.nightWeather && (
-                       <div className="text-center bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3">
-                         <div className="text-xs text-indigo-700 dark:text-indigo-300 font-medium mb-2">밤</div>
-                         <div className="text-3xl mb-2">
+                       <div className="text-center bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-2">
+                         <div className="text-[10px] text-indigo-700 dark:text-indigo-300 font-medium mb-1">밤</div>
+                         <div className="text-2xl mb-1">
                            {getWeatherIcon(weather.nightWeather.icon, weather.nightWeather.conditions)}
                          </div>
-                         <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                         <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
                            ☔ {weather.nightWeather.precipitationProbability || 0}%
                          </div>
                        </div>

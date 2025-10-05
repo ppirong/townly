@@ -8,9 +8,19 @@
 
 ### 2. 변환 흐름 (Conversion Flow)
 ```
-AccuWeather API DateTime 
+AccuWeather API DateTime (UTC)
 → convertAccuWeatherDateTimeToKST() [datetime.ts]
 → KST timestamp [weather.ts에서 저장]
+→ 모든 곳에서 동일하게 사용 (추가 변환 없음)
+
+Google Air Quality API dateTime (UTC)
+→ convertGoogleDateTimeToKST() [datetime.ts]
+→ KST timestamp [google-air-quality.ts에서 저장]
+→ 모든 곳에서 동일하게 사용 (추가 변환 없음)
+
+기타 외부 API (UTC)
+→ convertUTCToKST() [datetime.ts]
+→ KST timestamp [서비스 파일에서 저장]
 → 모든 곳에서 동일하게 사용 (추가 변환 없음)
 ```
 
@@ -27,12 +37,20 @@ AccuWeather API DateTime
 #### `src/lib/utils/datetime.ts`
 - ✅ **유일한 시간 변환 지점**
 - `convertAccuWeatherDateTimeToKST()`: AccuWeather DateTime → KST 변환 (**환경 무관**)
+- `convertGoogleDateTimeToKST()`: Google API dateTime → KST 변환 (**환경 무관**)
+- `convertUTCToKST()`: 범용 UTC → KST 변환 (**모든 외부 API에 적용 가능**)
 - `formatKSTTime()`: KST 시간 포맷팅 (**환경 무관**)
 - `detectAccuWeatherTimezone()`: 시간대 자동 감지
 
 #### `src/lib/services/weather.ts`
 - ✅ `convertAccuWeatherDateTimeToKST()` 호출하여 KST 변환
 - ✅ 변환된 KST 시간을 `timestamp`에 저장
+- ❌ 추가 시간 변환 금지
+
+#### `src/lib/services/google-air-quality.ts`
+- ✅ `convertGoogleDateTimeToKST()` 호출하여 KST 변환
+- ✅ 변환된 KST 시간을 `forecastDateTime`에 저장
+- ✅ `forecastDate`, `forecastHour`도 KST 기준으로 추출
 - ❌ 추가 시간 변환 금지
 
 #### `src/lib/services/weather-db.ts`
@@ -94,9 +112,12 @@ GET /api/debug/timezone-test
 ## 개발 가이드
 
 ### 새로운 시간 관련 기능 추가 시
-1. `datetime.ts`에 유틸리티 함수 추가
-2. 다른 파일에서는 해당 함수만 사용
-3. 직접 시간 변환 로직 작성 금지
+1. 외부 API의 시간 형식 확인 (UTC인지 확인)
+2. `datetime.ts`에 API 전용 변환 함수 추가 또는 `convertUTCToKST()` 범용 함수 사용
+3. 서비스 레이어에서 API 응답을 받을 때 즉시 KST 변환
+4. 변환된 KST 시간을 데이터베이스에 저장
+5. 페이지에서는 추가 변환 없이 그대로 표시
+6. 직접 시간 변환 로직 작성 금지
 
 ### 코드 리뷰 체크리스트
 - [ ] 시간 변환이 `datetime.ts`에서만 수행되는가?
@@ -106,3 +127,6 @@ GET /api/debug/timezone-test
 - [ ] **환경 의존적 메서드 사용 금지**: `.getHours()`, `.toLocaleTimeString()` 등
 - [ ] **ISO 문자열 파싱 사용**: 환경 무관 시간 추출
 - [ ] **로컬과 Vercel에서 동일한 결과 보장**
+- [ ] **외부 API가 UTC 시간을 반환하는지 확인**
+- [ ] **데이터베이스 저장 전 KST 변환 확인**
+- [ ] **페이지에서 추가 시간 변환 없음 확인**

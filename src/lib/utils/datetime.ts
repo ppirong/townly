@@ -102,6 +102,86 @@ export function getCurrentKST(): Date {
 }
 
 /**
+ * Google Air Quality API DateTime을 KST로 변환하는 함수
+ * Google API는 UTC 시간을 반환하므로 KST(UTC+9)로 변환합니다.
+ * 
+ * @param googleDateTime - Google API의 dateTime 필드 (UTC 기준)
+ * @returns KST로 변환된 Date 객체와 관련 정보
+ */
+export function convertGoogleDateTimeToKST(googleDateTime: string): {
+  kstDateTime: Date;
+  forecastDate: string;
+  forecastHour: number;
+} {
+  console.log('🕐 Google API DateTime 처리 시작:', googleDateTime);
+  
+  // Google API DateTime을 UTC로 파싱
+  const utcDateTime = new Date(googleDateTime);
+  
+  // 명시적으로 KST로 변환 (UTC+9)
+  const kstDateTime = new Date(utcDateTime.getTime() + (9 * 60 * 60 * 1000));
+  
+  console.log('🕐 UTC 시간:', utcDateTime.toISOString());
+  console.log('🕐 KST 시간 (UTC+9):', kstDateTime.toISOString());
+  
+  // KST 기준으로 날짜와 시간 추출 (환경 무관하게 ISO 문자열 파싱)
+  const forecastDate = kstDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
+  const forecastHour = parseInt(kstDateTime.toISOString().split('T')[1].split(':')[0], 10); // KST 시간 (0-23)
+  
+  console.log('📅 최종 결과:', {
+    forecastDate,
+    forecastHour,
+    kstDateTime: kstDateTime.toISOString()
+  });
+  
+  return {
+    kstDateTime,
+    forecastDate,
+    forecastHour
+  };
+}
+
+/**
+ * 범용 UTC → KST 변환 함수
+ * 모든 외부 API에서 UTC 시간을 받을 때 사용
+ * 
+ * @param utcDateTime - UTC 시간 문자열 또는 Date 객체
+ * @returns KST로 변환된 Date 객체와 관련 정보
+ */
+export function convertUTCToKST(utcDateTime: string | Date): {
+  kstDateTime: Date;
+  forecastDate: string;
+  forecastHour: number;
+} {
+  console.log('🕐 UTC → KST 변환 시작:', utcDateTime);
+  
+  // UTC DateTime 파싱
+  const utcDate = typeof utcDateTime === 'string' ? new Date(utcDateTime) : utcDateTime;
+  
+  // 명시적으로 KST로 변환 (UTC+9)
+  const kstDateTime = new Date(utcDate.getTime() + (9 * 60 * 60 * 1000));
+  
+  console.log('🕐 UTC 시간:', utcDate.toISOString());
+  console.log('🕐 KST 시간 (UTC+9):', kstDateTime.toISOString());
+  
+  // KST 기준으로 날짜와 시간 추출 (환경 무관하게 ISO 문자열 파싱)
+  const forecastDate = kstDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
+  const forecastHour = parseInt(kstDateTime.toISOString().split('T')[1].split(':')[0], 10); // KST 시간 (0-23)
+  
+  console.log('📅 최종 결과:', {
+    forecastDate,
+    forecastHour,
+    kstDateTime: kstDateTime.toISOString()
+  });
+  
+  return {
+    kstDateTime,
+    forecastDate,
+    forecastHour
+  };
+}
+
+/**
  * 시간 변환 디버깅 로그
  */
 export function logTimeConversion(step: string, original: string, converted: Date): void {

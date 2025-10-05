@@ -14,6 +14,7 @@ import {
   type NewApiCallLog
 } from '@/db/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
+import { convertGoogleDateTimeToKST } from '@/lib/utils/datetime';
 
 // Google Air Quality API 타입 정의
 export interface GoogleAirQualityRequest {
@@ -394,17 +395,18 @@ class GoogleAirQualityService {
       const expiresAt = new Date(now.getTime() + 60 * 60 * 1000); // 1시간 후 만료
 
       for (const data of processedData) {
-        const forecastDateTime = new Date(data.dateTime);
-        const cacheKey = `google_hourly_${request.latitude}_${request.longitude}_${forecastDateTime.toISOString()}`;
+        // Google API의 UTC 시간을 KST로 변환
+        const { kstDateTime, forecastDate, forecastHour } = convertGoogleDateTimeToKST(data.dateTime);
+        const cacheKey = `google_hourly_${request.latitude}_${request.longitude}_${kstDateTime.toISOString()}`;
 
         const dbData: NewGoogleHourlyAirQualityData = {
           clerkUserId: request.clerkUserId,
           latitude: request.latitude.toString(),
           longitude: request.longitude.toString(),
           locationName: `${request.latitude}, ${request.longitude}`,
-          forecastDate: forecastDateTime.toISOString().split('T')[0],
-          forecastHour: forecastDateTime.getHours(),
-          forecastDateTime,
+          forecastDate, // KST 기준 날짜
+          forecastHour, // KST 기준 시간
+          forecastDateTime: kstDateTime, // KST 기준 DateTime
           pm10: data.pm10,
           pm25: data.pm25,
           caiKr: data.caiKr,
@@ -731,17 +733,18 @@ class GoogleAirQualityService {
       const expiresAt = new Date(now.getTime() + 6 * 60 * 60 * 1000); // 6시간 후 만료
 
       for (const data of processedData) {
-        const forecastDateTime = new Date(data.dateTime);
-        const cacheKey = `google_hourly_${latitude}_${longitude}_${clerkUserId}_${forecastDateTime.toISOString()}`;
+        // Google API의 UTC 시간을 KST로 변환
+        const { kstDateTime, forecastDate, forecastHour } = convertGoogleDateTimeToKST(data.dateTime);
+        const cacheKey = `google_hourly_${latitude}_${longitude}_${clerkUserId}_${kstDateTime.toISOString()}`;
 
         const dbData: NewGoogleHourlyAirQualityData = {
           clerkUserId,
           latitude: latitude.toString(),
           longitude: longitude.toString(),
           locationName: `${latitude}, ${longitude}`,
-          forecastDate: forecastDateTime.toISOString().split('T')[0],
-          forecastHour: forecastDateTime.getHours(),
-          forecastDateTime,
+          forecastDate, // KST 기준 날짜
+          forecastHour, // KST 기준 시간
+          forecastDateTime: kstDateTime, // KST 기준 DateTime
           pm10: data.pm10,
           pm25: data.pm25,
           caiKr: data.caiKr,

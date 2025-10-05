@@ -1,6 +1,6 @@
 /**
- * 스마트 TTL 관리 서비스
- * 데이터 유형별, 시간별 동적 TTL 설정과 사용자별 TTL 관리
+ * 스마트 TTL 관리 서비스 (배치 업데이트 최적화)
+ * 6시, 12시, 18시, 24시 배치 업데이트 주기에 맞춘 고정 TTL 전략
  */
 
 import { db } from '@/db';
@@ -8,14 +8,17 @@ import { hourlyWeatherData, dailyWeatherData } from '@/db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 
 /**
- * TTL 설정 상수
+ * TTL 설정 상수 (배치 업데이트 기반)
  */
 export const TTL_CONFIG = {
-  // 시간별 날씨: 2시간 (실시간성 중요)
-  HOURLY_WEATHER: 2 * 60, // 120분
+  // 배치 업데이트 주기 (6시간 고정)
+  BATCH_INTERVAL_HOURS: 6,
   
-  // 일별 날씨: 6시간 (하루 4번 갱신)
-  DAILY_WEATHER: 6 * 60, // 360분
+  // 최대 TTL (다음 배치 + 버퍼)
+  MAX_TTL_MINUTES: 6 * 60 + 30, // 6.5시간 (30분 안전 버퍼)
+  
+  // 최소 TTL (긴급 상황용)
+  MIN_TTL_MINUTES: 30, // 30분
   
   // 위치 키: 7일 (거의 변하지 않음)
   LOCATION_KEY: 7 * 24 * 60, // 10080분
@@ -49,17 +52,67 @@ export interface TTLCalculationResult {
   reasoning: string[];
 }
 
+/**
+ * 배치 업데이트 시간 (KST 기준)
+ */
+export const BATCH_HOURS = [0, 6, 12, 18] as const;
+
+/**
+ * 다음 배치 실행 시간 계산
+ */
+export function getNextBatchTime(currentTime: Date = new Date()): Date {
+  const current = new Date(currentTime);
+  const currentHour = current.getHours();
+  
+  // 현재 시간보다 큰 다음 배치 시간 찾기
+  let nextBatchHour = BATCH_HOURS.find(h => h > currentHour);
+  
+  if (nextBatchHour === undefined) {
+    // 오늘의 마지막 배치(18시)가 지났으면 다음날 0시
+    nextBatchHour = 0;
+    current.setDate(current.getDate() + 1);
+  }
+  
+  current.setHours(nextBatchHour, 0, 0, 0);
+  return current;
+}
+
+/**
+ * 다음 배치까지 남은 시간 (분)
+ */
+export function getTimeUntilNextBatch(currentTime: Date = new Date()): number {
+  const nextBatch = getNextBatchTime(currentTime);
+  const diffMs = nextBatch.getTime() - currentTime.getTime();
+  return Math.ceil(diffMs / (1000 * 60)); // 분 단위로 올림
+}
+
+/**
+ * 배치 기반 TTL 계산 (고정 6시간 전략)
+ */
+export function calculateBatchBasedTTL(
+  dataType: 'weather' | 'airquality' = 'weather'
+): number {
+  const minutesUntilNextBatch = getTimeUntilNextBatch();
+  
+  // 최소 30분 보장 (배치 직후에도 최소 캐시 유지)
+  const ttl = Math.max(TTL_CONFIG.MIN_TTL_MINUTES, minutesUntilNextBatch);
+  
+  // 최대 6.5시간 제한 (다음 배치 + 안전 버퍼)
+  return Math.min(TTL_CONFIG.MAX_TTL_MINUTES, ttl);
+}
+
 export class SmartTTLManager {
   
   /**
-   * 기본 TTL 계산 (데이터 유형별)
+   * 기본 TTL 계산 (배치 기반)
+   * @deprecated 배치 업데이트 방식에서는 calculateBatchBasedTTL 사용 권장
    */
   static calculateBaseTTL(dataType: DataType): number {
     switch (dataType) {
       case 'hourly':
-        return TTL_CONFIG.HOURLY_WEATHER;
       case 'daily':
-        return TTL_CONFIG.DAILY_WEATHER;
+        // 날씨 데이터는 배치 기반 TTL 사용
+        return calculateBatchBasedTTL('weather');
       case 'location':
         return TTL_CONFIG.LOCATION_KEY;
       case 'embedding':
@@ -71,27 +124,11 @@ export class SmartTTLManager {
   
   /**
    * 시간대별 동적 TTL 계산 (실시간성 고려)
+   * @deprecated 배치 업데이트 방식에서는 사용되지 않음 (하위 호환성 유지)
    */
   static calculateDynamicTTL(dataType: 'hourly' | 'daily', forecastTime: Date): number {
-    const now = new Date();
-    const hoursDiff = Math.abs(forecastTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
-    if (dataType === 'hourly') {
-      // 현재 시간에 가까울수록 짧은 TTL (더 자주 갱신 필요)
-      if (hoursDiff <= 1) return 30; // 30분 - 현재/다음 시간
-      if (hoursDiff <= 6) return 60; // 1시간 - 6시간 이내
-      if (hoursDiff <= 24) return 120; // 2시간 - 24시간 이내
-      return 180; // 3시간 - 그 이후
-    }
-    
-    if (dataType === 'daily') {
-      // 오늘/내일은 짧은 TTL, 먼 미래는 긴 TTL
-      if (hoursDiff <= 24) return 180; // 3시간 - 오늘
-      if (hoursDiff <= 72) return 360; // 6시간 - 3일 이내
-      return 720; // 12시간 - 그 이후
-    }
-    
-    return this.calculateBaseTTL(dataType);
+    // 배치 업데이트 방식에서는 배치 기반 TTL 사용
+    return calculateBatchBasedTTL('weather');
   }
 
   /**
@@ -169,6 +206,7 @@ export class SmartTTLManager {
 
   /**
    * 패턴 기반 개인화된 TTL 계산
+   * @deprecated 배치 업데이트 방식에서는 calculateBatchUpdatePriority 사용 권장
    */
   static async calculatePersonalizedTTL(
     clerkUserId: string,
@@ -176,59 +214,71 @@ export class SmartTTLManager {
     locationKey: string,
     forecastTime?: Date
   ): Promise<TTLCalculationResult> {
-    const pattern = await this.analyzeUserPattern(clerkUserId);
-    const baseTTL = forecastTime ? 
-      this.calculateDynamicTTL(dataType, forecastTime) : 
-      this.calculateBaseTTL(dataType);
+    // 배치 방식에서는 고정 TTL 사용
+    const baseTTL = calculateBatchBasedTTL('weather');
+    
+    return {
+      baseTTL,
+      personalizedTTL: baseTTL,
+      multiplier: 1.0,
+      reasoning: ['배치 업데이트 방식: 다음 배치 시간까지 고정 TTL 사용'],
+    };
+  }
 
-    let multiplier = 1;
+  /**
+   * 배치 업데이트 우선순위 계산 (새로운 방식)
+   * TTL multiplier 대신 배치 우선순위 점수 반환
+   */
+  static async calculateBatchUpdatePriority(
+    clerkUserId: string
+  ): Promise<{ score: number; reasoning: string[] }> {
+    const pattern = await this.analyzeUserPattern(clerkUserId);
+    
+    let score = 50; // 기본 점수
     const reasoning: string[] = [];
 
-    // 1. 사용 빈도 기반 조정
-    if (pattern.frequencyScore > 10) {
-      multiplier *= 2.0;
-      reasoning.push('고빈도 사용자 (일 10회 이상): TTL 2배 연장');
-    } else if (pattern.frequencyScore > 5) {
-      multiplier *= 1.5;
-      reasoning.push('중빈도 사용자 (일 5-10회): TTL 1.5배 연장');
-    } else if (pattern.frequencyScore > 2) {
-      multiplier *= 1.2;
-      reasoning.push('일반 사용자 (일 2-5회): TTL 1.2배 연장');
-    } else {
-      reasoning.push('저빈도 사용자: 기본 TTL 적용');
+    // 1. 사용 빈도 (최대 +30점)
+    if (pattern.avgQueriesPerDay > 10) {
+      score += 30;
+      reasoning.push('고빈도 사용자 (일 10회 이상): 최우선 업데이트');
+    } else if (pattern.avgQueriesPerDay > 5) {
+      score += 15;
+      reasoning.push('중빈도 사용자 (일 5-10회): 우선 업데이트');
+    } else if (pattern.avgQueriesPerDay > 2) {
+      score += 8;
+      reasoning.push('일반 사용자 (일 2-5회): 정상 우선순위');
     }
 
-    // 2. 선호 위치 기반 조정
-    if (pattern.preferredLocations.includes(locationKey)) {
-      multiplier *= 1.3;
-      reasoning.push('선호 위치: TTL 1.3배 추가 연장');
+    // 2. 최근 활동성 (최대 +20점)
+    if (pattern.recentActivityDays < 3) {
+      score += 20;
+      reasoning.push('최근 3일 이내 활동: 최우선 업데이트');
+    } else if (pattern.recentActivityDays < 7) {
+      score += 10;
+      reasoning.push('최근 7일 이내 활동: 우선 업데이트');
     }
 
-    // 3. 시간 선호도 기반 조정
+    // 3. 시간대 패턴 매칭 (최대 +10점)
     const currentHour = new Date().getHours();
     if (pattern.timePreference === 'morning' && currentHour >= 6 && currentHour < 12) {
-      multiplier *= 1.2;
-      reasoning.push('아침 시간대 선호 사용자의 아침 조회: TTL 1.2배 연장');
+      score += 10;
+      reasoning.push('아침 시간대 선호 사용자: 현재 시간 최적화');
     } else if (pattern.timePreference === 'evening' && currentHour >= 18 && currentHour < 24) {
-      multiplier *= 1.2;
-      reasoning.push('저녁 시간대 선호 사용자의 저녁 조회: TTL 1.2배 연장');
+      score += 10;
+      reasoning.push('저녁 시간대 선호 사용자: 현재 시간 최적화');
     }
 
-    // 4. 최대/최소 TTL 제한
-    const personalizedTTL = Math.round(baseTTL * multiplier);
-    const maxTTL = dataType === 'hourly' ? 6 * 60 : 24 * 60; // 최대 6시간/24시간
-    const minTTL = dataType === 'hourly' ? 30 : 60; // 최소 30분/1시간
-    
-    const finalTTL = Math.max(minTTL, Math.min(maxTTL, personalizedTTL));
-    
-    if (finalTTL !== personalizedTTL) {
-      reasoning.push(`TTL 범위 제한 적용: ${personalizedTTL}분 → ${finalTTL}분`);
+    // 4. 활동 총량 (최대 +10점)
+    if (pattern.totalQueries > 100) {
+      score += 10;
+      reasoning.push('활발한 사용자 (100회 이상): 우선 처리');
+    } else if (pattern.totalQueries > 50) {
+      score += 5;
+      reasoning.push('활동적인 사용자 (50회 이상): 정상 우선순위');
     }
 
     return {
-      baseTTL,
-      personalizedTTL: finalTTL,
-      multiplier: Math.round(multiplier * 100) / 100,
+      score: Math.min(100, score),
       reasoning,
     };
   }

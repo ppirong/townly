@@ -74,12 +74,26 @@ export async function GET(request: NextRequest) {
         const performanceStats = await SmartTTLManager.getTTLPerformanceStats();
         const optimizationStats = await smartWeatherDbService.getSystemOptimizationStats();
         
+        // 배치 스케줄 정보 추가
+        const { getNextBatchTime, getTimeUntilNextBatch, calculateBatchBasedTTL, BATCH_HOURS } = await import('@/lib/services/smart-ttl-manager');
+        const now = new Date();
+        const nextBatch = getNextBatchTime(now);
+        const minutesUntilNext = getTimeUntilNextBatch(now);
+        const currentTTL = calculateBatchBasedTTL('weather');
+        
         return NextResponse.json({
           success: true,
           data: {
             systemPatterns: systemStats,
             performance: performanceStats,
             optimization: optimizationStats,
+            batchSchedule: {
+              nextBatchTime: nextBatch.toISOString(),
+              minutesUntilNextBatch: minutesUntilNext,
+              lastBatchTime: null, // TODO: 실제 마지막 배치 시간 조회
+              batchHours: Array.from(BATCH_HOURS),
+              currentTTL: currentTTL,
+            },
           },
         });
       }

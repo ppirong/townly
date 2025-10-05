@@ -289,7 +289,10 @@ async function saveHourlyWeatherToDatabase(
   apiData: any[]
 ): Promise<void> {
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 6 * 60 * 60 * 1000); // 6시간 후 만료
+  
+  // 스마트 TTL: 다음 배치 시간까지 유효
+  const { getNextBatchTime } = await import('./smart-ttl-manager');
+  const expiresAt = getNextBatchTime(now);
   
   const dbRecords = apiData.map(forecast => {
     const forecastDateTime = new Date(forecast.DateTime);
@@ -355,7 +358,10 @@ async function saveDailyWeatherToDatabase(
   apiData: any
 ): Promise<void> {
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 6 * 60 * 60 * 1000); // 6시간 후 만료
+  
+  // 스마트 TTL: 다음 배치 시간까지 유효
+  const { getNextBatchTime } = await import('./smart-ttl-manager');
+  const expiresAt = getNextBatchTime(now);
   
   const dailyForecasts = apiData.DailyForecasts || [];
   

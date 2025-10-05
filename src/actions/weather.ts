@@ -244,3 +244,94 @@ export async function getUserLocationWeather(): Promise<{
     throw new Error('저장된 위치의 날씨 정보를 가져오는데 실패했습니다.');
   }
 }
+
+/**
+ * 날씨 새로고침 (디버그용) - AccuWeather API 강제 호출 및 DB 저장
+ * 캐시를 무시하고 항상 새로운 데이터를 가져옵니다.
+ */
+export async function refreshWeatherFromAPI(): Promise<{
+  success: boolean;
+  message: string;
+  data?: {
+    hourlyWeather: HourlyWeatherData[];
+    dailyWeather: DailyWeatherResponse;
+  };
+  error?: string;
+}> {
+  const { userId } = await auth();
+  
+  if (!userId) {
+    return {
+      success: false,
+      message: '로그인이 필요합니다.',
+      error: 'Unauthorized'
+    };
+  }
+  
+  try {
+    console.log(`🔄 날씨 새로고침 시작 (디버그 모드) - 사용자: ${userId}`);
+    
+    // 사용자 위치 정보 조회
+    const userLocationRecords = await db
+      .select()
+      .from(userLocations)
+      .where(eq(userLocations.clerkUserId, userId))
+      .limit(1);
+    
+    if (userLocationRecords.length === 0) {
+      return {
+        success: false,
+        message: '저장된 위치 정보가 없습니다. 먼저 위치를 설정해주세요.',
+        error: 'NO_LOCATION'
+      };
+    }
+    
+    const userLocation = userLocationRecords[0];
+    const latitude = parseFloat(userLocation.latitude);
+    const longitude = parseFloat(userLocation.longitude);
+    
+    console.log(`📍 위치: ${latitude}, ${longitude}`);
+    
+    // AccuWeather API 직접 호출 (캐시 무시)
+    const { getHourlyWeather, getDailyWeather } = await import('@/lib/services/weather');
+    
+    // 시간별 날씨와 일별 날씨를 병렬로 가져오기
+    const [hourlyWeather, dailyWeatherResponse] = await Promise.all([
+      getHourlyWeather({
+        latitude,
+        longitude,
+        units: 'metric',
+        clerkUserId: userId, // 사용자 ID 전달하여 DB 저장
+      }),
+      getDailyWeather({
+        latitude,
+        longitude,
+        days: 5,
+        units: 'metric',
+        clerkUserId: userId, // 사용자 ID 전달하여 DB 저장
+      }),
+    ]);
+    
+    console.log(`✅ AccuWeather API 호출 성공`);
+    console.log(`   - 시간별 날씨: ${hourlyWeather.length}개 항목`);
+    console.log(`   - 일별 날씨: ${dailyWeatherResponse.dailyForecasts.length}개 항목`);
+    
+    return {
+      success: true,
+      message: `날씨 데이터가 성공적으로 갱신되었습니다. (시간별: ${hourlyWeather.length}개, 일별: ${dailyWeatherResponse.dailyForecasts.length}개)`,
+      data: {
+        hourlyWeather,
+        dailyWeather: dailyWeatherResponse,
+      }
+    };
+  } catch (error) {
+    console.error('날씨 새로고침 실패:', error);
+    const errorMessage = error instanceof Error ? error.message : '날씨 정보를 가져오는데 실패했습니다.';
+    
+    return {
+      success: false,
+      message: '날씨 새로고침에 실패했습니다.',
+      error: errorMessage
+    };
+  }
+}
