@@ -31,7 +31,7 @@ export class WeatherEmailAgent {
   constructor(options?: { maxIterations?: number; minApprovalScore?: number }) {
     this.writer = new WeatherEmailWriter();
     this.reviewer = new WeatherEmailReviewer();
-    this.maxIterations = options?.maxIterations || 5;
+    this.maxIterations = options?.maxIterations || 3; // 검토 회수를 3회로 제한
     this.minApprovalScore = options?.minApprovalScore || 80;
   }
 

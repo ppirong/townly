@@ -119,30 +119,41 @@ export class WeatherEmailReviewer {
         '- "비가 내릴 확률이 70% 이상인 시간이 없습니다" 문구가 있어야 합니다.'
       );
     }
-    promptParts.push('');
-    promptParts.push(
-      '### 2. 적설 확률 70% 이상인 시간을 모두 제공했는지 확인'
-    );
-    promptParts.push('- 제공 형식: "시간: 적설량, 적설확률"');
-    promptParts.push('- 작성 예시: "15시: 적설량 3mm, 적설 확률 75%"');
+    // 겨울철(12월, 1월, 2월)에만 적설 확률 체크
     if (isWinterMonth) {
+      promptParts.push('');
+      promptParts.push(
+        '### 2. 적설 확률 70% 이상인 시간을 모두 제공했는지 확인 (겨울철 전용)'
+      );
+      promptParts.push('- 제공 형식: "시간: 적설량, 적설확률"');
+      promptParts.push('- 작성 예시: "15시: 적설량 3mm, 적설 확률 75%"');
       promptParts.push(
         '- 겨울철(12월, 1월, 2월)이므로 "눈이 내리는 시간" 정보가 반드시 포함되어야 합니다.'
       );
-    }
-    if (snowTimes.length > 0) {
-      promptParts.push('- 반드시 포함되어야 하는 시간:');
-      snowTimes.forEach((t) => {
-        promptParts.push(
-          `  - ${t.hour}시: 적설량 ${t.snowfall}mm, 적설 확률 ${t.snowProbability}%`
-        );
-      });
-    } else {
-      if (isWinterMonth) {
+      
+      if (snowTimes.length > 0) {
+        promptParts.push('- 반드시 포함되어야 하는 시간:');
+        snowTimes.forEach((t) => {
+          promptParts.push(
+            `  - ${t.hour}시: 적설량 ${t.snowfall}mm, 적설 확률 ${t.snowProbability}%`
+          );
+        });
+      } else {
         promptParts.push(
           '- "눈이 내릴 확률이 70% 이상인 시간이 없습니다" 문구가 있어야 합니다.'
         );
       }
+    } else {
+      promptParts.push('');
+      promptParts.push(
+        '### 2. 적설 확률 체크 (봄/여름/가을철 제외)'
+      );
+      promptParts.push(
+        '- 현재 계절(3월-11월)에는 적설 확률 체크를 하지 않습니다.'
+      );
+      promptParts.push(
+        '- "적설 확률이 70% 이상인 시간이 없습니다" 문구가 없어도 정상입니다.'
+      );
     }
     promptParts.push('');
     promptParts.push('### 3. 시간이 KST 기준인지 확인');
@@ -219,6 +230,13 @@ export class WeatherEmailReviewer {
     promptParts.push('- 80-89: 경미한 문제, 승인 가능');
     promptParts.push('- 70-79: 주요 문제 1-2개, 수정 필요');
     promptParts.push('- 70 미만: 치명적 문제 또는 다수의 주요 문제, 수정 필수');
+    promptParts.push('');
+    promptParts.push('**중요 참고사항:**');
+    promptParts.push(`- 현재 월: ${currentMonth}월 (${isWinterMonth ? '겨울철' : '봄/여름/가을철'})`);
+    if (!isWinterMonth) {
+      promptParts.push('- 겨울철이 아니므로 적설 관련 내용이 없어도 정상입니다.');
+      promptParts.push('- "적설 확률이 70% 이상인 시간이 없습니다" 문구가 없어도 문제가 아닙니다.');
+    }
 
     return promptParts.join('\n');
   }

@@ -52,7 +52,7 @@ export class WeatherEmailWriter {
     const prompt = this.buildPrompt(weatherData, iteration);
 
     const message = await this.client.messages.create({
-      model: 'claude-sonnet-3-5-20250219',
+      model: 'claude-3-7-sonnet-20250219',
       max_tokens: 2000,
       temperature: 0.7,
       messages: [

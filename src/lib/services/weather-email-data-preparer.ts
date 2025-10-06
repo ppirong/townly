@@ -9,6 +9,7 @@ import { db } from '@/db';
 import { hourlyWeatherData, dailyWeatherData, userLocations } from '@/db/schema';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import type { WeatherData } from './weather-email-writer';
+import { getHourlyWeather } from './weather';
 
 export interface PreparedWeatherData extends WeatherData {
   userId: string;
@@ -124,8 +125,70 @@ export class WeatherEmailDataPreparer {
       }
 
       if (hourlyData.length === 0) {
-        console.error(`시간별 날씨 데이터를 찾을 수 없습니다: ${userId}, ${sendDate}`);
-        return null;
+        console.log(`📡 DB에 시간별 날씨 데이터가 없음. 실시간 API 호출: ${userId}, ${sendDate}`);
+        
+        // 데이터베이스에 데이터가 없으면 실시간 API 호출
+        try {
+          const apiHourlyData = await getHourlyWeather({
+            latitude: parseFloat(location.latitude || '37.5665'),
+            longitude: parseFloat(location.longitude || '126.9780'),
+            clerkUserId: userId,
+            units: 'metric'
+          });
+          
+          if (apiHourlyData.length === 0) {
+            console.error(`API에서도 시간별 날씨 데이터를 가져올 수 없습니다: ${userId}, ${sendDate}`);
+            return null;
+          }
+          
+          // API 데이터를 시간 범위에 맞게 필터링
+          const filteredApiData = apiHourlyData.filter(data => {
+            const hour = new Date(data.timestamp).getHours();
+            if (sendTime === 6) {
+              return hour >= 6 && hour <= 18;
+            } else {
+              return hour >= 18 || hour <= 6;
+            }
+          });
+          
+          if (filteredApiData.length === 0) {
+            console.error(`필터링된 API 데이터가 없습니다: ${userId}, ${sendDate}`);
+            return null;
+          }
+          
+          // API 데이터를 hourlyData 형식으로 변환
+          hourlyData = filteredApiData.map(data => ({
+            clerkUserId: userId,
+            locationKey: location.cityName || '',
+            locationName: location.cityName || '',
+            latitude: location.latitude || '37.5665',
+            longitude: location.longitude || '126.9780',
+            forecastDate: sendDate,
+            forecastHour: new Date(data.timestamp).getHours(),
+            forecastDateTime: new Date(data.timestamp),
+            temperature: data.temperature,
+            conditions: data.conditions,
+            weatherIcon: data.weatherIcon || null,
+            humidity: data.humidity || null,
+            precipitation: data.precipitation?.toString() || '0',
+            precipitationProbability: data.precipitationProbability || null,
+            rainProbability: data.rainProbability || 0,
+            windSpeed: data.windSpeed || null,
+            units: data.units,
+            rawData: data,
+            cacheKey: `hourly_${userId}_${sendDate}`,
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1시간 후 만료
+            id: `api_${Date.now()}_${Math.random()}`,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }));
+          
+          console.log(`✅ API에서 ${hourlyData.length}개의 시간별 날씨 데이터 조회 성공`);
+          
+        } catch (apiError) {
+          console.error(`실시간 API 호출 실패: ${userId}, ${sendDate}`, apiError);
+          return null;
+        }
       }
 
       // 5. 일별 날씨 데이터에서 헤드라인 조회
