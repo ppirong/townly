@@ -126,13 +126,37 @@ export class WeatherDatabaseService {
         const forecastHour = parseInt(data.timestamp.split('T')[1].split(':')[0], 10); // KST 시간
         const kstDateTime = new Date(data.timestamp); // KST 시간으로 저장
         
-        // 디버깅: 첫 3개 레코드의 시간 확인
+        // 🔍 상세 디버깅: 시간대 변환 추적 (모든 데이터에 대해 실행)
         const dataIndex = weatherData.indexOf(data);
-        if (dataIndex < 3) {
-          console.log(`📅 DB 저장 ${dataIndex}:`);
-          console.log(`  - timestamp (KST): ${data.timestamp}`);
-          console.log(`  - 직접 추출한 forecastDate: ${forecastDate}`);
-          console.log(`  - 직접 추출한 forecastHour: ${forecastHour}`);
+        if (dataIndex < 3 || true) { // 항상 실행
+          console.log(`\n📅 DB 저장 ${dataIndex} - 상세 분석:`);
+          console.log(`  1️⃣ 입력 data.timestamp: ${data.timestamp}`);
+          console.log(`  2️⃣ 직접 추출한 forecastDate: ${forecastDate}`);
+          console.log(`  3️⃣ 직접 추출한 forecastHour: ${forecastHour}`);
+          
+          // kstDateTime 생성 과정 추적
+          const kstDateTimeTest = new Date(data.timestamp);
+          console.log(`  4️⃣ new Date(data.timestamp) 결과:`);
+          console.log(`     - toISOString(): ${kstDateTimeTest.toISOString()}`);
+          console.log(`     - getUTCHours(): ${kstDateTimeTest.getUTCHours()}`);
+          console.log(`     - getHours(): ${kstDateTimeTest.getHours()}`);
+          console.log(`     - getTimezoneOffset(): ${kstDateTimeTest.getTimezoneOffset()}`);
+          
+          // 다른 방법으로 시간 추출 테스트
+          const testForecastDate = kstDateTimeTest.toISOString().split('T')[0];
+          const testForecastHour = kstDateTimeTest.getUTCHours();
+          console.log(`  5️⃣ kstDateTime에서 추출한 값:`);
+          console.log(`     - toISOString().split('T')[0]: ${testForecastDate}`);
+          console.log(`     - getUTCHours(): ${testForecastHour}`);
+          
+          // toLocaleString 테스트 (문제 원인 확인용)
+          const localeTest = kstDateTimeTest.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+          console.log(`  6️⃣ toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }): ${localeTest}`);
+          
+          console.log(`  ✅ 최종 저장될 값:`);
+          console.log(`     - forecastDate: ${forecastDate}`);
+          console.log(`     - forecastHour: ${forecastHour}`);
+          console.log(`     - forecastDateTime: ${kstDateTime.toISOString()}`);
         }
         
         return {

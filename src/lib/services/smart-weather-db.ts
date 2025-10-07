@@ -74,7 +74,7 @@ export class SmartWeatherDatabaseService {
 
         const expiresAt = new Date(Date.now() + ttlResult.personalizedTTL * 60 * 1000);
         const forecastDate = formatKoreanDate(data.timestamp, true);
-        const forecastHour = forecastTime.getHours();
+        const forecastHour = forecastTime.getUTCHours(); // ✅ getHours() → getUTCHours() 수정
 
         // 기존 데이터 확인
         const existing = await db
