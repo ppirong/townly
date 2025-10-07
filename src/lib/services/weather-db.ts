@@ -119,33 +119,20 @@ export class WeatherDatabaseService {
       const dbRecords: NewHourlyWeatherData[] = weatherData.map(data => {
         // weather.ts에서 이미 KST로 변환된 timestamp를 그대로 사용
         // 절대 추가 변환하지 않음!
-        const kstDateTime = new Date(data.timestamp);
         
-        // forecast_datetime이 이미 KST 시간이므로 이를 기준으로 날짜와 시간 추출
-        // PostgreSQL timestamp는 시간대 정보 없이 저장되므로 UTC 메서드로 실제 KST 값 추출
-        const forecastDate = kstDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
-        const forecastHour = kstDateTime.getUTCHours(); // KST 시간 (UTC로 해석된 값의 시간 부분)
+        // ✅ data.timestamp에서 직접 날짜와 시간 추출 (추가 변환 없이)
+        // data.timestamp 형태: "2025-10-07T21:00:00.000Z" (이미 KST 시간)
+        const forecastDate = data.timestamp.split('T')[0]; // YYYY-MM-DD
+        const forecastHour = parseInt(data.timestamp.split('T')[1].split(':')[0], 10); // KST 시간
+        const kstDateTime = new Date(data.timestamp); // KST 시간으로 저장
         
         // 디버깅: 첫 3개 레코드의 시간 확인
         const dataIndex = weatherData.indexOf(data);
         if (dataIndex < 3) {
           console.log(`📅 DB 저장 ${dataIndex}:`);
           console.log(`  - timestamp (KST): ${data.timestamp}`);
-          console.log(`  - kstDateTime: ${kstDateTime}`);
-          console.log(`  - kstDateTime.toISOString(): ${kstDateTime.toISOString()}`);
-          console.log(`  - kstDateTime.getUTCHours(): ${kstDateTime.getUTCHours()}`);
-          console.log(`  - kstDateTime.getHours(): ${kstDateTime.getHours()}`);
-          console.log(`  - kstDateTime.getTimezoneOffset(): ${kstDateTime.getTimezoneOffset()}`);
-          console.log(`  - 계산된 forecastDate: ${forecastDate}`);
-          console.log(`  - 계산된 forecastHour: ${forecastHour}`);
-          
-          // 다른 방법들도 테스트
-          const localDate = `${kstDateTime.getFullYear()}-${String(kstDateTime.getMonth() + 1).padStart(2, '0')}-${String(kstDateTime.getDate()).padStart(2, '0')}`;
-          const localHour = kstDateTime.getHours();
-          console.log(`  - 로컬 메서드 결과: ${localDate}, ${localHour}시`);
-          
-          const utcString = kstDateTime.toLocaleString('sv-SE', { timeZone: 'UTC' });
-          console.log(`  - UTC 시간대 지정: ${utcString}`);
+          console.log(`  - 직접 추출한 forecastDate: ${forecastDate}`);
+          console.log(`  - 직접 추출한 forecastHour: ${forecastHour}`);
         }
         
         return {
@@ -229,6 +216,8 @@ export class WeatherDatabaseService {
             location: record.locationName,
             timestamp: record.forecastDateTime.toISOString(),
             hour: `${hour.toString().padStart(2, '0')}시`, // forecast_datetime에서 추출한 정확한 시간
+            forecastDate: record.forecastDateTime.toISOString().split('T')[0], // YYYY-MM-DD
+            forecastHour: hour, // 0-23
             temperature: record.temperature,
             conditions: record.conditions,
             weatherIcon: record.weatherIcon,

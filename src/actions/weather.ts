@@ -158,6 +158,8 @@ export async function getUserHourlyWeather(input: HourlyWeatherInput): Promise<H
         location: record.locationName,
         timestamp: record.forecastDateTime.toISOString(),
         hour: `${hour.toString().padStart(2, '0')}시`, // forecast_datetime에서 추출한 정확한 시간
+        forecastDate: record.forecastDateTime.toISOString().split('T')[0], // YYYY-MM-DD
+        forecastHour: hour, // 0-23
         temperature: record.temperature,
         conditions: record.conditions,
         weatherIcon: record.weatherIcon,

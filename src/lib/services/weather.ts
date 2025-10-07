@@ -162,9 +162,10 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
     
     // 현재 시간 정보 로깅
     const now = new Date();
+    const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC + 9시간 = KST
     console.log(`🕐 현재 시간 정보:`);
     console.log(`  - 서버 시간: ${now.toISOString()}`);
-    console.log(`  - KST 시간: ${now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+    console.log(`  - KST 시간: ${kstNow.toISOString().replace('Z', '')}`);
     console.log(`  - AccuWeather 응답 개수: ${data.length}`);
     
     // 3. AccuWeather 응답을 내부 형식으로 변환 (통일된 시간 처리)
