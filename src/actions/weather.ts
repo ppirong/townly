@@ -46,23 +46,103 @@ export async function getUserHourlyWeather(input: HourlyWeatherInput): Promise<H
   try {
     console.log(`🌤️ 사용자 ${userId} 시간별 날씨 조회 시작 (DB에서만)`);
     
-    // 현재 시각 이후의 데이터만 조회
+    // 데이터베이스에 저장된 forecast_datetime은 이미 KST이므로 직접 비교
     const now = new Date();
     const hours = validatedData.hours || 12;
-    const maxForecastTime = new Date(now.getTime() + (hours * 60 * 60 * 1000));
     
-    // DB에서 사용자별 시간별 날씨 데이터 조회
+    // 현재 KST 시간을 정시로 내림 (예: 16:39 → 16:00)
+    const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC + 9시간 = KST
+    const currentHourKST = new Date(kstNow.getFullYear(), kstNow.getMonth(), kstNow.getDate(), kstNow.getHours(), 0, 0, 0);
+    
+    // KST 기준 조회 종료 시간 (12시간 후)
+    const maxForecastTimeKST = new Date(currentHourKST.getTime() + (hours * 60 * 60 * 1000));
+    
+    // 데이터베이스 조회용 Date 객체 생성 (KST 시간을 직접 사용)
+    // KST 시간을 YYYY-MM-DDTHH:mm:ss.sssZ 형태로 변환하여 데이터베이스와 직접 비교
+    const currentHour = new Date(currentHourKST.getFullYear(), currentHourKST.getMonth(), currentHourKST.getDate(), currentHourKST.getHours(), 0, 0, 0);
+    const maxForecastTime = new Date(maxForecastTimeKST.getFullYear(), maxForecastTimeKST.getMonth(), maxForecastTimeKST.getDate(), maxForecastTimeKST.getHours(), 0, 0, 0);
+    
+    // 🔍 상세 디버깅을 위한 단계별 조회
+    console.log(`🕐 현재 시각 (UTC): ${now.toISOString()}`);
+    console.log(`🕐 현재 시각 (KST): ${kstNow.toISOString().replace('Z', '')}`);
+    console.log(`🕐 KST 조회 시작: ${currentHourKST.toISOString().replace('Z', '')}`);
+    console.log(`🕐 KST 조회 종료: ${maxForecastTimeKST.toISOString().replace('Z', '')}`);
+    console.log(`🕐 DB 조회 범위 (KST 직접 비교): ${currentHour.toISOString()} ~ ${maxForecastTime.toISOString()}`);
+    console.log(`🕐 조회 범위 시간 차이: ${(maxForecastTime.getTime() - currentHour.getTime()) / (1000 * 60 * 60)}시간`);
+    
+    // 1단계: 사용자의 모든 시간별 날씨 데이터 조회
+    const allUserData = await db
+      .select()
+      .from(hourlyWeatherData)
+      .where(eq(hourlyWeatherData.clerkUserId, userId))
+      .orderBy(hourlyWeatherData.forecastDateTime);
+    
+    console.log(`📊 1단계 - 사용자 전체 데이터: ${allUserData.length}개`);
+    
+    // 2단계: 시간 범위 조건만 적용
+    const timeRangeData = await db
+      .select()
+      .from(hourlyWeatherData)
+      .where(and(
+        eq(hourlyWeatherData.clerkUserId, userId),
+        gte(hourlyWeatherData.forecastDateTime, currentHour),
+        lte(hourlyWeatherData.forecastDateTime, maxForecastTime)
+      ))
+      .orderBy(hourlyWeatherData.forecastDateTime);
+    
+    console.log(`📊 2단계 - 시간 범위 조건 적용: ${timeRangeData.length}개`);
+    
+    // 3단계: limit 적용
     const dbRecords = await db
       .select()
       .from(hourlyWeatherData)
       .where(and(
         eq(hourlyWeatherData.clerkUserId, userId),
-        gte(hourlyWeatherData.forecastDateTime, now),
-        lte(hourlyWeatherData.forecastDateTime, maxForecastTime),
-        gte(hourlyWeatherData.expiresAt, now) // 만료되지 않은 데이터만
+        gte(hourlyWeatherData.forecastDateTime, currentHour),
+        lte(hourlyWeatherData.forecastDateTime, maxForecastTime)
       ))
       .orderBy(hourlyWeatherData.forecastDateTime)
       .limit(hours);
+    
+    console.log(`📊 3단계 - limit(${hours}) 적용: ${dbRecords.length}개`);
+    
+    // 상세 데이터 로그 (처음 5개만)
+    console.log(`📋 전체 데이터 (처음 5개):`);
+    allUserData.slice(0, 5).forEach((record, index) => {
+      // forecastDateTime은 이미 KST로 저장되어 있으므로 UTC 메서드로 실제 KST 값 추출
+      const kstYear = record.forecastDateTime.getUTCFullYear();
+      const kstMonth = record.forecastDateTime.getUTCMonth() + 1;
+      const kstDate = record.forecastDateTime.getUTCDate();
+      const kstHour = record.forecastDateTime.getUTCHours();
+      const kstMinute = record.forecastDateTime.getUTCMinutes();
+      const kstDisplay = `${kstYear}. ${kstMonth}. ${kstDate}. ${kstHour.toString().padStart(2, '0')}:${kstMinute.toString().padStart(2, '0')}`;
+      
+      console.log(`  ${index + 1}. ${record.forecastDateTime.toISOString()} (KST: ${kstDisplay}) - ${record.temperature}°C`);
+    });
+    
+    console.log(`📋 시간 범위 조건 통과 데이터:`);
+    timeRangeData.forEach((record, index) => {
+      const kstYear = record.forecastDateTime.getUTCFullYear();
+      const kstMonth = record.forecastDateTime.getUTCMonth() + 1;
+      const kstDate = record.forecastDateTime.getUTCDate();
+      const kstHour = record.forecastDateTime.getUTCHours();
+      const kstMinute = record.forecastDateTime.getUTCMinutes();
+      const kstDisplay = `${kstYear}. ${kstMonth}. ${kstDate}. ${kstHour.toString().padStart(2, '0')}:${kstMinute.toString().padStart(2, '0')}`;
+      
+      console.log(`  ${index + 1}. ${record.forecastDateTime.toISOString()} (KST: ${kstDisplay}) - ${record.temperature}°C`);
+    });
+    
+    console.log(`📋 최종 조회 결과:`);
+    dbRecords.forEach((record, index) => {
+      const kstYear = record.forecastDateTime.getUTCFullYear();
+      const kstMonth = record.forecastDateTime.getUTCMonth() + 1;
+      const kstDate = record.forecastDateTime.getUTCDate();
+      const kstHour = record.forecastDateTime.getUTCHours();
+      const kstMinute = record.forecastDateTime.getUTCMinutes();
+      const kstDisplay = `${kstYear}. ${kstMonth}. ${kstDate}. ${kstHour.toString().padStart(2, '0')}:${kstMinute.toString().padStart(2, '0')}`;
+      
+      console.log(`  ${index + 1}. ${record.forecastDateTime.toISOString()} (KST: ${kstDisplay}) - ${record.temperature}°C`);
+    });
     
     if (dbRecords.length === 0) {
       console.log(`⚠️ 사용자 ${userId}의 시간별 날씨 데이터가 DB에 없습니다. 스케줄러가 실행되기를 기다려주세요.`);
@@ -70,20 +150,25 @@ export async function getUserHourlyWeather(input: HourlyWeatherInput): Promise<H
     }
     
     // DB 레코드를 API 형식으로 변환
-    const weatherData: HourlyWeatherData[] = dbRecords.map(record => ({
-      location: record.locationName,
-      timestamp: record.forecastDateTime.toISOString(),
-      hour: `${record.forecastHour.toString().padStart(2, '0')}시`,
-      temperature: record.temperature,
-      conditions: record.conditions,
-      weatherIcon: record.weatherIcon,
-      humidity: record.humidity || 0,
-      precipitation: parseFloat(record.precipitation || '0'),
-      precipitationProbability: record.precipitationProbability || 0,
-      rainProbability: record.rainProbability || 0,
-      windSpeed: record.windSpeed || 0,
-      units: record.units as 'metric' | 'imperial',
-    }));
+    const weatherData: HourlyWeatherData[] = dbRecords.map(record => {
+      // ✅ forecast_datetime에서 직접 시간 추출 (정확한 KST 시간)
+      const hour = record.forecastDateTime.getUTCHours();
+      
+      return {
+        location: record.locationName,
+        timestamp: record.forecastDateTime.toISOString(),
+        hour: `${hour.toString().padStart(2, '0')}시`, // forecast_datetime에서 추출한 정확한 시간
+        temperature: record.temperature,
+        conditions: record.conditions,
+        weatherIcon: record.weatherIcon,
+        humidity: record.humidity || 0,
+        precipitation: parseFloat(record.precipitation || '0'),
+        precipitationProbability: record.precipitationProbability || 0,
+        rainProbability: record.rainProbability || 0,
+        windSpeed: record.windSpeed || 0,
+        units: record.units as 'metric' | 'imperial',
+      };
+    });
     
     console.log(`✅ 사용자 ${userId} 시간별 날씨 조회 완료: ${weatherData.length}개 항목 (DB)`);
     return weatherData;
@@ -114,14 +199,14 @@ export async function getUserDailyWeather(input: DailyWeatherInput): Promise<Dai
     const now = new Date();
     const days = validatedData.days || 5;
     
-    // DB에서 사용자별 일별 날씨 데이터 조회
+    // DB에서 사용자별 일별 날씨 데이터 조회 (TTL 체크 제거)
     const dbRecords = await db
       .select()
       .from(dailyWeatherData)
       .where(and(
         eq(dailyWeatherData.clerkUserId, userId),
-        gte(dailyWeatherData.forecastDate, today),
-        gte(dailyWeatherData.expiresAt, now) // 만료되지 않은 데이터만
+        gte(dailyWeatherData.forecastDate, today)
+        // gte(dailyWeatherData.expiresAt, now) // TTL 체크 제거
       ))
       .orderBy(dailyWeatherData.forecastDate)
       .limit(days);

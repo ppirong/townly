@@ -22,20 +22,24 @@ export function convertAccuWeatherDateTimeToKST(accuWeatherDateTime: string): {
   // AccuWeather DateTime을 UTC로 파싱
   const utcDateTime = new Date(accuWeatherDateTime);
   
-  // 명시적으로 KST로 변환 (UTC+9)
-  const kstDateTime = new Date(utcDateTime.getTime() + (9 * 60 * 60 * 1000));
-  
   console.log('🕐 UTC 시간:', utcDateTime.toISOString());
-  console.log('🕐 KST 시간 (UTC+9):', kstDateTime.toISOString());
   
-  // KST 기준으로 날짜와 시간 추출 (환경 무관하게 UTC 시간 사용)
-  const forecastDate = kstDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
-  const forecastHour = parseInt(kstDateTime.toISOString().split('T')[1].split(':')[0], 10); // KST 시간 (0-23)
+  // KST 시간대로 포맷팅하여 날짜와 시간 추출 (환경 무관)
+  const kstString = utcDateTime.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }); // YYYY-MM-DD HH:mm:ss
+  const forecastDate = kstString.split(' ')[0]; // YYYY-MM-DD
+  const forecastHour = parseInt(kstString.split(' ')[1].split(':')[0], 10); // KST 시간 (0-23)
   
+  // ✅ 핵심 수정: KST 시간을 PostgreSQL timestamp로 저장하기 위해
+  // KST 문자열을 Date 객체로 변환 (시간대 정보 없이)
+  const kstDateTime = new Date(kstString.replace(' ', 'T') + '.000Z');
+  
+  console.log('🕐 KST 포맷팅:', kstString);
+  console.log('🕐 KST 문자열 → Date:', kstString.replace(' ', 'T') + '.000Z');
   console.log('📅 최종 결과:', {
     forecastDate,
     forecastHour,
-    kstDateTime: kstDateTime.toISOString()
+    kstDateTime: kstDateTime.toISOString(),
+    kstDateTimeForDB: kstString // 실제 KST 시간
   });
   
   return {

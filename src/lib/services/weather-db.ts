@@ -121,17 +121,31 @@ export class WeatherDatabaseService {
         // 절대 추가 변환하지 않음!
         const kstDateTime = new Date(data.timestamp);
         
-        // 환경 무관하게 KST 시간 추출 (ISO 문자열 파싱 사용)
+        // forecast_datetime이 이미 KST 시간이므로 이를 기준으로 날짜와 시간 추출
+        // PostgreSQL timestamp는 시간대 정보 없이 저장되므로 UTC 메서드로 실제 KST 값 추출
         const forecastDate = kstDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
-        const forecastHour = parseInt(kstDateTime.toISOString().split('T')[1].split(':')[0], 10); // 0-23
+        const forecastHour = kstDateTime.getUTCHours(); // KST 시간 (UTC로 해석된 값의 시간 부분)
         
         // 디버깅: 첫 3개 레코드의 시간 확인
         const dataIndex = weatherData.indexOf(data);
         if (dataIndex < 3) {
           console.log(`📅 DB 저장 ${dataIndex}:`);
           console.log(`  - timestamp (KST): ${data.timestamp}`);
-          console.log(`  - forecastDate: ${forecastDate}`);
-          console.log(`  - forecastHour: ${forecastHour}`);
+          console.log(`  - kstDateTime: ${kstDateTime}`);
+          console.log(`  - kstDateTime.toISOString(): ${kstDateTime.toISOString()}`);
+          console.log(`  - kstDateTime.getUTCHours(): ${kstDateTime.getUTCHours()}`);
+          console.log(`  - kstDateTime.getHours(): ${kstDateTime.getHours()}`);
+          console.log(`  - kstDateTime.getTimezoneOffset(): ${kstDateTime.getTimezoneOffset()}`);
+          console.log(`  - 계산된 forecastDate: ${forecastDate}`);
+          console.log(`  - 계산된 forecastHour: ${forecastHour}`);
+          
+          // 다른 방법들도 테스트
+          const localDate = `${kstDateTime.getFullYear()}-${String(kstDateTime.getMonth() + 1).padStart(2, '0')}-${String(kstDateTime.getDate()).padStart(2, '0')}`;
+          const localHour = kstDateTime.getHours();
+          console.log(`  - 로컬 메서드 결과: ${localDate}, ${localHour}시`);
+          
+          const utcString = kstDateTime.toLocaleString('sv-SE', { timeZone: 'UTC' });
+          console.log(`  - UTC 시간대 지정: ${utcString}`);
         }
         
         return {
@@ -206,20 +220,26 @@ export class WeatherDatabaseService {
         console.log('🎯 시간별 날씨 DB 캐시 적중:', { cacheKey, count: results.length });
         
         // DB 데이터를 API 형식으로 변환
-        return results.map(record => ({
-          location: record.locationName,
-          timestamp: record.forecastDateTime.toISOString(),
-          hour: `${record.forecastHour.toString().padStart(2, '0')}시`, // forecastHour 필드 사용 (이미 KST)
-          temperature: record.temperature,
-          conditions: record.conditions,
-          weatherIcon: record.weatherIcon,
-          humidity: record.humidity || 0,
-          precipitation: parseFloat(record.precipitation || '0'),
-          precipitationProbability: record.precipitationProbability || 0,
-          rainProbability: record.rainProbability || 0,
-          windSpeed: record.windSpeed || 0,
-          units: record.units as 'metric' | 'imperial',
-        }));
+        return results.map(record => {
+          // ✅ forecast_datetime에서 직접 시간 추출 (정확한 KST 시간)
+          // PostgreSQL timestamp는 시간대 정보 없이 저장되므로 UTC 메서드로 KST 값 추출
+          const hour = record.forecastDateTime.getUTCHours();
+          
+          return {
+            location: record.locationName,
+            timestamp: record.forecastDateTime.toISOString(),
+            hour: `${hour.toString().padStart(2, '0')}시`, // forecast_datetime에서 추출한 정확한 시간
+            temperature: record.temperature,
+            conditions: record.conditions,
+            weatherIcon: record.weatherIcon,
+            humidity: record.humidity || 0,
+            precipitation: parseFloat(record.precipitation || '0'),
+            precipitationProbability: record.precipitationProbability || 0,
+            rainProbability: record.rainProbability || 0,
+            windSpeed: record.windSpeed || 0,
+            units: record.units as 'metric' | 'imperial',
+          };
+        });
       }
 
       return null;

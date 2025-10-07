@@ -44,6 +44,8 @@ export interface WeatherData {
 
 export interface HourlyWeatherData extends WeatherData {
   hour: string;
+  forecastDate: string; // YYYY-MM-DD 형식
+  forecastHour: number; // 0-23
 }
 
 export interface DailyWeatherData extends WeatherData {
@@ -168,7 +170,7 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
     // 3. AccuWeather 응답을 내부 형식으로 변환 (통일된 시간 처리)
     const hourlyData: HourlyWeatherData[] = data.map((forecast: any, index: number) => {
       // AccuWeather DateTime을 KST로 변환 (단일 변환 지점)
-      const { kstDateTime } = convertAccuWeatherDateTimeToKST(forecast.DateTime);
+      const { kstDateTime, forecastDate, forecastHour } = convertAccuWeatherDateTimeToKST(forecast.DateTime);
       const { hour } = formatKSTTime(kstDateTime);
       
       // 강수량 처리 로직 수정
@@ -198,8 +200,10 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
       
       return {
         location: locationName,
-        timestamp: kstDateTime.toISOString(), // KST 시간 저장
+        timestamp: kstDateTime.toISOString(), // KST 시간을 ISO 형식으로 저장 (DB에서 KST로 해석됨)
         hour,
+        forecastDate, // datetime.ts에서 계산된 정확한 KST 날짜
+        forecastHour, // datetime.ts에서 계산된 정확한 KST 시간
         temperature: Math.round(forecast.Temperature.Value),
         conditions: forecast.IconPhrase || '알 수 없음',
         weatherIcon: forecast.WeatherIcon || null,

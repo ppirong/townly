@@ -25,15 +25,33 @@ export async function POST(_request: NextRequest) {
     let fixedCount = 0;
     const fixPromises = allRecords.map(async (record) => {
       // forecast_datetime을 기준으로 올바른 forecast_date와 forecast_hour 계산
-      const correctForecastDate = record.forecastDateTime.toISOString().split('T')[0];
-      const correctForecastHour = record.forecastDateTime.getHours();
+      // forecast_datetime이 이미 KST 시간으로 저장되어 있으므로 직접 파싱
+      // PostgreSQL timestamp는 시간대 정보 없이 저장되므로 JavaScript에서 UTC로 해석됨
+      // 따라서 UTC 메서드를 사용하여 실제 저장된 KST 값을 추출
+      const correctForecastDate = record.forecastDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
+      const correctForecastHour = record.forecastDateTime.getUTCHours(); // KST 시간 (UTC로 해석된 값의 시간 부분)
 
+      // 디버깅: 모든 계산 방법 비교
+      console.log(`\n=== 레코드 ${record.id} 분석 ===`);
+      console.log(`원본 forecast_datetime: ${record.forecastDateTime}`);
+      console.log(`toISOString(): ${record.forecastDateTime.toISOString()}`);
+      console.log(`getTimezoneOffset(): ${record.forecastDateTime.getTimezoneOffset()}`);
+      
+      // 다양한 방법으로 계산
+      const utcDate = record.forecastDateTime.toISOString().split('T')[0];
+      const utcHour = record.forecastDateTime.getUTCHours();
+      const localDate = `${record.forecastDateTime.getFullYear()}-${String(record.forecastDateTime.getMonth() + 1).padStart(2, '0')}-${String(record.forecastDateTime.getDate()).padStart(2, '0')}`;
+      const localHour = record.forecastDateTime.getHours();
+      
+      console.log(`UTC 방법: ${utcDate}, ${utcHour}시`);
+      console.log(`로컬 방법: ${localDate}, ${localHour}시`);
+      console.log(`현재 저장된 값: ${record.forecastDate}, ${record.forecastHour}시`);
+      
       // 현재 저장된 값과 다른 경우만 업데이트
       if (record.forecastDate !== correctForecastDate || record.forecastHour !== correctForecastHour) {
-        console.log(`🔄 수정: ${record.id}`);
+        console.log(`🔄 수정 필요: ${record.id}`);
         console.log(`  - 기존 날짜: ${record.forecastDate} -> ${correctForecastDate}`);
         console.log(`  - 기존 시간: ${record.forecastHour} -> ${correctForecastHour}`);
-        console.log(`  - forecast_datetime: ${record.forecastDateTime.toISOString()}`);
 
         await db
           .update(hourlyWeatherData)
