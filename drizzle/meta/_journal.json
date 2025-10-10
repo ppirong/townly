@@ -92,6 +92,20 @@
       "when": 1759248707887,
       "tag": "0012_stiff_proemial_gods",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1759248707888,
+      "tag": "0013_user_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1759248707889,
+      "tag": "0014_mart_tables",
+      "breakpoints": true
     }
   ]
 }

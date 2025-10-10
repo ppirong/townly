@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import {
   ClerkProvider,
-  SignInButton,
   SignedIn,
   SignedOut,
-  UserButton,
 } from "@clerk/nextjs";
 import Link from "next/link";
+import RoleBasedNavigation from "@/components/RoleBasedNavigation";
+import AuthButtons from "@/components/AuthButtons";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -46,77 +46,12 @@ export default function RootLayout({
                   </Link>
                   
                   <SignedIn>
-                    <nav className="hidden md:flex space-x-6">
-                      <Link 
-                        href="/dashboard" 
-                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                      >
-                        대시보드
-                      </Link>
-                      <Link 
-                        href="/weather" 
-                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                      >
-                        날씨
-                      </Link>
-                      <Link 
-                        href="/airquality" 
-                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                      >
-                        미세먼지
-                      </Link>
-                      <Link 
-                        href="/airquality-google" 
-                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                      >
-                        미세먼지(구글)
-                      </Link>
-                      <Link 
-                        href="/profile" 
-                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                      >
-                        프로필
-                      </Link>
-                      <Link 
-                        href="/admin/kakao" 
-                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                      >
-                        카카오 관리
-                      </Link>
-                      <Link 
-                        href="/admin/email-management" 
-                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                      >
-                        이메일 관리
-                      </Link>
-                      <Link 
-                        href="/admin/smart-ttl" 
-                        className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                      >
-                        스마트 TTL
-                      </Link>
-                    </nav>
+                    <RoleBasedNavigation />
                   </SignedIn>
                 </div>
                 
                 <div className="flex items-center space-x-4">
-                  <SignedOut>
-                    <SignInButton mode="modal">
-                      <button className="bg-yellow-400 hover:bg-yellow-500 text-black font-medium py-2 px-4 rounded-lg transition-colors">
-                        카카오로 로그인
-                      </button>
-                    </SignInButton>
-                  </SignedOut>
-                  <SignedIn>
-                    <UserButton 
-                      appearance={{
-                        elements: {
-                          avatarBox: "w-8 h-8"
-                        }
-                      }}
-                      afterSignOutUrl="/"
-                    />
-                  </SignedIn>
+                  <AuthButtons />
                 </div>
               </div>
             </div>
