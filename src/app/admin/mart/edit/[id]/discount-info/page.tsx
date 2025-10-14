@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMart } from "@/actions/mart";
 import { getMartDiscounts, deleteMartDiscount, getDiscountWithItems } from "@/actions/mart-discounts";
 import { createEmptyDiscount } from "@/actions/create-empty-discount";
+import { updateDiscountPeriod } from "@/actions/update-discount-period";
 import { toast, Toaster } from "sonner";
 import Link from "next/link";
 import { ArrowLeft, Plus, Calendar, MapPin, Clock, DollarSign, CheckCircle, Edit, Trash2, Tag, ShoppingBag } from 'lucide-react';
@@ -34,6 +35,7 @@ function DiscountInfoContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
   // 마트 정보 로드
   useEffect(() => {
@@ -141,6 +143,38 @@ function DiscountInfoContent() {
   // 할인 전단지 수정 페이지로 이동
   const handleEditDiscount = (discountId: string) => {
     router.push(`/admin/mart/edit/${martId}/discount-edit/${discountId}`);
+  };
+  
+  // 할인 기간 업데이트
+  const handleUpdateDiscountPeriod = async (discountId: string) => {
+    setIsUpdating(discountId);
+    
+    try {
+      const result = await updateDiscountPeriod(discountId);
+      
+      if (result.success) {
+        toast.success(result.message || '할인 기간이 업데이트되었습니다');
+        
+        // 목록에서 해당 항목 업데이트
+        setDiscountFlyers(prev => prev.map(flyer => {
+          if (flyer.id === discountId && result.data) {
+            return {
+              ...flyer,
+              startDate: new Date(result.data.startDate),
+              endDate: new Date(result.data.endDate)
+            };
+          }
+          return flyer;
+        }));
+      } else {
+        toast.error(result.message || '업데이트 중 오류가 발생했습니다');
+      }
+    } catch (error) {
+      console.error('할인 기간 업데이트 오류:', error);
+      toast.error('업데이트 중 오류가 발생했습니다');
+    } finally {
+      setIsUpdating(null);
+    }
   };
 
   // 할인 전단지 삭제
@@ -281,9 +315,23 @@ function DiscountInfoContent() {
                   {/* 상세 정보 */}
                   <div className="space-y-2">
                     {/* 행사 기간 */}
-                    <div className="flex items-center gap-2 text-[#afa89d] text-xs">
-                      <Calendar className="w-3 h-3" />
-                      <span>{formatEventPeriod(flyer.startDate, flyer.endDate)}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-[#afa89d] text-xs">
+                        <Calendar className="w-3 h-3" />
+                        <span>{formatEventPeriod(flyer.startDate, flyer.endDate)}</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleUpdateDiscountPeriod(flyer.id)}
+                        disabled={isUpdating === flyer.id}
+                        className="bg-[#43494b]/30 border-[#6f675b] text-[#52afff] hover:bg-[#43494b]/50 text-xs flex items-center gap-1 h-6 px-2 disabled:opacity-50"
+                      >
+                        {isUpdating === flyer.id ? (
+                          <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin mr-1" />
+                        ) : null}
+                        업데이트
+                      </Button>
                     </div>
 
                     {/* 설명 */}

@@ -1,22 +1,23 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Upload, X, Loader2, Save, ArrowLeft, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import DatePicker, { registerLocale } from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import "@/styles/datepicker-custom.css";
 import { compressImage, validateImageFile, fileToBase64 } from '@/lib/utils/image-compression';
 import { ProductInfo } from '@/lib/utils/ocr-analysis';
 import { analyzeImageWithClaude } from '@/lib/utils/claude-ocr';
-import { createDiscountItem, updateDiscountItem } from '@/actions/mart-discounts';
+import { createDiscountItem, updateDiscountItem, getDiscountItems } from '@/actions/mart-discounts';
 import { MartDiscount, MartDiscountItem } from '@/db/schema';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -38,6 +39,9 @@ export default function DiscountItemForm({
 }: DiscountItemFormProps) {
   const router = useRouter();
   
+  // 한국어 로케일 등록
+  registerLocale("ko", ko);
+  
   const [date, setDate] = useState<Date | undefined>(
     discountItem ? new Date(discountItem.discountDate) : new Date()
   );
@@ -53,6 +57,8 @@ export default function DiscountItemForm({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingDates, setExistingDates] = useState<Date[]>([]);
+  const [isLoadingDates, setIsLoadingDates] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -203,6 +209,30 @@ export default function DiscountItemForm({
     router.push(`/admin/mart/edit/${martId}/discount-edit/${martDiscount.id}`);
   };
 
+  // 이미 등록된 할인 날짜 조회
+  useEffect(() => {
+    const fetchExistingDates = async () => {
+      setIsLoadingDates(true);
+      try {
+        // 할인 전단지의 모든 할인 항목 조회
+        const result = await getDiscountItems(martDiscount.id);
+        if (result.success && result.data) {
+          // 현재 수정 중인 항목을 제외한 날짜 목록 추출
+          const dates = result.data
+            .filter(item => isNew || (discountItem && item.id !== discountItem.id)) // 현재 수정 중인 항목 제외
+            .map(item => new Date(item.discountDate));
+          setExistingDates(dates);
+        }
+      } catch (error) {
+        console.error('할인 날짜 조회 오류:', error);
+      } finally {
+        setIsLoadingDates(false);
+      }
+    };
+
+    fetchExistingDates();
+  }, [martDiscount.id, isNew, discountItem]);
+
   return (
     <div className="min-h-screen bg-[#181a1b] text-white">
       {/* Header */}
@@ -243,33 +273,102 @@ export default function DiscountItemForm({
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* 날짜 선택 */}
+            {/* 날짜 선택 - react-datepicker 적용 */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-[#cecac4]">할인 날짜 *</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal bg-[#43494b]/30 border-[#6f675b] text-[#e8e6e3] hover:bg-[#43494b]/50",
-                      !date && "text-muted-foreground"
-                    )}
-                    disabled={isSaving || isUploading || isAnalyzing}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "yyyy년 MM월 dd일", { locale: ko }) : "날짜를 선택하세요"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-[#1f2223] border-[#756d60]/50 text-[#e8e6e3]">
-                  <Calendar
-                    mode="single"
+              <div className="relative">
+                <div className="datepicker-container w-full">
+                  <DatePicker
                     selected={date}
-                    onSelect={setDate}
-                    initialFocus
-                    disabled={isSaving || isUploading || isAnalyzing}
+                    onChange={(selectedDate: Date) => {
+                      setDate(selectedDate);
+                      setError(null);
+                    }}
+                    locale="ko"
+                    dateFormat="yyyy년 MM월 dd일 (eee)"
+                    showMonthDropdown
+                    showYearDropdown
+                    dropdownMode="select"
+                    disabled={isSaving || isUploading || isAnalyzing || isLoadingDates}
+                    // 할인 기간 제한 제거 - 사용자가 원하는 날짜에 할인 정보를 등록할 수 있도록 함
+                    placeholderText="날짜를 선택하세요"
+                    className="w-full p-3 rounded-lg border border-[#6f675b] bg-gradient-to-r from-[#2a2f3a]/80 to-[#43494b]/30 text-[#e8e6e3] shadow-md focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 focus:outline-none"
+                    wrapperClassName="w-full block"
+                    popperClassName="w-full max-w-full"
+                    popperPlacement="bottom"
+                    popperModifiers={[
+                      {
+                        name: "preventOverflow",
+                        options: {
+                          rootBoundary: "viewport",
+                          tether: false,
+                          altAxis: true,
+                        },
+                      },
+                    ]}
+                    // 이미 등록된 날짜 표시
+                    highlightDates={existingDates.map(date => ({
+                      date,
+                      className: 'already-registered-date'
+                    }))}
+                    dayClassName={(date) => {
+                      // 이미 등록된 날짜인지 확인
+                      const isExistingDate = existingDates.some(
+                        existingDate => 
+                          existingDate.getFullYear() === date.getFullYear() &&
+                          existingDate.getMonth() === date.getMonth() &&
+                          existingDate.getDate() === date.getDate()
+                      );
+                      
+                      return isExistingDate ? 'already-registered-date' : undefined;
+                    }}
+                    customInput={
+                      <div className="w-full relative">
+                        <div className="flex items-center cursor-pointer p-3 rounded-lg border border-[#6f675b] bg-gradient-to-r from-[#2a2f3a]/80 to-[#43494b]/30 text-[#e8e6e3] hover:bg-[#43494b]/50 transition-all duration-200 shadow-md hover:shadow-lg">
+                          <div className="bg-blue-500/20 p-2 rounded-full mr-3">
+                            <CalendarIcon className="h-5 w-5 text-blue-400" />
+                          </div>
+                          <div className="flex-1">
+                            {date ? (
+                              <div className="flex flex-col">
+                                <span className="font-medium">{format(date, "yyyy년 MM월 dd일", { locale: ko })}</span>
+                                <span className="text-xs text-[#ada59b]">{format(date, "EEEE", { locale: ko })}</span>
+                              </div>
+                            ) : (
+                              <span>날짜를 선택하세요</span>
+                            )}
+                          </div>
+                          {date && (
+                            <Badge className="bg-blue-500/20 text-blue-400 border border-blue-500/30 ml-2">
+                              {format(date, "E", { locale: ko })}
+                            </Badge>
+                          )}
+                        </div>
+                        <input 
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                        />
+                      </div>
+                    }
                   />
-                </PopoverContent>
-              </Popover>
+                </div>
+                {martDiscount.startDate && martDiscount.endDate && (
+                  <div className="mt-2 px-3 py-2 bg-blue-900/20 text-blue-400 text-xs rounded-lg">
+                    <span>전단지 기간: </span>
+                    <span className="font-medium">{format(new Date(martDiscount.startDate), 'yyyy.MM.dd', { locale: ko })} - {format(new Date(martDiscount.endDate), 'yyyy.MM.dd', { locale: ko })}</span>
+                    <span className="ml-2">(기간 제한 없이 등록 가능)</span>
+                  </div>
+                )}
+                {isLoadingDates ? (
+                  <div className="mt-2 px-3 py-2 bg-gray-800/50 text-gray-400 text-xs rounded-lg flex items-center">
+                    <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                    등록된 날짜 정보 로딩 중...
+                  </div>
+                ) : existingDates.length > 0 ? (
+                  <div className="mt-2 px-3 py-2 bg-red-900/20 text-red-400 text-xs rounded-lg">
+                    <span>빨간색 테두리로 표시된 날짜는 이미 할인 정보가 등록되어 있습니다.</span>
+                  </div>
+                ) : null}
+              </div>
               {error && error.includes('날짜') && (
                 <p className="text-red-500 text-xs mt-1">{error}</p>
               )}

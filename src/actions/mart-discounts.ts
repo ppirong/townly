@@ -3,7 +3,7 @@
 import { db } from '@/db';
 import { martDiscounts, martDiscountItems, marts } from '@/db/schema';
 import { auth } from '@clerk/nextjs/server';
-import { eq, desc, and, inArray } from 'drizzle-orm';
+import { eq, desc, and, inArray, asc } from 'drizzle-orm';
 import { z } from 'zod';
 import crypto from 'crypto';
 
@@ -46,6 +46,45 @@ export type CreateDiscountInput = z.infer<typeof createDiscountSchema>;
 export type UpdateDiscountInput = z.infer<typeof updateDiscountSchema>;
 export type CreateDiscountItemInput = z.infer<typeof createDiscountItemSchema>;
 export type UpdateDiscountItemInput = z.infer<typeof updateDiscountItemSchema>;
+
+/**
+ * 할인 상품 항목 기반으로 할인 전단지의 기간을 업데이트하는 내부 함수
+ */
+async function updateDiscountPeriodBasedOnItems(discountId: string) {
+  try {
+    // 할인 상품 항목 조회
+    const discountItems = await db
+      .select()
+      .from(martDiscountItems)
+      .where(eq(martDiscountItems.discountId, discountId))
+      .orderBy(asc(martDiscountItems.discountDate));
+
+    // 항목이 없는 경우 업데이트하지 않음
+    if (discountItems.length === 0) {
+      return;
+    }
+
+    // 가장 빠른 날짜와 가장 늦은 날짜 찾기
+    const dates = discountItems.map(item => new Date(item.discountDate));
+    const startDate = new Date(Math.min(...dates.map(date => date.getTime())));
+    const endDate = new Date(Math.max(...dates.map(date => date.getTime())));
+
+    // 할인 전단지 기간 업데이트
+    await db
+      .update(martDiscounts)
+      .set({
+        startDate,
+        endDate,
+        updatedAt: new Date()
+      })
+      .where(eq(martDiscounts.id, discountId));
+
+    return { success: true };
+  } catch (error) {
+    console.error('할인 기간 자동 업데이트 오류:', error);
+    return { success: false };
+  }
+}
 
 /**
  * 마트의 할인 전단지 목록 조회
@@ -319,14 +358,8 @@ export async function createDiscountItem(input: CreateDiscountItemInput) {
       return { success: false, message: '할인 전단지를 찾을 수 없습니다.' };
     }
 
-    // 할인 날짜가 할인 전단지 기간 내에 있는지 확인
-    const discountDate = new Date(validatedData.discountDate);
-    const startDate = new Date(discount[0].startDate);
-    const endDate = new Date(discount[0].endDate);
-
-    if (discountDate < startDate || discountDate > endDate) {
-      return { success: false, message: '할인 날짜는 할인 전단지 기간 내에 있어야 합니다.' };
-    }
+    // 할인 날짜 검증 제거 - 사용자가 원하는 날짜에 할인 정보를 등록할 수 있도록 함
+    // 대신 할인 정보가 추가될 때마다 전단지의 할인 기간이 자동으로 업데이트됨
 
     // 할인 상품 항목 생성
     const itemId = crypto.randomUUID();
@@ -344,6 +377,9 @@ export async function createDiscountItem(input: CreateDiscountItemInput) {
       originalProducts: validatedData.originalProducts || [],
       ocrAnalyzed: validatedData.ocrAnalyzed || false,
     });
+
+    // 할인 상품 항목 추가 후 전단지의 할인 기간 자동 업데이트
+    await updateDiscountPeriodBasedOnItems(validatedData.discountId);
 
     return { 
       success: true, 
@@ -391,24 +427,7 @@ export async function updateDiscountItem(itemId: string, input: UpdateDiscountIt
       return { success: false, message: '할인 상품 항목을 찾을 수 없습니다.' };
     }
 
-    // 할인 날짜가 제공된 경우, 할인 전단지 기간 내에 있는지 확인
-    if (validatedData.discountDate) {
-      const discount = await db
-        .select()
-        .from(martDiscounts)
-        .where(eq(martDiscounts.id, existingItem[0].discountId))
-        .limit(1);
-
-      if (discount.length) {
-        const discountDate = new Date(validatedData.discountDate);
-        const startDate = new Date(discount[0].startDate);
-        const endDate = new Date(discount[0].endDate);
-
-        if (discountDate < startDate || discountDate > endDate) {
-          return { success: false, message: '할인 날짜는 할인 전단지 기간 내에 있어야 합니다.' };
-        }
-      }
-    }
+    // 할인 날짜 검증 제거 - 날짜 변경 시에도 제약 없이 수정 가능하도록 함
 
     // 업데이트할 데이터 준비
     const updateData: any = {
@@ -421,6 +440,11 @@ export async function updateDiscountItem(itemId: string, input: UpdateDiscountIt
       .update(martDiscountItems)
       .set(updateData)
       .where(eq(martDiscountItems.id, itemId));
+
+    // 날짜가 변경된 경우 전단지의 할인 기간도 자동 업데이트
+    if (validatedData.discountDate) {
+      await updateDiscountPeriodBasedOnItems(existingItem[0].discountId);
+    }
 
     return { 
       success: true, 
@@ -465,10 +489,15 @@ export async function deleteDiscountItem(itemId: string) {
       return { success: false, message: '할인 상품 항목을 찾을 수 없습니다.' };
     }
 
+    const discountId = existingItem[0].discountId;
+
     // 할인 상품 항목 삭제
     await db
       .delete(martDiscountItems)
       .where(eq(martDiscountItems.id, itemId));
+
+    // 항목 삭제 후 전단지의 할인 기간 자동 업데이트
+    await updateDiscountPeriodBasedOnItems(discountId);
 
     return { 
       success: true, 

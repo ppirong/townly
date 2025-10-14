@@ -1,0 +1,107 @@
+/* 커스텀 데이트피커 스타일 */
+.react-datepicker {
+  background-color: #1f2223 !important;
+  border-color: #756d60 !important;
+  color: #e8e6e3 !important;
+  font-family: inherit !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+.react-datepicker__header {
+  background-color: #181a1b !important;
+  border-bottom-color: #756d60 !important;
+  color: #e8e6e3 !important;
+  border-top-left-radius: 0.5rem !important;
+  border-top-right-radius: 0.5rem !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker__day-name,
+.react-datepicker-time__header {
+  color: #e8e6e3 !important;
+}
+
+.react-datepicker__day {
+  color: #e8e6e3 !important;
+  border-radius: 0.25rem !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: #43494b !important;
+}
+
+.react-datepicker__day--selected {
+  background-color: #2563eb !important;
+  color: white !important;
+}
+
+.react-datepicker__day--keyboard-selected {
+  background-color: rgba(37, 99, 235, 0.5) !important;
+  color: white !important;
+}
+
+.react-datepicker__day--disabled {
+  color: #756d60 !important;
+}
+
+.react-datepicker__day--outside-month {
+  color: #756d60 !important;
+}
+
+.react-datepicker__triangle {
+  border-bottom-color: #181a1b !important;
+}
+
+.react-datepicker__triangle::before {
+  border-bottom-color: #756d60 !important;
+}
+
+.react-datepicker__year-dropdown,
+.react-datepicker__month-dropdown {
+  background-color: #1f2223 !important;
+  border-color: #756d60 !important;
+}
+
+.react-datepicker__year-option,
+.react-datepicker__month-option {
+  color: #e8e6e3 !important;
+}
+
+.react-datepicker__year-option:hover,
+.react-datepicker__month-option:hover {
+  background-color: #43494b !important;
+}
+
+.react-datepicker__navigation {
+  top: 8px !important;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: #e8e6e3 !important;
+}
+
+.react-datepicker__year-read-view--down-arrow,
+.react-datepicker__month-read-view--down-arrow {
+  border-color: #e8e6e3 !important;
+}
+
+/* 이미 등록된 날짜 스타일 */
+.already-registered-date {
+  position: relative;
+  border: 2px solid #ef4444 !important; /* 빨간색 테두리 */
+  border-radius: 50% !important;
+  z-index: 1;
+  color: #e8e6e3 !important;
+  font-weight: bold !important;
+}
+
+.already-registered-date:hover {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+/* 로딩 중 스타일 */
+.datepicker-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}

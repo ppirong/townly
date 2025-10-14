@@ -99,10 +99,12 @@ function MartRegisterContent() {
       newErrors.longitude = '올바른 경도 형식이 아닙니다 (-180 ~ 180)';
     }
     
-    // 전화번호 형식 검증
-    const phoneRegex = /^01([0|1|6|7|8|9])-?([0-9]{3,4})-?([0-9]{4})$/;
-    if (formData.managerPhone && !phoneRegex.test(formData.managerPhone)) {
-      newErrors.managerPhone = '올바른 전화번호 형식이 아닙니다';
+    // 전화번호 형식 검증 (휴대폰 또는 유선전화)
+    const mobileRegex = /^01([0|1|6|7|8|9])-?([0-9]{3,4})-?([0-9]{4})$/;
+    const landlineRegex = /^0([2|3|4|5|6|7|8])-?([0-9]{3,4})-?([0-9]{4})$/;
+    
+    if (formData.managerPhone && !mobileRegex.test(formData.managerPhone) && !landlineRegex.test(formData.managerPhone)) {
+      newErrors.managerPhone = '올바른 전화번호 형식이 아닙니다 (휴대폰 또는 지역번호 포함 유선전화)';
     }
     
     setErrors(newErrors);
@@ -119,12 +121,31 @@ function MartRegisterContent() {
     }
   }, [formData.region]);
 
-  // 전화번호 포맷팅
+  // 전화번호 포맷팅 (휴대폰 또는 유선전화)
   const formatPhoneNumber = (value: string) => {
     const numbers = value.replace(/[^\d]/g, '');
-    if (numbers.length <= 3) return numbers;
-    if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
-    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+    
+    // 휴대폰 번호 (01X로 시작)
+    if (numbers.startsWith('01')) {
+      if (numbers.length <= 3) return numbers;
+      if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+    } 
+    // 유선전화 (지역번호로 시작)
+    else {
+      // 2자리 지역번호 (02-XXXX-XXXX)
+      if (numbers.startsWith('02')) {
+        if (numbers.length <= 2) return numbers;
+        if (numbers.length <= 6) return `${numbers.slice(0, 2)}-${numbers.slice(2)}`;
+        return `${numbers.slice(0, 2)}-${numbers.slice(2, 6)}-${numbers.slice(6, 10)}`;
+      }
+      // 3자리 지역번호 (03X, 04X, 05X, 06X-XXX-XXXX)
+      else {
+        if (numbers.length <= 3) return numbers;
+        if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+        return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+      }
+    }
   };
 
   const handleInputChange = (field: keyof MartFormData, value: string) => {
@@ -319,12 +340,12 @@ function MartRegisterContent() {
                     value={formData.managerPhone}
                     onChange={(e) => handleInputChange('managerPhone', e.target.value)}
                     className={`bg-[#43494b]/30 border-[#6f675b] text-[#e8e6e3] rounded-lg ${errors.managerPhone ? 'border-red-500' : ''}`}
-                    placeholder="010-0000-0000"
+                    placeholder="010-0000-0000 또는 031-123-4567"
                   />
                   {errors.managerPhone ? (
                     <p className="text-red-500 text-xs mt-1">{errors.managerPhone}</p>
                   ) : (
-                    <p className="text-[#9d9588] text-xs">숫자만 입력하시면 자동으로 하이픈이 추가됩니다</p>
+                    <p className="text-[#9d9588] text-xs">휴대폰 번호(010-XXXX-XXXX) 또는 유선전화(031-XXX-XXXX) 형식으로 입력하세요. 숫자만 입력하시면 자동으로 하이픈이 추가됩니다.</p>
                   )}
                 </div>
 
