@@ -62,8 +62,8 @@ export async function handleSummaryRequest() {
       morningSchedules: schedules.filter(s => s.scheduleTime === '06:00').length,
       eveningSchedules: schedules.filter(s => s.scheduleTime === '18:00').length,
       nextScheduled: schedules
-        .filter(s => s.isActive)
-        .sort((a, b) => new Date(a.nextSendAt).getTime() - new Date(b.nextSendAt).getTime())
+        .filter(s => s.isActive && s.nextSendAt)
+        .sort((a, b) => new Date(a.nextSendAt!).getTime() - new Date(b.nextSendAt!).getTime())
         .slice(0, 3)
         .map(s => ({
           title: s.title,

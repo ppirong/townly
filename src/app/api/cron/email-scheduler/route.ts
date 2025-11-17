@@ -54,10 +54,12 @@ export async function GET(request: NextRequest) {
     
     // 각 스케줄의 시간 정보 로깅
     schedulesToExecute.forEach((schedule, index) => {
-      const scheduleKst = new Date(schedule.nextSendAt.getTime() + (9 * 60 * 60 * 1000));
-      console.log(`   ${index + 1}. ${schedule.title}`);
-      console.log(`      예정 시간(UTC): ${schedule.nextSendAt.toISOString()}`);
-      console.log(`      예정 시간(KST): ${scheduleKst.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+      if (schedule.nextSendAt) {
+        const scheduleKst = new Date(schedule.nextSendAt.getTime() + (9 * 60 * 60 * 1000));
+        console.log(`   ${index + 1}. ${schedule.title}`);
+        console.log(`      예정 시간(UTC): ${schedule.nextSendAt.toISOString()}`);
+        console.log(`      예정 시간(KST): ${scheduleKst.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+      }
     });
 
     const results = [];

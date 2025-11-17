@@ -42,7 +42,7 @@ export default function RootLayout({
                 <div className="flex items-center space-x-8">
                   <Link href="/" className="flex items-center">
                     <span className="text-2xl mr-2">🏘️</span>
-                    <h1 className="text-xl font-bold text-gray-900">Townly</h1>
+                    <h1 className="text-xl font-bold text-gray-900">Towny</h1>
                   </Link>
                   
                   <SignedIn>

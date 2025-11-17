@@ -172,7 +172,7 @@ export async function recalculateAllScheduleTimes() {
             updatedAt: new Date(),
           })
           .where(eq(emailSchedules.id, schedule.id));
-        
+
         console.log(`✅ ${schedule.title}: ${schedule.scheduleTime} → ${newNextSendAt.toISOString()}`);
         updatedCount++;
         
@@ -449,6 +449,7 @@ export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput)
       forecastPeriod: aggregatedSummary?.forecastPeriod || '12시간',
       isSuccessful: false,
       initiatedBy: 'cron_job',
+      status: 'sent',
     });
     
     // 4. 개인화된 이메일 발송
@@ -474,15 +475,18 @@ export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput)
       const personalizedData = personalizedEmails[index];
       return {
         id: crypto.randomUUID(),
-        emailSendLogId,
+        sendLogId: emailSendLogId,
         clerkUserId: personalizedData?.recipient.clerkUserId || '',
-        recipientEmail: result.email,
-        subject: personalizedData?.subject || '크론잡 개인화 이메일',
+        email: result.email,
+        emailType: 'scheduled_personalized',
+        templateUsed: 'weather_summary',
+        personalizedContent: personalizedData ? {
+          weatherData: personalizedData.weatherData,
+          summary: personalizedData.summary,
+          recipient: personalizedData.recipient
+        } : null,
         status: result.success ? 'sent' : 'failed',
-        sentAt: result.success ? new Date() : undefined,
-        gmailMessageId: result.messageId,
-        gmailThreadId: result.threadId,
-        errorMessage: result.error,
+        errorDetails: result.error,
       };
     });
     
@@ -621,6 +625,7 @@ export async function sendManualEmailWithAgent(input: SendManualEmailInput, test
       forecastPeriod: sendTime === 6 ? '6시-18시' : '18시-다음날 6시',
       isSuccessful: false,
       initiatedBy: userId,
+      status: 'sent',
     });
     
     // 5. 이메일 발송
@@ -646,15 +651,18 @@ export async function sendManualEmailWithAgent(input: SendManualEmailInput, test
       const personalizedData = personalizedEmails[index];
       return {
         id: crypto.randomUUID(),
-        emailSendLogId,
+        sendLogId: emailSendLogId,
         clerkUserId: personalizedData?.recipient.clerkUserId || '',
-        recipientEmail: result.email,
-        subject: personalizedData?.emailData.subject || '에이전트 이메일',
+        email: result.email,
+        emailType: 'manual_agent',
+        templateUsed: 'weather_agent',
+        personalizedContent: personalizedData ? {
+          weatherData: personalizedData.weatherData,
+          agentResult: personalizedData.agentResult,
+          recipient: personalizedData.recipient
+        } : null,
         status: result.success ? 'sent' : 'failed',
-        sentAt: result.success ? new Date() : undefined,
-        gmailMessageId: result.messageId,
-        gmailThreadId: result.threadId,
-        errorMessage: result.error,
+        errorDetails: result.error,
       };
     });
     
@@ -862,6 +870,7 @@ export async function sendManualEmail(input: SendManualEmailInput, testUserId?: 
       forecastPeriod: aggregatedSummary?.forecastPeriod || '12시간',
       isSuccessful: false,
       initiatedBy: userId,
+      status: 'sent',
     });
     
     // 4. 개인화된 이메일 발송
@@ -887,15 +896,18 @@ export async function sendManualEmail(input: SendManualEmailInput, testUserId?: 
       const personalizedData = personalizedEmails[index];
       return {
         id: crypto.randomUUID(),
-        emailSendLogId,
+        sendLogId: emailSendLogId,
         clerkUserId: personalizedData?.recipient.clerkUserId || '',
-        recipientEmail: result.email,
-        subject: personalizedData?.subject || '개인화 이메일',
+        email: result.email,
+        emailType: 'manual_personalized',
+        templateUsed: 'weather_summary',
+        personalizedContent: personalizedData ? {
+          weatherData: personalizedData.weatherData,
+          summary: personalizedData.summary,
+          recipient: personalizedData.recipient
+        } : null,
         status: result.success ? 'sent' : 'failed',
-        sentAt: result.success ? new Date() : undefined,
-        gmailMessageId: result.messageId,
-        gmailThreadId: result.threadId,
-        errorMessage: result.error,
+        errorDetails: result.error,
       };
     });
     

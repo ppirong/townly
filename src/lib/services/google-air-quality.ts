@@ -13,7 +13,7 @@ import {
   type NewGoogleDailyAirQualityData,
   type NewApiCallLog
 } from '@/db/schema';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { convertGoogleDateTimeToKST } from '@/lib/utils/datetime';
 
 // Google Air Quality API 타입 정의
@@ -656,13 +656,13 @@ class GoogleAirQualityService {
         .from(apiCallLogs)
         .where(
           and(
-            eq(apiCallLogs.apiProvider, 'google_air_quality'),
-            eq(apiCallLogs.callDate, targetDate)
+            eq(apiCallLogs.service, 'google_air_quality'),
+            sql`DATE(${apiCallLogs.createdAt}) = ${targetDate}`
           )
         );
 
       const totalCalls = stats.length;
-      const successfulCalls = stats.filter(s => s.isSuccessful).length;
+      const successfulCalls = stats.filter(s => s.statusCode && s.statusCode >= 200 && s.statusCode < 300).length;
       const failedCalls = totalCalls - successfulCalls;
       const avgResponseTime = totalCalls > 0 
         ? Math.round(stats.reduce((acc, s) => acc + (s.responseTime || 0), 0) / totalCalls)

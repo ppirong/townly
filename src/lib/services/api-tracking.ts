@@ -85,8 +85,8 @@ class ApiTrackingService {
         .from(apiCallLogs)
         .where(
           and(
-            eq(apiCallLogs.apiProvider, provider),
-            eq(apiCallLogs.callDate, targetDate)
+            eq(apiCallLogs.service, provider),
+            sql`DATE(${apiCallLogs.createdAt}) = ${targetDate}`
           )
         );
 
@@ -182,8 +182,8 @@ class ApiTrackingService {
       const stats = await db
         .select({
           totalCalls: count(),
-          successfulCalls: sql<number>`COUNT(CASE WHEN ${apiCallLogs.isSuccessful} = true THEN 1 END)`,
-          failedCalls: sql<number>`COUNT(CASE WHEN ${apiCallLogs.isSuccessful} = false THEN 1 END)`,
+          successfulCalls: sql<number>`COUNT(CASE WHEN ${apiCallLogs.statusCode} >= 200 AND ${apiCallLogs.statusCode} < 300 THEN 1 END)`,
+          failedCalls: sql<number>`COUNT(CASE WHEN ${apiCallLogs.statusCode} < 200 OR ${apiCallLogs.statusCode} >= 300 THEN 1 END)`,
           avgResponseTime: sql<number>`AVG(${apiCallLogs.responseTime})`,
           maxResponseTime: sql<number>`MAX(${apiCallLogs.responseTime})`,
           minResponseTime: sql<number>`MIN(${apiCallLogs.responseTime})`,
@@ -191,8 +191,8 @@ class ApiTrackingService {
         .from(apiCallLogs)
         .where(
           and(
-            eq(apiCallLogs.apiProvider, provider),
-            eq(apiCallLogs.callDate, date)
+            eq(apiCallLogs.service, provider),
+            sql`DATE(${apiCallLogs.createdAt}) = ${date}`
           )
         );
 
@@ -201,33 +201,33 @@ class ApiTrackingService {
       // 시간대별 통계 계산
       const hourlyStats = await db
         .select({
-          hour: sql<number>`EXTRACT(HOUR FROM ${apiCallLogs.callTime})`,
+          hour: sql<number>`EXTRACT(HOUR FROM ${apiCallLogs.createdAt})`,
           calls: count(),
         })
         .from(apiCallLogs)
         .where(
           and(
-            eq(apiCallLogs.apiProvider, provider),
-            eq(apiCallLogs.callDate, date)
+            eq(apiCallLogs.service, provider),
+            sql`DATE(${apiCallLogs.createdAt}) = ${date}`
           )
         )
-        .groupBy(sql`EXTRACT(HOUR FROM ${apiCallLogs.callTime})`);
+        .groupBy(sql`EXTRACT(HOUR FROM ${apiCallLogs.createdAt})`);
 
       // 엔드포인트별 통계 계산
       const endpointStats = await db
         .select({
-          endpoint: apiCallLogs.apiEndpoint,
+          endpoint: apiCallLogs.endpoint,
           calls: count(),
-          successful: sql<number>`COUNT(CASE WHEN ${apiCallLogs.isSuccessful} = true THEN 1 END)`,
+          successful: sql<number>`COUNT(CASE WHEN ${apiCallLogs.statusCode} >= 200 AND ${apiCallLogs.statusCode} < 300 THEN 1 END)`,
         })
         .from(apiCallLogs)
         .where(
           and(
-            eq(apiCallLogs.apiProvider, provider),
-            eq(apiCallLogs.callDate, date)
+            eq(apiCallLogs.service, provider),
+            sql`DATE(${apiCallLogs.createdAt}) = ${date}`
           )
         )
-        .groupBy(apiCallLogs.apiEndpoint);
+        .groupBy(apiCallLogs.endpoint);
 
       const endpointStatsObj = endpointStats.reduce((acc, ep) => {
         acc[ep.endpoint] = {

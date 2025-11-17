@@ -9,6 +9,7 @@ import { auth } from '@clerk/nextjs/server';
 import { db } from '@/db';
 import { userSelectedStations } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 
 /**
  * 미세먼지/대기질 관련 Server Actions
@@ -281,6 +282,7 @@ export async function saveSelectedStation(input: {
       .where(eq(userSelectedStations.clerkUserId, userId));
     
     const stationData = {
+      id: randomUUID(),
       clerkUserId: userId,
       stationName: input.stationName,
       sido: input.sido,
@@ -291,6 +293,7 @@ export async function saveSelectedStation(input: {
       userLongitude: input.userLongitude?.toString() || null,
       isDefault: true,
       selectedAt: new Date(),
+      createdAt: new Date(),
       updatedAt: new Date(),
     };
     

@@ -11,7 +11,7 @@ export default function Home() {
             <div className="mb-8">
               <div className="text-6xl mb-4">🏘️</div>
               <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
-                우리 동네 생활 정보를 
+                훈남김밥이 제공하는 우리 동네 생활 정보를 
                 <span className="text-yellow-500"> 카카오톡</span>으로
               </h1>
               <p className="text-xl text-gray-600 mb-8 leading-relaxed">

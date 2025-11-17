@@ -98,14 +98,14 @@ export async function POST(req: Request) {
     let products: ProductInfo[] = [];
     try {
       // JSON 형식 응답 추출 (정규식으로 JSON 부분 찾기)
-      const jsonMatch = responseText.match(/\[\s*\{.*\}\s*\]/s);
+      const jsonMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/);
       if (jsonMatch) {
         products = JSON.parse(jsonMatch[0]);
       } else {
         // 응답에서 JSON 형식이 없는 경우 텍스트 기반으로 파싱 시도
-        const lines = responseText.split('\n').filter(line => line.includes(':'));
-        products = lines.map(line => {
-          const [name, price] = line.split(':').map(part => part.trim());
+        const lines = responseText.split('\n').filter((line: string) => line.includes(':'));
+        products = lines.map((line: string) => {
+          const [name, price] = line.split(':').map((part: string) => part.trim());
           return { name, price };
         });
       }

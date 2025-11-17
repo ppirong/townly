@@ -53,6 +53,7 @@ export async function createMart(formData: MartFormData) {
       region: `${validatedData.region} ${validatedData.detailRegion}`, // 지역과 상세 지역 결합
       address: validatedData.address,
       phone: validatedData.managerPhone,
+      managerName: validatedData.managerName,
       latitude: validatedData.latitude,
       longitude: validatedData.longitude,
       responseTime: validatedData.businessHours, // 영업 시간을 responseTime 필드에 저장
@@ -70,7 +71,7 @@ export async function createMart(formData: MartFormData) {
     
     if (error instanceof z.ZodError) {
       // Zod 검증 오류
-      const errorMessages = error.errors.map(err => `${err.path}: ${err.message}`).join(', ');
+      const errorMessages = error.issues.map(err => `${err.path}: ${err.message}`).join(', ');
       return { success: false, message: `입력 데이터 오류: ${errorMessages}` };
     }
     
@@ -107,6 +108,7 @@ export async function updateMart(martId: string, formData: MartFormData) {
         region: `${validatedData.region} ${validatedData.detailRegion}`, // 지역과 상세 지역 결합
         address: validatedData.address,
         phone: validatedData.managerPhone,
+        managerName: validatedData.managerName,
         latitude: validatedData.latitude,
         longitude: validatedData.longitude,
         responseTime: validatedData.businessHours, // 영업 시간을 responseTime 필드에 저장
@@ -123,7 +125,7 @@ export async function updateMart(martId: string, formData: MartFormData) {
     
     if (error instanceof z.ZodError) {
       // Zod 검증 오류
-      const errorMessages = error.errors.map(err => `${err.path}: ${err.message}`).join(', ');
+      const errorMessages = error.issues.map(err => `${err.path}: ${err.message}`).join(', ');
       return { success: false, message: `입력 데이터 오류: ${errorMessages}` };
     }
     

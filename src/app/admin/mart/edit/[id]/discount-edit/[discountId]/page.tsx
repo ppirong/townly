@@ -44,7 +44,7 @@ async function DiscountEditContent({ martId, discountId }: { martId: string; dis
       martId={martId} 
       martName={martData.name} 
       martDiscount={martDiscountData}
-      initialDiscountItems={initialDiscountItems}
+      initialDiscountItems={initialDiscountItems || []}
     />
   );
 }

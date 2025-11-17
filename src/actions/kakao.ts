@@ -36,7 +36,7 @@ export async function getKakaoMessages(input: Partial<GetMessagesInput> = {}) {
     const conditions = [];
     
     if (userKey) {
-      conditions.push(eq(kakaoMessages.userKey, userKey));
+      conditions.push(eq(kakaoMessages.userId, userKey));
     }
     
     if (isRead !== undefined) {
@@ -55,7 +55,7 @@ export async function getKakaoMessages(input: Partial<GetMessagesInput> = {}) {
     const messages = await db
       .select({
         id: kakaoMessages.id,
-        userKey: kakaoMessages.userKey,
+        userKey: kakaoMessages.userId,
         message: kakaoMessages.message,
         messageType: kakaoMessages.messageType,
         receivedAt: kakaoMessages.receivedAt,
@@ -215,11 +215,11 @@ export async function getUserMessageStats() {
   try {
     const stats = await db
       .select({
-        userKey: kakaoMessages.userKey,
+        userKey: kakaoMessages.userId,
         totalMessages: count(),
       })
       .from(kakaoMessages)
-      .groupBy(kakaoMessages.userKey)
+      .groupBy(kakaoMessages.userId)
       .orderBy(desc(count()));
     
     return stats;

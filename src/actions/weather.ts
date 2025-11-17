@@ -117,7 +117,9 @@ export async function getUserHourlyWeather(input: HourlyWeatherInput): Promise<H
       const kstMinute = record.forecastDateTime.getUTCMinutes();
       const kstDisplay = `${kstYear}. ${kstMonth}. ${kstDate}. ${kstHour.toString().padStart(2, '0')}:${kstMinute.toString().padStart(2, '0')}`;
       
-      console.log(`  ${index + 1}. ${record.forecastDateTime.toISOString()} (KST: ${kstDisplay}) - ${record.temperature}°C`);
+      const hourlyData = record.hourlyData as any;
+      const temperature = hourlyData?.temperature || hourlyData?.[0]?.temperature || 'N/A';
+      console.log(`  ${index + 1}. ${record.forecastDateTime.toISOString()} (KST: ${kstDisplay}) - ${temperature}°C`);
     });
     
     console.log(`📋 시간 범위 조건 통과 데이터:`);
@@ -129,7 +131,9 @@ export async function getUserHourlyWeather(input: HourlyWeatherInput): Promise<H
       const kstMinute = record.forecastDateTime.getUTCMinutes();
       const kstDisplay = `${kstYear}. ${kstMonth}. ${kstDate}. ${kstHour.toString().padStart(2, '0')}:${kstMinute.toString().padStart(2, '0')}`;
       
-      console.log(`  ${index + 1}. ${record.forecastDateTime.toISOString()} (KST: ${kstDisplay}) - ${record.temperature}°C`);
+      const hourlyData = record.hourlyData as any;
+      const temperature = hourlyData?.temperature || hourlyData?.[0]?.temperature || 'N/A';
+      console.log(`  ${index + 1}. ${record.forecastDateTime.toISOString()} (KST: ${kstDisplay}) - ${temperature}°C`);
     });
     
     console.log(`📋 최종 조회 결과:`);
@@ -141,7 +145,9 @@ export async function getUserHourlyWeather(input: HourlyWeatherInput): Promise<H
       const kstMinute = record.forecastDateTime.getUTCMinutes();
       const kstDisplay = `${kstYear}. ${kstMonth}. ${kstDate}. ${kstHour.toString().padStart(2, '0')}:${kstMinute.toString().padStart(2, '0')}`;
       
-      console.log(`  ${index + 1}. ${record.forecastDateTime.toISOString()} (KST: ${kstDisplay}) - ${record.temperature}°C`);
+      const hourlyData = record.hourlyData as any;
+      const temperature = hourlyData?.temperature || hourlyData?.[0]?.temperature || 'N/A';
+      console.log(`  ${index + 1}. ${record.forecastDateTime.toISOString()} (KST: ${kstDisplay}) - ${temperature}°C`);
     });
     
     if (dbRecords.length === 0) {
@@ -155,13 +161,13 @@ export async function getUserHourlyWeather(input: HourlyWeatherInput): Promise<H
       const hour = record.forecastDateTime.getUTCHours();
       
       return {
-        location: record.locationName,
+        location: record.locationName || 'Unknown Location',
         timestamp: record.forecastDateTime.toISOString(),
         hour: `${hour.toString().padStart(2, '0')}시`, // forecast_datetime에서 추출한 정확한 시간
         forecastDate: record.forecastDateTime.toISOString().split('T')[0], // YYYY-MM-DD
         forecastHour: hour, // 0-23
-        temperature: record.temperature,
-        conditions: record.conditions,
+        temperature: parseFloat(record.temperature || '0'),
+        conditions: record.conditions || 'Unknown',
         weatherIcon: record.weatherIcon,
         humidity: record.humidity || 0,
         precipitation: parseFloat(record.precipitation || '0'),
@@ -222,21 +228,21 @@ export async function getUserDailyWeather(input: DailyWeatherInput): Promise<Dai
     
     // DB 레코드를 API 형식으로 변환
     const dailyForecasts: DailyWeatherData[] = dbRecords.map(record => ({
-      location: record.locationName,
+      location: record.locationName || 'Unknown Location',
       timestamp: new Date(record.forecastDate + 'T00:00:00').toISOString(),
       date: record.forecastDate,
-      dayOfWeek: record.dayOfWeek,
-      temperature: record.temperature,
-      highTemp: record.highTemp,
-      lowTemp: record.lowTemp,
-      conditions: record.conditions,
+      dayOfWeek: record.dayOfWeek || 'Unknown',
+      temperature: parseFloat(record.temperature || '0'),
+      highTemp: parseFloat(record.highTemp || '0'),
+      lowTemp: parseFloat(record.lowTemp || '0'),
+      conditions: record.conditions || 'Unknown',
       weatherIcon: record.weatherIcon,
       humidity: 0,
       precipitation: 0,
       precipitationProbability: record.precipitationProbability || 0,
       rainProbability: record.rainProbability || 0,
       windSpeed: 0,
-      units: record.units as 'metric' | 'imperial',
+      units: (record.units as 'metric' | 'imperial') || 'metric',
       dayWeather: record.dayWeather as any,
       nightWeather: record.nightWeather as any,
     }));

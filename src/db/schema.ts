@@ -157,13 +157,19 @@ export const userEmailSettings = pgTable('user_email_settings', {
  */
 export const emailSchedules = pgTable('email_schedules', {
   id: uuid('id').defaultRandom().primaryKey(),
-  name: text('name').notNull(),
+  title: text('title').notNull(), // name -> title로 변경
   description: text('description'),
-  cronExpression: text('cron_expression').notNull(),
-  emailType: text('email_type').notNull(), // weather, news, etc.
+  emailSubject: text('email_subject').notNull(), // 이메일 제목
+  emailTemplate: text('email_template').notNull(), // weather_summary, custom
+  scheduleTime: text('schedule_time').notNull(), // HH:MM 형식
+  timezone: text('timezone').default('Asia/Seoul').notNull(),
+  targetType: text('target_type').notNull(), // all_users, active_users, specific_users
+  targetUserIds: jsonb('target_user_ids'), // 특정 사용자 ID 배열
   isActive: boolean('is_active').default(true).notNull(),
-  lastRunAt: timestamp('last_run_at'),
-  nextRunAt: timestamp('next_run_at'),
+  lastSentAt: timestamp('last_sent_at'), // 마지막 발송 시간
+  nextSendAt: timestamp('next_send_at'), // 다음 발송 시간
+  totalSentCount: integer('total_sent_count').default(0).notNull(), // 총 발송 횟수
+  createdBy: text('created_by'), // 생성한 사용자 ID
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -224,9 +230,23 @@ export const weatherData = pgTable('weather_data', {
  */
 export const hourlyWeatherData = pgTable('hourly_weather_data', {
   id: uuid('id').defaultRandom().primaryKey(),
+  clerkUserId: text('clerk_user_id').notNull(),
   locationKey: text('location_key').notNull(),
+  locationName: text('location_name'),
   latitude: text('latitude').notNull(),
   longitude: text('longitude').notNull(),
+  forecastDateTime: timestamp('forecast_date_time').notNull(),
+  forecastDate: text('forecast_date').notNull(),
+  forecastHour: integer('forecast_hour').notNull(),
+  temperature: text('temperature'),
+  conditions: text('conditions'),
+  weatherIcon: integer('weather_icon'),
+  humidity: integer('humidity'),
+  precipitation: text('precipitation'),
+  precipitationProbability: integer('precipitation_probability'),
+  rainProbability: integer('rain_probability'),
+  windSpeed: integer('wind_speed'),
+  units: text('units'),
   hourlyData: jsonb('hourly_data'),
   lastUpdated: timestamp('last_updated').defaultNow().notNull(),
   expiresAt: timestamp('expires_at').notNull(),
@@ -239,9 +259,27 @@ export const hourlyWeatherData = pgTable('hourly_weather_data', {
  */
 export const dailyWeatherData = pgTable('daily_weather_data', {
   id: uuid('id').defaultRandom().primaryKey(),
+  clerkUserId: text('clerk_user_id').notNull(),
   locationKey: text('location_key').notNull(),
-  latitude: text('latitude').notNull(),
-  longitude: text('longitude').notNull(),
+  locationName: text('location_name'),
+  latitude: text('latitude'),
+  longitude: text('longitude'),
+  forecastDate: text('forecast_date').notNull(),
+  dayOfWeek: text('day_of_week'),
+  temperature: text('temperature'),
+  highTemp: text('high_temp'),
+  lowTemp: text('low_temp'),
+  conditions: text('conditions'),
+  weatherIcon: integer('weather_icon'),
+  precipitationProbability: integer('precipitation_probability'),
+  rainProbability: integer('rain_probability'),
+  units: text('units'),
+  dayWeather: jsonb('day_weather'),
+  nightWeather: jsonb('night_weather'),
+  headline: text('headline'),
+  forecastDays: integer('forecast_days'),
+  rawData: jsonb('raw_data'),
+  cacheKey: text('cache_key'),
   dailyData: jsonb('daily_data'),
   lastUpdated: timestamp('last_updated').defaultNow().notNull(),
   expiresAt: timestamp('expires_at').notNull(),
@@ -360,6 +398,7 @@ export const marts = pgTable('marts', {
   region: text('region').notNull(), // 지역
   address: text('address'), // 주소
   phone: text('phone'), // 전화번호
+  managerName: text('manager_name'), // 담당자 이름
   email: text('email'), // 이메일
   website: text('website'), // 웹사이트
   
@@ -472,7 +511,74 @@ export const martDiscountItemsRelations = relations(martDiscountItems, ({ one })
   }),
 }));
 
-// 타입 정의
+// 기본 테이블 타입 정의
+export type RssSource = typeof rssSources.$inferSelect;
+export type NewRssSource = typeof rssSources.$inferInsert;
+
+export type Article = typeof articles.$inferSelect;
+export type NewArticle = typeof articles.$inferInsert;
+
+export type ArticleSummary = typeof articleSummaries.$inferSelect;
+export type NewArticleSummary = typeof articleSummaries.$inferInsert;
+
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type NewUserProfile = typeof userProfiles.$inferInsert;
+
+export type UserInteraction = typeof userInteractions.$inferSelect;
+export type NewUserInteraction = typeof userInteractions.$inferInsert;
+
+export type ScrappedArticle = typeof scrappedArticles.$inferSelect;
+export type NewScrappedArticle = typeof scrappedArticles.$inferInsert;
+
+export type Recommendation = typeof recommendations.$inferSelect;
+export type NewRecommendation = typeof recommendations.$inferInsert;
+
+export type Comment = typeof comments.$inferSelect;
+export type NewComment = typeof comments.$inferInsert;
+
+export type CommentLike = typeof commentLikes.$inferSelect;
+export type NewCommentLike = typeof commentLikes.$inferInsert;
+
+export type UserEmailSettings = typeof userEmailSettings.$inferSelect;
+export type NewUserEmailSettings = typeof userEmailSettings.$inferInsert;
+
+export type EmailSchedule = typeof emailSchedules.$inferSelect;
+export type NewEmailSchedule = typeof emailSchedules.$inferInsert;
+
+export type EmailLog = typeof emailLogs.$inferSelect;
+export type NewEmailLog = typeof emailLogs.$inferInsert;
+
+export type UserLocation = typeof userLocations.$inferSelect;
+export type NewUserLocation = typeof userLocations.$inferInsert;
+
+export type WeatherData = typeof weatherData.$inferSelect;
+export type NewWeatherData = typeof weatherData.$inferInsert;
+
+export type HourlyWeatherData = typeof hourlyWeatherData.$inferSelect;
+export type NewHourlyWeatherData = typeof hourlyWeatherData.$inferInsert;
+
+export type DailyWeatherData = typeof dailyWeatherData.$inferSelect;
+export type NewDailyWeatherData = typeof dailyWeatherData.$inferInsert;
+
+export type AirQualityStation = typeof airQualityStations.$inferSelect;
+export type NewAirQualityStation = typeof airQualityStations.$inferInsert;
+
+export type UserStation = typeof userStations.$inferSelect;
+export type NewUserStation = typeof userStations.$inferInsert;
+
+export type AirQualityData = typeof airQualityData.$inferSelect;
+export type NewAirQualityData = typeof airQualityData.$inferInsert;
+
+export type AirQualityForecast = typeof airQualityForecasts.$inferSelect;
+export type NewAirQualityForecast = typeof airQualityForecasts.$inferInsert;
+
+export type VectorStore = typeof vectorStore.$inferSelect;
+export type NewVectorStore = typeof vectorStore.$inferInsert;
+
+export type UserRole = typeof userRoles.$inferSelect;
+export type NewUserRole = typeof userRoles.$inferInsert;
+
+// Mart 관련 타입 정의
 export type Mart = typeof marts.$inferSelect;
 export type NewMart = typeof marts.$inferInsert;
 
@@ -481,3 +587,347 @@ export type NewMartDiscount = typeof martDiscounts.$inferInsert;
 
 export type MartDiscountItem = typeof martDiscountItems.$inferSelect;
 export type NewMartDiscountItem = typeof martDiscountItems.$inferInsert;
+
+/**
+ * API 호출 로그 테이블
+ * API 호출 기록을 저장합니다.
+ */
+export const apiCallLogs = pgTable('api_call_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  service: text('service').notNull(), // 서비스명 (weather, airquality 등)
+  endpoint: text('endpoint').notNull(), // API 엔드포인트
+  method: text('method').notNull(), // HTTP 메소드
+  statusCode: integer('status_code'), // 응답 상태 코드
+  responseTime: integer('response_time'), // 응답 시간 (ms)
+  errorMessage: text('error_message'), // 에러 메시지
+  requestData: jsonb('request_data'), // 요청 데이터
+  responseData: jsonb('response_data'), // 응답 데이터
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * 일별 API 통계 테이블
+ * 일별 API 사용량 통계를 저장합니다.
+ */
+export const dailyApiStats = pgTable('daily_api_stats', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  date: timestamp('date').notNull(),
+  service: text('service').notNull(),
+  totalCalls: integer('total_calls').default(0).notNull(),
+  successfulCalls: integer('successful_calls').default(0).notNull(),
+  failedCalls: integer('failed_calls').default(0).notNull(),
+  averageResponseTime: integer('average_response_time'), // ms
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+/**
+ * ChatGPT 대화 테이블
+ * ChatGPT와의 대화 기록을 저장합니다.
+ */
+export const chatGptConversations = pgTable('chatgpt_conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  clerkUserId: text('clerk_user_id').notNull(),
+  sessionId: text('session_id').notNull(),
+  userMessage: text('user_message').notNull(),
+  assistantMessage: text('assistant_message').notNull(),
+  model: text('model').default('gpt-3.5-turbo').notNull(),
+  tokens: integer('tokens'),
+  cost: text('cost'), // 비용 (달러)
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * 이메일 발송 로그 테이블
+ * 이메일 발송 기록을 저장합니다.
+ */
+export const emailSendLogs = pgTable('email_send_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  scheduleId: uuid('schedule_id').references(() => emailSchedules.id),
+  emailType: text('email_type').notNull(), // scheduled_personalized, manual 등
+  clerkUserId: text('clerk_user_id'),
+  email: text('email'),
+  subject: text('subject').notNull(),
+  content: text('content'),
+  recipientCount: integer('recipient_count').default(0).notNull(), // 수신자 수
+  successCount: integer('success_count').default(0).notNull(), // 성공 발송 수
+  failureCount: integer('failure_count').default(0).notNull(), // 실패 발송 수
+  weatherDataUsed: jsonb('weather_data_used'), // 사용된 날씨 데이터
+  aiSummary: text('ai_summary'), // AI 생성 요약
+  forecastPeriod: text('forecast_period'), // 예보 기간
+  isSuccessful: boolean('is_successful').default(false).notNull(), // 전체 발송 성공 여부
+  initiatedBy: text('initiated_by').notNull(), // 발송 주체 (cron_job, manual 등)
+  executionTime: integer('execution_time'), // 실행 시간 (밀리초)
+  failedEmails: jsonb('failed_emails'), // 실패한 이메일 목록
+  status: text('status').notNull(), // sent, failed, delivered, opened
+  errorMessage: text('error_message'),
+  sentAt: timestamp('sent_at').defaultNow().notNull(),
+  deliveredAt: timestamp('delivered_at'),
+  openedAt: timestamp('opened_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * 개별 이메일 로그 테이블
+ * 개별 이메일 발송 상세 기록을 저장합니다.
+ */
+export const individualEmailLogs = pgTable('individual_email_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sendLogId: uuid('send_log_id').references(() => emailSendLogs.id),
+  clerkUserId: text('clerk_user_id').notNull(),
+  email: text('email').notNull(),
+  emailType: text('email_type').notNull(), // weather, news, etc.
+  templateUsed: text('template_used'),
+  personalizedContent: jsonb('personalized_content'),
+  status: text('status').notNull(),
+  errorDetails: text('error_details'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * Google 시간별 대기질 데이터 테이블
+ * Google Air Quality API의 시간별 데이터를 저장합니다.
+ */
+export const googleHourlyAirQualityData = pgTable('google_hourly_air_quality_data', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  locationKey: text('location_key').notNull(),
+  latitude: text('latitude').notNull(),
+  longitude: text('longitude').notNull(),
+  forecastDateTime: timestamp('forecast_date_time').notNull(),
+  aqi: integer('aqi'), // 대기질 지수
+  pm25: integer('pm25'), // PM2.5
+  pm10: integer('pm10'), // PM10
+  o3: integer('o3'), // 오존
+  no2: integer('no2'), // 이산화질소
+  so2: integer('so2'), // 이산화황
+  co: integer('co'), // 일산화탄소
+  rawData: jsonb('raw_data'), // 원본 API 응답 데이터
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * Google 일별 대기질 데이터 테이블
+ * Google Air Quality API의 일별 데이터를 저장합니다.
+ */
+export const googleDailyAirQualityData = pgTable('google_daily_air_quality_data', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  locationKey: text('location_key').notNull(),
+  latitude: text('latitude').notNull(),
+  longitude: text('longitude').notNull(),
+  forecastDate: timestamp('forecast_date').notNull(),
+  aqi: integer('aqi'), // 대기질 지수
+  pm25: integer('pm25'), // PM2.5
+  pm10: integer('pm10'), // PM10
+  o3: integer('o3'), // 오존
+  no2: integer('no2'), // 이산화질소
+  so2: integer('so2'), // 이산화황
+  co: integer('co'), // 일산화탄소
+  rawData: jsonb('raw_data'), // 원본 API 응답 데이터
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * 날씨 임베딩 테이블
+ * 날씨 데이터의 벡터 임베딩을 저장합니다.
+ */
+export const weatherEmbeddings = pgTable('weather_embeddings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  locationKey: text('location_key').notNull(),
+  weatherType: text('weather_type').notNull(), // hourly, daily
+  dataDate: timestamp('data_date').notNull(),
+  content: text('content').notNull(), // 임베딩할 텍스트 내용
+  embedding: text('embedding').notNull(), // 벡터 임베딩 (JSON 문자열)
+  metadata: jsonb('metadata'), // 추가 메타데이터
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+/**
+ * 날씨 위치 키 테이블
+ * 날씨 API에서 사용하는 위치 키를 저장합니다.
+ */
+export const weatherLocationKeys = pgTable('weather_location_keys', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  locationName: text('location_name').notNull(),
+  latitude: text('latitude').notNull(),
+  longitude: text('longitude').notNull(),
+  locationKey: text('location_key').notNull().unique(),
+  region: text('region'),
+  country: text('country'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+/**
+ * 웹훅 로그 테이블
+ * 카카오톡 웹훅 등의 로그를 저장합니다.
+ */
+export const webhookLogs = pgTable('webhook_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  source: text('source').notNull(), // kakao, line 등
+  eventType: text('event_type').notNull(), // message, postback 등
+  method: text('method'), // HTTP 메서드 (GET, POST 등)
+  url: text('url'), // 요청 URL
+  userId: text('user_id'), // 외부 서비스의 사용자 ID
+  requestData: jsonb('request_data'), // 요청 데이터
+  requestBody: jsonb('request_body'), // 요청 본문
+  responseData: jsonb('response_data'), // 응답 데이터
+  statusCode: integer('status_code'),
+  isSuccessful: boolean('is_successful').default(false).notNull(), // 성공 여부
+  errorMessage: text('error_message'),
+  processingTime: integer('processing_time'), // 처리 시간 (ms)
+  timestamp: timestamp('timestamp').defaultNow().notNull(), // 타임스탬프
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * 카카오 메시지 테이블
+ * 카카오톡 메시지 기록을 저장합니다.
+ */
+export const kakaoMessages = pgTable('kakao_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').notNull(), // 카카오 사용자 ID
+  userKey: text('user_key'), // 카카오 사용자 키 (호환성을 위해 추가)
+  userMessage: text('user_message').notNull(),
+  botResponse: text('bot_response').notNull(),
+  message: text('message'), // 메시지 내용
+  messageType: text('message_type'), // 메시지 타입
+  aiResponse: text('ai_response'), // AI 응답
+  responseType: text('response_type'), // 응답 타입
+  processingTime: text('processing_time'), // 처리 시간
+  channelId: text('channel_id'), // 채널 ID
+  rawData: jsonb('raw_data'), // 원본 데이터
+  intent: text('intent'), // 감지된 의도
+  confidence: text('confidence'), // 신뢰도
+  sessionId: text('session_id'),
+  metadata: jsonb('metadata'), // 추가 메타데이터
+  isRead: boolean('is_read').default(false).notNull(), // 읽음 여부
+  receivedAt: timestamp('received_at').defaultNow().notNull(), // 수신 시간
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// 타입 정의 추가
+export type ApiCallLog = typeof apiCallLogs.$inferSelect;
+export type NewApiCallLog = typeof apiCallLogs.$inferInsert;
+
+export type DailyApiStats = typeof dailyApiStats.$inferSelect;
+export type NewDailyApiStats = typeof dailyApiStats.$inferInsert;
+
+export type ChatGptConversation = typeof chatGptConversations.$inferSelect;
+export type NewChatGptConversation = typeof chatGptConversations.$inferInsert;
+
+export type EmailSendLog = typeof emailSendLogs.$inferSelect;
+export type NewEmailSendLog = typeof emailSendLogs.$inferInsert;
+
+export type IndividualEmailLog = typeof individualEmailLogs.$inferSelect;
+export type NewIndividualEmailLog = typeof individualEmailLogs.$inferInsert;
+
+export type GoogleHourlyAirQualityData = typeof googleHourlyAirQualityData.$inferSelect;
+export type NewGoogleHourlyAirQualityData = typeof googleHourlyAirQualityData.$inferInsert;
+
+export type GoogleDailyAirQualityData = typeof googleDailyAirQualityData.$inferSelect;
+export type NewGoogleDailyAirQualityData = typeof googleDailyAirQualityData.$inferInsert;
+
+export type WeatherEmbedding = typeof weatherEmbeddings.$inferSelect;
+export type NewWeatherEmbedding = typeof weatherEmbeddings.$inferInsert;
+
+export type WeatherLocationKey = typeof weatherLocationKeys.$inferSelect;
+export type NewWeatherLocationKey = typeof weatherLocationKeys.$inferInsert;
+
+export type WebhookLog = typeof webhookLogs.$inferSelect;
+export type NewWebhookLog = typeof webhookLogs.$inferInsert;
+
+export type KakaoMessage = typeof kakaoMessages.$inferSelect;
+export type NewKakaoMessage = typeof kakaoMessages.$inferInsert;
+
+/**
+ * 지역별 시간별 대기질 데이터 테이블
+ * 지역별 시간별 대기질 데이터를 저장합니다.
+ */
+export const regionalHourlyAirQuality = pgTable('regional_hourly_air_quality', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  regionCode: text('region_code').notNull(),
+  regionName: text('region_name').notNull(),
+  forecastDateTime: timestamp('forecast_date_time').notNull(),
+  pm10Value: integer('pm10_value'),
+  pm25Value: integer('pm25_value'),
+  o3Value: integer('o3_value'),
+  no2Value: integer('no2_value'),
+  coValue: integer('co_value'),
+  so2Value: integer('so2_value'),
+  pm10Grade: integer('pm10_grade'),
+  pm25Grade: integer('pm25_grade'),
+  o3Grade: integer('o3_grade'),
+  no2Grade: integer('no2_grade'),
+  coGrade: integer('co_grade'),
+  so2Grade: integer('so2_grade'),
+  khaiValue: integer('khai_value'),
+  khaiGrade: integer('khai_grade'),
+  rawData: jsonb('raw_data'),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * 지역별 일별 대기질 데이터 테이블
+ * 지역별 일별 대기질 데이터를 저장합니다.
+ */
+export const regionalDailyAirQuality = pgTable('regional_daily_air_quality', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  regionCode: text('region_code').notNull(),
+  regionName: text('region_name').notNull(),
+  forecastDate: timestamp('forecast_date').notNull(),
+  pm10Value: integer('pm10_value'),
+  pm25Value: integer('pm25_value'),
+  o3Value: integer('o3_value'),
+  no2Value: integer('no2_value'),
+  coValue: integer('co_value'),
+  so2Value: integer('so2_value'),
+  pm10Grade: integer('pm10_grade'),
+  pm25Grade: integer('pm25_grade'),
+  o3Grade: integer('o3_grade'),
+  no2Grade: integer('no2_grade'),
+  coGrade: integer('co_grade'),
+  so2Grade: integer('so2_grade'),
+  khaiValue: integer('khai_value'),
+  khaiGrade: integer('khai_grade'),
+  rawData: jsonb('raw_data'),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * 사용자 선택 측정소 테이블
+ * 사용자가 선택한 대기질 측정소 정보를 저장합니다.
+ */
+export const userSelectedStations = pgTable('user_selected_stations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  clerkUserId: text('clerk_user_id').notNull(),
+  stationName: text('station_name').notNull(),
+  sido: text('sido').notNull(),
+  isAutoSelected: boolean('is_auto_selected').default(false).notNull(),
+  distance: integer('distance'), // 미터 단위
+  stationAddress: text('station_address'),
+  userLatitude: text('user_latitude'),
+  userLongitude: text('user_longitude'),
+  isDefault: boolean('is_default').default(false).notNull(),
+  selectedAt: timestamp('selected_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// 추가 타입 정의
+export type RegionalHourlyAirQuality = typeof regionalHourlyAirQuality.$inferSelect;
+export type NewRegionalHourlyAirQuality = typeof regionalHourlyAirQuality.$inferInsert;
+
+export type RegionalDailyAirQuality = typeof regionalDailyAirQuality.$inferSelect;
+export type NewRegionalDailyAirQuality = typeof regionalDailyAirQuality.$inferInsert;
+
+export type UserSelectedStation = typeof userSelectedStations.$inferSelect;
+export type NewUserSelectedStation = typeof userSelectedStations.$inferInsert;

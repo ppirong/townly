@@ -47,6 +47,7 @@ export async function setUserLocation(input: SetUserLocationInput) {
         .values({
           ...validatedData,
           clerkUserId: userId,
+          locationName: validatedData.cityName || validatedData.address || `${validatedData.latitude}, ${validatedData.longitude}`,
           isDefault: true,
         })
         .returning();
@@ -87,7 +88,7 @@ export async function getUserLocation() {
       data: {
         id: loc.id,
         clerkUserId: loc.clerkUserId,
-        locationName: loc.cityName || loc.address || '알 수 없는 위치',
+        locationName: loc.locationName,
         address: loc.address,
         latitude: loc.latitude,
         longitude: loc.longitude,

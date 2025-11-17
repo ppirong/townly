@@ -78,11 +78,8 @@ export default async function GoogleAirQualityPage() {
                   latitude: userLocation.latitude,
                   longitude: userLocation.longitude,
                   address: userLocation.address,
-                  cityName: userLocation.locationName,
+                  locationName: userLocation.locationName,
                   isDefault: userLocation.isDefault,
-                  nickname: null,
-                  accuracy: null,
-                  source: 'gps',
                   createdAt: userLocation.createdAt,
                   updatedAt: userLocation.updatedAt,
                 } : null}

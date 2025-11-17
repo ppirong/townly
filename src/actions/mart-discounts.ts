@@ -17,9 +17,10 @@ const productSchema = z.object({
 const createDiscountSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요').max(100, '제목은 100자 이내로 입력해주세요'),
   description: z.string().optional(),
-  startDate: z.date({ required_error: '할인 시작 날짜를 선택해주세요' }),
-  endDate: z.date({ required_error: '할인 종료 날짜를 선택해주세요' }),
+  startDate: z.date(),
+  endDate: z.date(),
   discountRate: z.string().optional(),
+  imageUrl: z.string().optional(),
 });
 
 // 할인 전단지 수정 스키마
@@ -28,7 +29,7 @@ const updateDiscountSchema = createDiscountSchema.partial();
 // 할인 상품 항목 생성 스키마
 const createDiscountItemSchema = z.object({
   discountId: z.string().uuid('유효한 할인 전단지 ID가 필요합니다'),
-  discountDate: z.date({ required_error: '할인 날짜를 선택해주세요' }),
+  discountDate: z.date(),
   title: z.string().min(1, '제목을 입력해주세요').max(100, '제목은 100자 이내로 입력해주세요'),
   description: z.string().optional(),
   imageUrl: z.string().optional(),
@@ -181,7 +182,7 @@ export async function createMartDiscount(martId: string, input: CreateDiscountIn
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        message: error.errors[0]?.message || '입력 데이터가 올바르지 않습니다.' 
+        message: error.issues[0]?.message || '입력 데이터가 올바르지 않습니다.' 
       };
     }
 
@@ -244,7 +245,7 @@ export async function updateMartDiscount(discountId: string, input: UpdateDiscou
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        message: error.errors[0]?.message || '입력 데이터가 올바르지 않습니다.' 
+        message: error.issues[0]?.message || '입력 데이터가 올바르지 않습니다.' 
       };
     }
 
@@ -390,7 +391,7 @@ export async function createDiscountItem(input: CreateDiscountItemInput) {
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        message: error.errors[0]?.message || '입력 데이터가 올바르지 않습니다.' 
+        message: error.issues[0]?.message || '입력 데이터가 올바르지 않습니다.' 
       };
     }
 
@@ -455,7 +456,7 @@ export async function updateDiscountItem(itemId: string, input: UpdateDiscountIt
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        message: error.errors[0]?.message || '입력 데이터가 올바르지 않습니다.' 
+        message: error.issues[0]?.message || '입력 데이터가 올바르지 않습니다.' 
       };
     }
 

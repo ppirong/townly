@@ -18,40 +18,23 @@ export async function GET(request: NextRequest) {
     const allEmbeddings = await db
       .select({
         id: weatherEmbeddings.id,
-        clerkUserId: weatherEmbeddings.clerkUserId,
-        contentType: weatherEmbeddings.contentType,
-        locationName: weatherEmbeddings.locationName,
-        forecastDate: weatherEmbeddings.forecastDate,
-        forecastHour: weatherEmbeddings.forecastHour,
+        locationKey: weatherEmbeddings.locationKey,
+        weatherType: weatherEmbeddings.weatherType,
+        dataDate: weatherEmbeddings.dataDate,
+        content: weatherEmbeddings.content,
         createdAt: weatherEmbeddings.createdAt
       })
       .from(weatherEmbeddings)
       .orderBy(desc(weatherEmbeddings.createdAt))
       .limit(20);
 
-    // 특정 사용자 데이터 (있는 경우)
+    // 특정 사용자 데이터 (weatherEmbeddings 테이블에는 clerkUserId가 없으므로 생략)
     let userSpecificData: any = [];
-    if (userId) {
-      userSpecificData = await db
-        .select({
-          id: weatherEmbeddings.id,
-          clerkUserId: weatherEmbeddings.clerkUserId,
-          contentType: weatherEmbeddings.contentType,
-          locationName: weatherEmbeddings.locationName,
-          forecastDate: weatherEmbeddings.forecastDate,
-          forecastHour: weatherEmbeddings.forecastHour,
-          createdAt: weatherEmbeddings.createdAt
-        })
-        .from(weatherEmbeddings)
-        .where(eq(weatherEmbeddings.clerkUserId, userId))
-        .orderBy(desc(weatherEmbeddings.createdAt))
-        .limit(10);
-    }
 
-    // clerkUserId별 통계
-    const userStats = allEmbeddings.reduce((acc, embedding) => {
-      const userId = embedding.clerkUserId || 'null';
-      acc[userId] = (acc[userId] || 0) + 1;
+    // locationKey별 통계 (clerkUserId가 없으므로 locationKey로 대체)
+    const locationStats = allEmbeddings.reduce((acc, embedding) => {
+      const locationKey = embedding.locationKey || 'null';
+      acc[locationKey] = (acc[locationKey] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
@@ -59,28 +42,19 @@ export async function GET(request: NextRequest) {
       success: true,
       message: '사용자별 날씨 데이터 분석',
       totalEmbeddings: allEmbeddings.length,
-      userStats,
+      locationStats,
       requestedUserId: userId,
       userSpecificCount: userSpecificData.length,
       allEmbeddings: allEmbeddings.map(e => ({
         id: e.id.substring(0, 8) + '...',
-        clerkUserId: e.clerkUserId,
-        contentType: e.contentType,
-        locationName: e.locationName,
-        forecastDate: e.forecastDate,
-        forecastHour: e.forecastHour,
+        locationKey: e.locationKey,
+        weatherType: e.weatherType,
+        dataDate: e.dataDate,
+        content: e.content.substring(0, 100) + '...',
         createdAt: e.createdAt
       })),
-      userSpecificData: userSpecificData.map((e: any) => ({
-        id: e.id.substring(0, 8) + '...',
-        clerkUserId: e.clerkUserId,
-        contentType: e.contentType,
-        locationName: e.locationName,
-        forecastDate: e.forecastDate,
-        forecastHour: e.forecastHour,
-        createdAt: e.createdAt
-      })),
-      availableUserIds: Object.keys(userStats).filter(id => id !== 'null'),
+      userSpecificData: [],
+      availableLocationKeys: Object.keys(locationStats).filter(id => id !== 'null'),
       timestamp: new Date().toISOString()
     });
 
