@@ -85,7 +85,7 @@ class ApiTrackingService {
         .from(apiCallLogs)
         .where(
           and(
-            eq(apiCallLogs.service, provider),
+            eq(apiCallLogs.apiProvider, provider),
             sql`DATE(${apiCallLogs.createdAt}) = ${targetDate}`
           )
         );
@@ -182,8 +182,8 @@ class ApiTrackingService {
       const stats = await db
         .select({
           totalCalls: count(),
-          successfulCalls: sql<number>`COUNT(CASE WHEN ${apiCallLogs.statusCode} >= 200 AND ${apiCallLogs.statusCode} < 300 THEN 1 END)`,
-          failedCalls: sql<number>`COUNT(CASE WHEN ${apiCallLogs.statusCode} < 200 OR ${apiCallLogs.statusCode} >= 300 THEN 1 END)`,
+          successfulCalls: sql<number>`COUNT(CASE WHEN ${apiCallLogs.httpStatus} >= 200 AND ${apiCallLogs.httpStatus} < 300 THEN 1 END)`,
+          failedCalls: sql<number>`COUNT(CASE WHEN ${apiCallLogs.httpStatus} < 200 OR ${apiCallLogs.httpStatus} >= 300 THEN 1 END)`,
           avgResponseTime: sql<number>`AVG(${apiCallLogs.responseTime})`,
           maxResponseTime: sql<number>`MAX(${apiCallLogs.responseTime})`,
           minResponseTime: sql<number>`MIN(${apiCallLogs.responseTime})`,
@@ -191,7 +191,7 @@ class ApiTrackingService {
         .from(apiCallLogs)
         .where(
           and(
-            eq(apiCallLogs.service, provider),
+            eq(apiCallLogs.apiProvider, provider),
             sql`DATE(${apiCallLogs.createdAt}) = ${date}`
           )
         );
@@ -207,7 +207,7 @@ class ApiTrackingService {
         .from(apiCallLogs)
         .where(
           and(
-            eq(apiCallLogs.service, provider),
+            eq(apiCallLogs.apiProvider, provider),
             sql`DATE(${apiCallLogs.createdAt}) = ${date}`
           )
         )
@@ -216,18 +216,18 @@ class ApiTrackingService {
       // 엔드포인트별 통계 계산
       const endpointStats = await db
         .select({
-          endpoint: apiCallLogs.endpoint,
+          endpoint: apiCallLogs.apiEndpoint,
           calls: count(),
-          successful: sql<number>`COUNT(CASE WHEN ${apiCallLogs.statusCode} >= 200 AND ${apiCallLogs.statusCode} < 300 THEN 1 END)`,
+          successful: sql<number>`COUNT(CASE WHEN ${apiCallLogs.httpStatus} >= 200 AND ${apiCallLogs.httpStatus} < 300 THEN 1 END)`,
         })
         .from(apiCallLogs)
         .where(
           and(
-            eq(apiCallLogs.service, provider),
+            eq(apiCallLogs.apiProvider, provider),
             sql`DATE(${apiCallLogs.createdAt}) = ${date}`
           )
         )
-        .groupBy(apiCallLogs.endpoint);
+        .groupBy(apiCallLogs.apiEndpoint);
 
       const endpointStatsObj = endpointStats.reduce((acc, ep) => {
         acc[ep.endpoint] = {

@@ -21,6 +21,18 @@ import {
   upsertGoogleHourlyAirQualityData 
 } from '@/db/queries/google-air-quality';
 import { getApiUsageStatsByDate } from '@/db/queries/api-logs';
+import { getAirQualityConfig, generateCacheKey, calculateTtl, getRetryConfig } from '@/lib/config/air-quality';
+import { 
+  AppError, 
+  ExternalApiError, 
+  AirQualityError, 
+  ValidationError,
+  ErrorCode,
+  ErrorSeverity,
+  executeWithRetry,
+  executeWithTimeout,
+  logError
+} from '@/lib/errors';
 
 // Google Air Quality API 타입 정의
 export interface GoogleAirQualityRequest {
@@ -152,31 +164,77 @@ class GoogleAirQualityService {
    * 현재 대기질 정보 조회
    */
   async getCurrentAirQuality(request: GoogleAirQualityRequest): Promise<GoogleAirQualityData> {
+    // 입력 유효성 검사
+    if (!request.latitude || !request.longitude) {
+      throw new ValidationError(
+        '위도와 경도가 필요합니다.',
+        'coordinates',
+        { latitude: request.latitude, longitude: request.longitude }
+      );
+    }
+
+    if (Math.abs(request.latitude) > 90 || Math.abs(request.longitude) > 180) {
+      throw new AirQualityError(
+        '올바르지 않은 좌표입니다.',
+        ErrorCode.AIR_QUALITY_INVALID_LOCATION,
+        { latitude: request.latitude, longitude: request.longitude }
+      );
+    }
+
+    const config = getAirQualityConfig();
+    const retryConfig = getRetryConfig();
+    
+    return executeWithRetry(
+      () => executeWithTimeout(
+        () => this.fetchCurrentAirQuality(request),
+        config.api.timeout,
+        { 
+          method: 'getCurrentAirQuality',
+          coordinates: { latitude: request.latitude, longitude: request.longitude }
+        }
+      ),
+      retryConfig.maxRetries,
+      retryConfig.baseDelay,
+      retryConfig.backoffFactor,
+      { 
+        apiProvider: 'google',
+        endpoint: '/currentConditions:lookup',
+        userId: request.clerkUserId
+      }
+    );
+  }
+
+  /**
+   * 현재 대기질 정보 실제 조회 (내부 메서드)
+   */
+  private async fetchCurrentAirQuality(request: GoogleAirQualityRequest): Promise<GoogleAirQualityData> {
     const startTime = Date.now();
     
+    if (!this.apiKey) {
+      throw new ExternalApiError(
+        'google',
+        'Google Maps API 키가 설정되지 않았습니다.',
+        ErrorCode.CONFIG_ERROR
+      );
+    }
+
+    const requestBody = {
+      location: {
+        latitude: request.latitude,
+        longitude: request.longitude,
+      },
+      extraComputations: [
+        'POLLUTANT_CONCENTRATION',
+        'POLLUTANT_ADDITIONAL_INFO',
+        ...(request.includeLocalAqi ? ['LOCAL_AQI'] : []),
+        ...(request.includeDominantPollutant ? ['DOMINANT_POLLUTANT_CONCENTRATION'] : []),
+        ...(request.includeHealthSuggestion ? ['HEALTH_RECOMMENDATIONS'] : []),
+      ],
+      languageCode: request.languageCode || 'ko',
+      universalAqi: true,
+    };
+
     try {
-      
-      if (!this.apiKey) {
-        throw new Error('Google Maps API 키가 설정되지 않았습니다.');
-      }
-
-      const requestBody = {
-        location: {
-          latitude: request.latitude,
-          longitude: request.longitude,
-        },
-        extraComputations: [
-          'POLLUTANT_CONCENTRATION', // 모든 오염물질 농도 정보 포함 (PM10, PM2.5 등)
-          'POLLUTANT_ADDITIONAL_INFO', // 오염물질 추가 정보
-          ...(request.includeLocalAqi ? ['LOCAL_AQI'] : []),
-          ...(request.includeDominantPollutant ? ['DOMINANT_POLLUTANT_CONCENTRATION'] : []),
-          ...(request.includeHealthSuggestion ? ['HEALTH_RECOMMENDATIONS'] : []),
-        ],
-        languageCode: request.languageCode || 'ko',
-        universalAqi: true,
-      };
-
-
       const response = await fetch(`${this.baseUrl}/currentConditions:lookup?key=${this.apiKey}`, {
         method: 'POST',
         headers: {
@@ -190,17 +248,64 @@ class GoogleAirQualityService {
       if (!response.ok) {
         const errorText = await response.text();
         await this.logApiCall('/currentConditions:lookup', response.status, responseTime, false, request.clerkUserId, errorText);
-        throw new Error(`Google Air Quality API 오류: ${response.status} - ${errorText}`);
+        
+        // HTTP 상태 코드에 따른 구체적인 에러 처리
+        if (response.status === 429) {
+          throw new ExternalApiError(
+            'google',
+            'API 요청 한도를 초과했습니다.',
+            ErrorCode.EXTERNAL_API_RATE_LIMIT,
+            response.status,
+            errorText
+          );
+        } else if (response.status >= 500) {
+          throw new ExternalApiError(
+            'google',
+            'Google 서버에 일시적인 문제가 발생했습니다.',
+            ErrorCode.EXTERNAL_API_ERROR,
+            response.status,
+            errorText
+          );
+        } else {
+          throw new ExternalApiError(
+            'google',
+            `Google Air Quality API 오류: ${errorText}`,
+            ErrorCode.EXTERNAL_API_ERROR,
+            response.status,
+            errorText
+          );
+        }
       }
 
       const data = await response.json();
       await this.logApiCall('/currentConditions:lookup', response.status, responseTime, true, request.clerkUserId);
 
+      // 응답 데이터 유효성 검사
+      if (!data || typeof data !== 'object') {
+        throw new AirQualityError(
+          '올바르지 않은 API 응답 형식입니다.',
+          ErrorCode.AIR_QUALITY_DATA_NOT_FOUND,
+          { response: data }
+        );
+      }
+
       return data;
     } catch (error) {
       const responseTime = Date.now() - startTime;
       await this.logApiCall('/currentConditions:lookup', 500, responseTime, false, request.clerkUserId, String(error));
-      throw error;
+      
+      if (error instanceof AppError) {
+        throw error;
+      }
+      
+      throw new ExternalApiError(
+        'google',
+        `현재 대기질 정보 조회 실패: ${error instanceof Error ? error.message : String(error)}`,
+        ErrorCode.EXTERNAL_API_ERROR,
+        undefined,
+        undefined,
+        { originalError: error }
+      );
     }
   }
 

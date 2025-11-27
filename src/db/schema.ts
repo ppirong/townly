@@ -238,7 +238,7 @@ export const hourlyWeatherData = pgTable('hourly_weather_data', {
   locationName: text('location_name'),
   latitude: text('latitude').notNull(),
   longitude: text('longitude').notNull(),
-  forecastDateTime: timestamp('forecast_date_time').notNull(),
+  forecastDateTime: timestamp('forecast_datetime').notNull(),
   forecastDate: text('forecast_date').notNull(),
   forecastHour: integer('forecast_hour').notNull(),
   temperature: text('temperature'),
@@ -250,8 +250,7 @@ export const hourlyWeatherData = pgTable('hourly_weather_data', {
   rainProbability: integer('rain_probability'),
   windSpeed: integer('wind_speed'),
   units: text('units'),
-  hourlyData: jsonb('hourly_data'),
-  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  cacheKey: text('cache_key'),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -283,8 +282,6 @@ export const dailyWeatherData = pgTable('daily_weather_data', {
   forecastDays: integer('forecast_days'),
   rawData: jsonb('raw_data'),
   cacheKey: text('cache_key'),
-  dailyData: jsonb('daily_data'),
-  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -764,21 +761,6 @@ export const googleDailyAirQualityData = pgTable('google_daily_air_quality_data'
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-/**
- * 날씨 임베딩 테이블
- * 날씨 데이터의 벡터 임베딩을 저장합니다.
- */
-export const weatherEmbeddings = pgTable('weather_embeddings', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  locationKey: text('location_key').notNull(),
-  weatherType: text('weather_type').notNull(), // hourly, daily
-  dataDate: timestamp('data_date').notNull(),
-  content: text('content').notNull(), // 임베딩할 텍스트 내용
-  embedding: text('embedding').notNull(), // 벡터 임베딩 (JSON 문자열)
-  metadata: jsonb('metadata'), // 추가 메타데이터
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
 
 /**
  * 날씨 위치 키 테이블
@@ -786,13 +768,17 @@ export const weatherEmbeddings = pgTable('weather_embeddings', {
  */
 export const weatherLocationKeys = pgTable('weather_location_keys', {
   id: uuid('id').defaultRandom().primaryKey(),
-  locationName: text('location_name').notNull(),
-  latitude: text('latitude').notNull(),
-  longitude: text('longitude').notNull(),
-  locationKey: text('location_key').notNull().unique(),
-  region: text('region'),
-  country: text('country'),
-  isActive: boolean('is_active').default(true).notNull(),
+  locationName: text('location_name'),
+  latitude: text('latitude'),
+  longitude: text('longitude'),
+  locationKey: text('location_key').notNull(),
+  localizedName: text('localized_name'),
+  countryCode: text('country_code'),
+  administrativeArea: text('administrative_area'),
+  searchType: text('search_type').notNull(),
+  rawLocationData: jsonb('raw_location_data'),
+  cacheKey: text('cache_key').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -868,8 +854,6 @@ export type NewGoogleHourlyAirQualityData = typeof googleHourlyAirQualityData.$i
 export type GoogleDailyAirQualityData = typeof googleDailyAirQualityData.$inferSelect;
 export type NewGoogleDailyAirQualityData = typeof googleDailyAirQualityData.$inferInsert;
 
-export type WeatherEmbedding = typeof weatherEmbeddings.$inferSelect;
-export type NewWeatherEmbedding = typeof weatherEmbeddings.$inferInsert;
 
 export type WeatherLocationKey = typeof weatherLocationKeys.$inferSelect;
 export type NewWeatherLocationKey = typeof weatherLocationKeys.$inferInsert;
@@ -888,7 +872,7 @@ export const regionalHourlyAirQuality = pgTable('regional_hourly_air_quality', {
   id: uuid('id').defaultRandom().primaryKey(),
   regionCode: text('region_code').notNull(),
   regionName: text('region_name').notNull(),
-  forecastDateTime: timestamp('forecast_date_time').notNull(),
+  forecastDateTime: timestamp('forecast_datetime').notNull(),
   pm10Value: integer('pm10_value'),
   pm25Value: integer('pm25_value'),
   o3Value: integer('o3_value'),

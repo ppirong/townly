@@ -1,6 +1,6 @@
 /**
  * 날씨 데이터 데이터베이스 저장 및 조회 서비스
- * AccuWeather API 응답을 데이터베이스에 캐시하여 API 호출을 줄이고 성능을 향상시킵니다.
+ * 마스터 규칙: DB 접근은 db/queries를 통해서만, DTO 매퍼 필수 사용
  */
 
 import { db } from '@/db';
@@ -13,6 +13,22 @@ import {
   type NewWeatherLocationKey
 } from '@/db/schema';
 import { eq, and, gte, lte, count, sql } from 'drizzle-orm';
+import * as weatherQueries from '@/db/queries/weather';
+import { 
+  mapHourlyWeatherForClient,
+  mapDailyWeatherForClient,
+  mapCacheStatsForClient,
+  type ClientHourlyWeatherData,
+  type ClientDailyWeatherData,
+  type ClientCacheStats
+} from '@/lib/dto/weather-dto-mappers';
+import { 
+  locationSchema,
+  coordinateLocationSchema,
+  hourlyWeatherInputSchema,
+  dailyWeatherInputSchema,
+  type LocationInput
+} from '@/lib/schemas/weather-schemas';
 import type { 
   HourlyWeatherData, 
   DailyWeatherData, 
@@ -24,44 +40,37 @@ export class WeatherDatabaseService {
 
   /**
    * 위치 키를 데이터베이스에 저장
+   * 마스터 규칙: Zod 검증 + db/queries 사용
    */
   async saveLocationKey(
     locationKey: string,
-    cacheKey: string,
-    searchType: 'name' | 'coordinates' = 'name',
-    ttlMinutes: number = 1440, // 24시간
-    locationName?: string,
-    latitude?: number,
-    longitude?: number,
-    rawLocationData?: any
+    locationName: string,
+    latitude: number,
+    longitude: number
   ): Promise<void> {
     try {
+      // Zod 검증 (좌표 전용 스키마 사용)
+      const validatedData = coordinateLocationSchema.parse({
+        locationName,
+        latitude, // 숫자 그대로 전달 (스키마에서 변환)
+        longitude, // 숫자 그대로 전달 (스키마에서 변환)
+        locationKey,
+      });
+
+      // db/queries를 통한 저장 (TTL 포함)
+      const ttlMinutes = 60; // 1시간 TTL
       const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
       
-      const newLocationKey: NewWeatherLocationKey = {
-        locationName: locationName || null,
-        latitude: latitude?.toString() || null,
-        longitude: longitude?.toString() || null,
-        locationKey,
-        searchType,
-        rawLocationData: rawLocationData || null,
-        cacheKey,
+      await weatherQueries.saveLocationKey({
+        locationName: validatedData.locationName,
+        latitude: validatedData.latitude,
+        longitude: validatedData.longitude,
+        locationKey: validatedData.locationKey,
+        cacheKey: `locationKey:${validatedData.locationKey}`,
         expiresAt,
-      };
+        searchType: 'api', // API를 통해 저장된 위치
+      });
 
-      // 기존 캐시 키가 있으면 업데이트, 없으면 삽입
-      await db.insert(weatherLocationKeys)
-        .values(newLocationKey)
-        .onConflictDoUpdate({
-          target: weatherLocationKeys.cacheKey,
-          set: {
-            locationKey,
-            expiresAt,
-            updatedAt: new Date(),
-          }
-        });
-
-      console.log('🗄️ 위치 키 DB 저장:', { cacheKey, locationKey });
     } catch (error) {
       console.error('위치 키 DB 저장 실패:', error);
       // 저장 실패해도 서비스는 계속 동작하도록 에러를 던지지 않음
@@ -70,22 +79,13 @@ export class WeatherDatabaseService {
 
   /**
    * 위치 키를 데이터베이스에서 조회
+   * 마스터 규칙: db/queries 사용
    */
-  async getLocationKey(cacheKey: string): Promise<string | null> {
+  async getLocationKey(locationKey: string): Promise<string | null> {
     try {
-      const result = await db
-        .select()
-        .from(weatherLocationKeys)
-        .where(
-          and(
-            eq(weatherLocationKeys.cacheKey, cacheKey),
-            gte(weatherLocationKeys.expiresAt, new Date())
-          )
-        )
-        .limit(1);
+      const result = await weatherQueries.getLocationKeyByCacheKey(locationKey);
 
       if (result.length > 0) {
-        console.log('🎯 위치 키 DB 캐시 적중:', cacheKey);
         return result[0].locationKey;
       }
 
@@ -126,38 +126,6 @@ export class WeatherDatabaseService {
         const forecastHour = parseInt(data.timestamp.split('T')[1].split(':')[0], 10); // KST 시간
         const kstDateTime = new Date(data.timestamp); // KST 시간으로 저장
         
-        // 🔍 상세 디버깅: 시간대 변환 추적 (모든 데이터에 대해 실행)
-        const dataIndex = weatherData.indexOf(data);
-        if (dataIndex < 3 || true) { // 항상 실행
-          console.log(`\n📅 DB 저장 ${dataIndex} - 상세 분석:`);
-          console.log(`  1️⃣ 입력 data.timestamp: ${data.timestamp}`);
-          console.log(`  2️⃣ 직접 추출한 forecastDate: ${forecastDate}`);
-          console.log(`  3️⃣ 직접 추출한 forecastHour: ${forecastHour}`);
-          
-          // kstDateTime 생성 과정 추적
-          const kstDateTimeTest = new Date(data.timestamp);
-          console.log(`  4️⃣ new Date(data.timestamp) 결과:`);
-          console.log(`     - toISOString(): ${kstDateTimeTest.toISOString()}`);
-          console.log(`     - getUTCHours(): ${kstDateTimeTest.getUTCHours()}`);
-          console.log(`     - getHours(): ${kstDateTimeTest.getHours()}`);
-          console.log(`     - getTimezoneOffset(): ${kstDateTimeTest.getTimezoneOffset()}`);
-          
-          // 다른 방법으로 시간 추출 테스트
-          const testForecastDate = kstDateTimeTest.toISOString().split('T')[0];
-          const testForecastHour = kstDateTimeTest.getUTCHours();
-          console.log(`  5️⃣ kstDateTime에서 추출한 값:`);
-          console.log(`     - toISOString().split('T')[0]: ${testForecastDate}`);
-          console.log(`     - getUTCHours(): ${testForecastHour}`);
-          
-          // toLocaleString 테스트 (문제 원인 확인용)
-          const localeTest = kstDateTimeTest.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-          console.log(`  6️⃣ toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }): ${localeTest}`);
-          
-          console.log(`  ✅ 최종 저장될 값:`);
-          console.log(`     - forecastDate: ${forecastDate}`);
-          console.log(`     - forecastHour: ${forecastHour}`);
-          console.log(`     - forecastDateTime: ${kstDateTime.toISOString()}`);
-        }
         
         return {
           clerkUserId,
@@ -183,15 +151,13 @@ export class WeatherDatabaseService {
         };
       });
 
-      // 기존 데이터 삭제 후 새 데이터 삽입
-      await db.delete(hourlyWeatherData)
-        .where(eq(hourlyWeatherData.cacheKey, cacheKey));
+      // 마스터 규칙: db/queries 사용
+      await weatherQueries.deleteHourlyWeatherByCacheKey(cacheKey);
 
       if (dbRecords.length > 0) {
-        await db.insert(hourlyWeatherData).values(dbRecords);
+        await weatherQueries.saveHourlyWeatherData(dbRecords);
       }
 
-      console.log('🗄️ 시간별 날씨 DB 저장:', { cacheKey, count: dbRecords.length });
     } catch (error) {
       console.error('시간별 날씨 DB 저장 실패:', error);
       // 저장 실패해도 서비스는 계속 동작하도록 에러를 던지지 않음
@@ -228,7 +194,6 @@ export class WeatherDatabaseService {
         .orderBy(hourlyWeatherData.forecastDateTime);
 
       if (results.length > 0) {
-        console.log('🎯 시간별 날씨 DB 캐시 적중:', { cacheKey, count: results.length });
         
         // DB 데이터를 API 형식으로 변환
         return results.map(record => {
@@ -312,15 +277,13 @@ export class WeatherDatabaseService {
         };
       });
 
-      // 기존 데이터 삭제 후 새 데이터 삽입
-      await db.delete(dailyWeatherData)
-        .where(eq(dailyWeatherData.cacheKey, cacheKey));
+      // 마스터 규칙: db/queries 사용
+      await weatherQueries.deleteDailyWeatherByCacheKey(cacheKey);
 
       if (dbRecords.length > 0) {
-        await db.insert(dailyWeatherData).values(dbRecords);
+        await weatherQueries.saveDailyWeatherData(dbRecords);
       }
 
-      console.log('🗄️ 일별 날씨 DB 저장:', { cacheKey, count: dbRecords.length });
     } catch (error) {
       console.error('일별 날씨 DB 저장 실패:', error);
       // 저장 실패해도 서비스는 계속 동작하도록 에러를 던지지 않음
@@ -357,7 +320,6 @@ export class WeatherDatabaseService {
         .orderBy(dailyWeatherData.forecastDate);
 
       if (results.length > 0) {
-        console.log('🎯 일별 날씨 DB 캐시 적중:', { cacheKey, count: results.length });
         
         // DB 데이터를 API 형식으로 변환
         const dailyForecasts: DailyWeatherData[] = results.map(record => ({
@@ -395,31 +357,17 @@ export class WeatherDatabaseService {
 
   /**
    * 만료된 캐시 데이터 정리
+   * 마스터 규칙: db/queries 사용
    */
   async cleanupExpiredData(): Promise<void> {
     try {
       const now = new Date();
       
-      // 만료된 시간별 날씨 데이터 삭제
-      const hourlyDeleted = await db
-        .delete(hourlyWeatherData)
-        .where(lte(hourlyWeatherData.expiresAt, now));
+      // 마스터 규칙: db/queries를 통한 삭제
+      const hourlyDeleted = await weatherQueries.deleteExpiredHourlyWeatherData(now);
+      const dailyDeleted = await weatherQueries.deleteExpiredDailyWeatherData(now);
+      const locationDeleted = await weatherQueries.deleteExpiredLocationKeys(now);
 
-      // 만료된 일별 날씨 데이터 삭제
-      const dailyDeleted = await db
-        .delete(dailyWeatherData)
-        .where(lte(dailyWeatherData.expiresAt, now));
-
-      // 만료된 위치 키 데이터 삭제
-      const locationDeleted = await db
-        .delete(weatherLocationKeys)
-        .where(lte(weatherLocationKeys.expiresAt, now));
-
-      console.log('🧹 만료된 날씨 캐시 정리 완료:', {
-        hourlyDeleted: hourlyDeleted.rowCount,
-        dailyDeleted: dailyDeleted.rowCount,
-        locationDeleted: locationDeleted.rowCount,
-      });
     } catch (error) {
       console.error('날씨 캐시 정리 실패:', error);
     }
@@ -437,7 +385,6 @@ export class WeatherDatabaseService {
         .where(eq(weatherLocationKeys.cacheKey, locationCacheKey));
 
       if (locationKeyData.length === 0) {
-        console.log('🔍 해당 위치의 캐시 데이터가 없습니다:', locationCacheKey);
         return;
       }
 
@@ -459,12 +406,6 @@ export class WeatherDatabaseService {
         .delete(weatherLocationKeys)
         .where(eq(weatherLocationKeys.locationKey, locationKey));
 
-      console.log('🧹 특정 위치 캐시 강제 삭제 완료:', {
-        locationKey,
-        hourlyDeleted: hourlyDeleted.rowCount,
-        dailyDeleted: dailyDeleted.rowCount,
-        locationDeleted: locationDeleted.rowCount,
-      });
     } catch (error) {
       console.error('특정 위치 캐시 강제 삭제 실패:', error);
       throw error;
@@ -474,41 +415,21 @@ export class WeatherDatabaseService {
   /**
    * 캐시 통계 조회
    */
-  async getCacheStats(): Promise<{
-    hourlyRecords: number;
-    dailyRecords: number;
-    locationKeys: number;
-  }> {
+  /**
+   * 캐시 통계 조회
+   * 마스터 규칙: db/queries 사용 + DTO 매퍼 적용
+   */
+  async getCacheStats(): Promise<ClientCacheStats> {
     try {
-      const now = new Date();
-      
-      const [hourlyCount] = await db
-        .select({ count: count() })
-        .from(hourlyWeatherData)
-        .where(gte(hourlyWeatherData.expiresAt, now));
-
-      const [dailyCount] = await db
-        .select({ count: count() })
-        .from(dailyWeatherData)
-        .where(gte(dailyWeatherData.expiresAt, now));
-
-      const [locationCount] = await db
-        .select({ count: count() })
-        .from(weatherLocationKeys)
-        .where(gte(weatherLocationKeys.expiresAt, now));
-
-      return {
-        hourlyRecords: hourlyCount.count,
-        dailyRecords: dailyCount.count,
-        locationKeys: locationCount.count,
-      };
+      const stats = await weatherQueries.getCacheStats();
+      return mapCacheStatsForClient(stats);
     } catch (error) {
       console.error('캐시 통계 조회 실패:', error);
-      return {
+      return mapCacheStatsForClient({
         hourlyRecords: 0,
         dailyRecords: 0,
         locationKeys: 0,
-      };
+      });
     }
   }
 }

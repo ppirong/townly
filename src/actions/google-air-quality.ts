@@ -15,6 +15,14 @@ import {
 } from '@/db/queries/google-air-quality';
 import { getUserLocationByUserId } from '@/db/queries/locations';
 import { mapUserLocationForClient } from '@/lib/dto/location-mappers';
+import { 
+  AppError, 
+  ValidationError, 
+  AirQualityError,
+  ErrorCode,
+  handleError,
+  withErrorHandling
+} from '@/lib/errors';
 
 // Zod 스키마 정의
 const airQualityLocationSchema = z.object({
@@ -40,17 +48,37 @@ type DailyAirQualityInput = z.infer<typeof dailyAirQualitySchema>;
 /**
  * 사용자별 현재 대기질 정보 조회
  */
-export async function getCurrentAirQuality(
-  latitude: number,
-  longitude: number
-): Promise<ProcessedAirQualityData> {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    throw new Error('로그인이 필요합니다.');
-  }
-  
-  try {
+export const getCurrentAirQuality = withErrorHandling(
+  async (latitude: number, longitude: number): Promise<ProcessedAirQualityData> => {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      throw new AppError(
+        ErrorCode.AUTHENTICATION_ERROR,
+        '로그인이 필요합니다.',
+        undefined,
+        true,
+        undefined,
+        '로그인 후 이용해주세요.'
+      );
+    }
+
+    // 입력 유효성 검사
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      throw new ValidationError(
+        '위도와 경도는 숫자여야 합니다.',
+        'coordinates',
+        { latitude, longitude }
+      );
+    }
+
+    if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+      throw new ValidationError(
+        '올바르지 않은 좌표 범위입니다.',
+        'coordinates',
+        { latitude, longitude }
+      );
+    }
     
     const request: GoogleAirQualityRequest = {
       latitude,
@@ -65,11 +93,18 @@ export async function getCurrentAirQuality(
     const currentData = await googleAirQualityService.getCurrentAirQuality(request);
     const processedData = googleAirQualityService.processAirQualityData(currentData);
     
+    if (!processedData) {
+      throw new AirQualityError(
+        '대기질 데이터 처리에 실패했습니다.',
+        ErrorCode.AIR_QUALITY_DATA_NOT_FOUND,
+        { latitude, longitude, userId }
+      );
+    }
+    
     return processedData;
-  } catch (error) {
-    throw new Error('현재 대기질 정보를 가져오는데 실패했습니다.');
-  }
-}
+  },
+  { action: 'getCurrentAirQuality' }
+);
 
 /**
  * 사용자별 시간별 대기질 예보 조회

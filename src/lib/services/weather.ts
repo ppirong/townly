@@ -83,8 +83,6 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
   }
 
   try {
-    console.log('🌤️ 시간별 날씨 조회 시작');
-    
     // 1. 위치 키 조회 (캐싱 적용)
     let locationKey: string;
     let locationName: string;
@@ -106,15 +104,12 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
     // 2.1. 메모리 캐시 확인
     const cachedData = weatherCache.get<HourlyWeatherData[]>(cacheKey);
     if (cachedData) {
-      console.log('🎯 시간별 날씨 메모리 캐시 적중');
       return cachedData;
     }
     
     // 2.2. 데이터베이스 캐시 확인
     const dbCachedData = await weatherDbService.getHourlyWeatherData(cacheKey);
     if (dbCachedData) {
-      console.log('🎯 시간별 날씨 DB 캐시 적중');
-      
       // DB에서 가져온 데이터를 메모리 캐시에도 저장
       weatherCache.set(cacheKey, dbCachedData, 10);
       return dbCachedData;
@@ -127,7 +122,6 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
     }
 
     // 4. API 호출 및 응답 처리
-    console.log('🌐 AccuWeather API 호출 - 시간별 날씨');
     weatherRateLimiter.recordRequest();
     
     const forecastUrl = `https://dataservice.accuweather.com/forecasts/v1/hourly/12hour/${locationKey}`;
@@ -163,10 +157,6 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
     // 현재 시간 정보 로깅
     const now = new Date();
     const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC + 9시간 = KST
-    console.log(`🕐 현재 시간 정보:`);
-    console.log(`  - 서버 시간: ${now.toISOString()}`);
-    console.log(`  - KST 시간: ${kstNow.toISOString().replace('Z', '')}`);
-    console.log(`  - AccuWeather 응답 개수: ${data.length}`);
     
     // 3. AccuWeather 응답을 내부 형식으로 변환 (통일된 시간 처리)
     const hourlyData: HourlyWeatherData[] = data.map((forecast: any, index: number) => {
@@ -177,11 +167,6 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
       // 강수량 처리 로직 수정
       let precipitation = 0;
       
-      // AccuWeather API에서 오는 강수량 데이터 디버깅 (첫 3개만)
-      if (index < 3) {
-        console.log(`🕐 시간별 예보 ${index}: ${forecast.DateTime} -> ${kstDateTime.toISOString()}`);
-        console.log(`💧 전체 예보 데이터 ${index}:`, JSON.stringify(forecast, null, 2));
-      }
       
       // 강수량 처리: Rain, Snow, Ice, TotalLiquid 순서로 확인
       if (forecast.Rain?.Value !== undefined && forecast.Rain.Value !== null) {
@@ -194,10 +179,6 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
         precipitation = forecast.TotalLiquid.Value;
       }
       
-      // 디버깅: 최종 강수량 값 로깅 (첫 3개만)
-      if (index < 3) {
-        console.log(`💧 최종 강수량 ${index}: ${precipitation}mm`);
-      }
       
       return {
         location: locationName,
@@ -219,7 +200,6 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
 
     // 5. 캐시에 저장 (메모리 + DB)
     weatherCache.set(cacheKey, hourlyData, 10);
-    console.log('💾 시간별 날씨 메모리 캐시 저장');
     
     // 사용자 ID가 있으면 스마트 TTL 저장, 없으면 기존 방식
     if (params.clerkUserId && params.latitude !== undefined && params.longitude !== undefined) {
@@ -234,12 +214,6 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
           params.clerkUserId
         );
         
-        console.log(`📊 스마트 시간별 날씨 저장 결과:`, {
-          saved: saveResult.saved,
-          updated: saveResult.updated,
-          skipped: saveResult.skipped,
-          avgTTL: Math.round(saveResult.ttlInfo.reduce((sum, ttl) => sum + ttl.personalizedTTL, 0) / saveResult.ttlInfo.length || 0)
-        });
       } catch (smartError) {
         console.error('스마트 TTL 저장 실패, 기존 방식으로 대체:', smartError);
         // 스마트 저장 실패 시 기존 방식으로 대체
@@ -255,7 +229,6 @@ export async function getHourlyWeather(params: HourlyWeatherRequest): Promise<Ho
         );
       }
     } else {
-      console.log('⚠️ 사용자 ID 또는 좌표 정보가 없어 DB 저장을 건너뜁니다.');
     }
 
     return hourlyData;
@@ -275,7 +248,6 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
 
   try {
     const days = params.days || 5;
-    console.log(`🌤️ ${days}일 날씨 조회 시작`);
     
     // 1. 위치 키 조회 (캐싱 적용)
     let locationKey: string;
@@ -298,15 +270,12 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
     // 2.1. 메모리 캐시 확인
     const cachedData = weatherCache.get<DailyWeatherResponse>(cacheKey);
     if (cachedData) {
-      console.log('🎯 일별 날씨 메모리 캐시 적중');
       return cachedData;
     }
     
     // 2.2. 데이터베이스 캐시 확인
     const dbCachedData = await weatherDbService.getDailyWeatherData(cacheKey);
     if (dbCachedData) {
-      console.log('🎯 일별 날씨 DB 캐시 적중');
-      
       // DB에서 가져온 데이터를 메모리 캐시에도 저장
       weatherCache.set(cacheKey, dbCachedData, 30);
       return dbCachedData;
@@ -319,7 +288,6 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
     }
     
     // 4. API 호출 및 응답 처리
-    console.log('🌐 AccuWeather API 호출 - 일별 날씨');
     weatherRateLimiter.recordRequest();
     
     const forecastType = days === 1 ? '1day' : days === 5 ? '5day' : days === 10 ? '10day' : '15day';
@@ -359,7 +327,6 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
       if (response.status === 403) {
         // 15일/10일 예보가 제한된 경우 5일 예보로 대체 시도
         if (days > 5) {
-          console.warn(`${days}일 예보가 제한되어 5일 예보로 대체합니다.`);
           return await getDailyWeather({
             ...params,
             days: 5
@@ -443,7 +410,6 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
 
     // 5. 캐시에 저장 (메모리 + DB)
     weatherCache.set(cacheKey, result, 30);
-    console.log('💾 일별 날씨 메모리 캐시 저장');
     
     // 사용자 ID가 있으면 스마트 TTL 저장, 없으면 기존 방식
     if (params.clerkUserId && params.latitude !== undefined && params.longitude !== undefined) {
@@ -460,12 +426,6 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
           params.clerkUserId
         );
         
-        console.log(`📊 스마트 일별 날씨 저장 결과:`, {
-          saved: saveResult.saved,
-          updated: saveResult.updated,
-          skipped: saveResult.skipped,
-          avgTTL: Math.round(saveResult.ttlInfo.reduce((sum, ttl) => sum + ttl.personalizedTTL, 0) / saveResult.ttlInfo.length || 0)
-        });
       } catch (smartError) {
         console.error('스마트 TTL 저장 실패, 기존 방식으로 대체:', smartError);
         // 스마트 저장 실패 시 기존 방식으로 대체
@@ -483,7 +443,6 @@ export async function getDailyWeather(params: DailyWeatherRequest): Promise<Dail
         );
       }
     } else {
-      console.log('⚠️ 사용자 ID 또는 좌표 정보가 없어 DB 저장을 건너뜁니다.');
     }
 
     return result;
@@ -612,20 +571,17 @@ async function getLocationKeyWithCache(location: string): Promise<string> {
   // 메모리 캐시 확인
   const cachedKey = weatherCache.get<string>(cacheKey);
   if (cachedKey) {
-    console.log('🎯 위치 키 메모리 캐시 적중:', location);
     return cachedKey;
   }
   
   // DB 캐시 확인
   const dbCachedKey = await weatherDbService.getLocationKey(cacheKey);
   if (dbCachedKey) {
-    console.log('🎯 위치 키 DB 캐시 적중:', location);
     // DB에서 가져온 데이터를 메모리 캐시에도 저장
     weatherCache.set(cacheKey, dbCachedKey, 60 * 24);
     return dbCachedKey;
   }
   
-  console.log('🌐 AccuWeather API 호출 - 위치 키 조회:', location);
   
   // 레이트 리미터 확인
   if (!weatherRateLimiter.canMakeRequest()) {
@@ -642,12 +598,9 @@ async function getLocationKeyWithCache(location: string): Promise<string> {
   // DB에도 저장 (더 긴 TTL)
   await weatherDbService.saveLocationKey(
     locationKey, 
-    cacheKey, 
-    'name', 
-    60 * 24 * 7, // 7일
-    location, 
-    undefined, 
-    undefined
+    location, // locationName으로 위치명 사용
+    0, // latitude (위치명 기반이므로 0)
+    0  // longitude (위치명 기반이므로 0)
   );
   
   return locationKey;
@@ -662,20 +615,17 @@ async function getLocationKeyByCoordinatesWithCache(latitude: number, longitude:
   // 메모리 캐시 확인
   const cachedKey = weatherCache.get<string>(cacheKey);
   if (cachedKey) {
-    console.log('🎯 좌표 위치 키 메모리 캐시 적중:', `${latitude}, ${longitude}`);
     return cachedKey;
   }
   
   // DB 캐시 확인
   const dbCachedKey = await weatherDbService.getLocationKey(cacheKey);
   if (dbCachedKey) {
-    console.log('🎯 좌표 위치 키 DB 캐시 적중:', `${latitude}, ${longitude}`);
     // DB에서 가져온 데이터를 메모리 캐시에도 저장
     weatherCache.set(cacheKey, dbCachedKey, 60 * 24);
     return dbCachedKey;
   }
   
-  console.log('🌐 AccuWeather API 호출 - 좌표 위치 키 조회:', `${latitude}, ${longitude}`);
   
   // 레이트 리미터 확인
   if (!weatherRateLimiter.canMakeRequest()) {
@@ -692,10 +642,7 @@ async function getLocationKeyByCoordinatesWithCache(latitude: number, longitude:
   // DB에도 저장 (더 긴 TTL)
   await weatherDbService.saveLocationKey(
     locationKey, 
-    cacheKey, 
-    'coordinates', 
-    60 * 24 * 7, // 7일
-    undefined, 
+    `${latitude},${longitude}`, // locationName으로 좌표 사용
     latitude, 
     longitude
   );

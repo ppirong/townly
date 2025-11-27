@@ -18,7 +18,6 @@ import type {
   DailyWeatherData, 
   DailyWeatherResponse 
 } from './weather';
-import { weatherVectorDBService } from './weather-vector-db';
 import { formatKoreanDate } from '@/lib/utils/timezone';
 import { SmartTTLManager, type TTLCalculationResult } from './smart-ttl-manager';
 import { weatherCache } from './weather-cache';
@@ -116,24 +115,7 @@ export class SmartWeatherDatabaseService {
           const result = await db.insert(hourlyWeatherData).values(record).returning();
           savedCount++;
 
-          // 벡터 임베딩 생성
-          if (result.length > 0) {
-            try {
-              await weatherVectorDBService.saveWeatherEmbedding(
-                'hourly',
-                locationName,
-                {
-                  ...data,
-                  forecastDate,
-                  forecastHour,
-                },
-                result[0].id,
-                clerkUserId
-              );
-            } catch (embeddingError) {
-              console.error('⚠️ 시간별 날씨 벡터 임베딩 생성 실패:', embeddingError);
-            }
-          }
+          // 벡터 임베딩 기능 제거됨
 
           console.log(`📝 새로운 시간별 데이터 추가: ${forecastDate} ${forecastHour}시 (TTL: ${ttlResult.personalizedTTL}분)`);
         } else {
@@ -276,24 +258,7 @@ export class SmartWeatherDatabaseService {
           const result = await db.insert(dailyWeatherData).values(record).returning();
           savedCount++;
 
-          // 벡터 임베딩 생성
-          if (result.length > 0) {
-            try {
-              await weatherVectorDBService.saveWeatherEmbedding(
-                'daily',
-                locationName,
-                {
-                  ...data,
-                  forecastDate,
-                  dayOfWeek: data.dayOfWeek,
-                },
-                result[0].id,
-                clerkUserId
-              );
-            } catch (embeddingError) {
-              console.error('⚠️ 일별 날씨 벡터 임베딩 생성 실패:', embeddingError);
-            }
-          }
+          // 벡터 임베딩 기능 제거됨
 
           console.log(`📝 새로운 일별 데이터 추가: ${forecastDate} (TTL: ${ttlResult.personalizedTTL}분)`);
         } else {

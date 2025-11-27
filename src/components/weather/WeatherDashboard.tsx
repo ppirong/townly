@@ -319,17 +319,18 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       console.log('🧹 캐시 삭제 및 새로운 데이터 조회 시작...');
 
       const requestBody: any = {
+        mode: 'refresh_location', // 명시적으로 새로고침 모드 지정
         units: units,
       };
 
-      // 사용자 위치 정보가 있으면 우선 사용
+      // 사용자 위치 정보가 있으면 우선 사용 (문자열로 전달)
       if (userLocation?.latitude && userLocation?.longitude) {
-        requestBody.latitude = userLocation.latitude;
-        requestBody.longitude = userLocation.longitude;
+        requestBody.latitude = userLocation.latitude; // 이미 문자열
+        requestBody.longitude = userLocation.longitude; // 이미 문자열
       } else if (location && location.trim()) {
         requestBody.location = location;
       } else {
-        throw new Error('위치 정보가 필요합니다.');
+        throw new Error('위치 정보가 필요합니다. 위치를 설정하거나 GPS를 허용해주세요.');
       }
 
       const response = await fetch('/api/weather/cache-clear', {
