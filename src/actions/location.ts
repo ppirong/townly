@@ -1,16 +1,25 @@
 'use server';
 
-import { db } from '@/db';
-import { userLocations } from '@/db/schema';
 import { auth } from '@clerk/nextjs/server';
-import { eq } from 'drizzle-orm';
 import { setUserLocationSchema, updateUserLocationSchema } from '@/lib/schemas/location';
 import type { SetUserLocationInput, UpdateUserLocationInput } from '@/lib/schemas/location';
+import {
+  getUserLocationByUserId,
+  createUserLocation,
+  updateUserLocationByUserId,
+  deleteUserLocationByUserId,
+  checkUserLocationExists
+} from '@/db/queries/locations';
+import { mapUserLocationForClient, mapLocationInputForDB } from '@/lib/dto/location-mappers';
+import type { ClientUserLocation } from '@/lib/dto/location-mappers';
 
 /**
  * 사용자 위치 설정
  */
-export async function setUserLocation(input: SetUserLocationInput) {
+export async function setUserLocation(input: SetUserLocationInput): Promise<{
+  success: boolean;
+  data: ClientUserLocation;
+}> {
   const { userId } = await auth();
   
   if (!userId) {
@@ -22,37 +31,20 @@ export async function setUserLocation(input: SetUserLocationInput) {
   
   try {
     // 기존 위치 정보가 있는지 확인
-    const existingLocation = await db
-      .select()
-      .from(userLocations)
-      .where(eq(userLocations.clerkUserId, userId))
-      .limit(1);
+    const existsLocation = await checkUserLocationExists(userId);
     
-    if (existingLocation.length > 0) {
+    if (existsLocation) {
       // 기존 위치 정보 업데이트
-      const result = await db
-        .update(userLocations)
-        .set({
-          ...validatedData,
-          updatedAt: new Date(),
-        })
-        .where(eq(userLocations.clerkUserId, userId))
-        .returning();
-      
-      return { success: true, data: result[0] };
+      const result = await updateUserLocationByUserId(userId, validatedData);
+      if (!result) {
+        throw new Error('위치 정보 업데이트에 실패했습니다.');
+      }
+      return { success: true, data: mapUserLocationForClient(result) };
     } else {
       // 새 위치 정보 생성
-      const result = await db
-        .insert(userLocations)
-        .values({
-          ...validatedData,
-          clerkUserId: userId,
-          locationName: validatedData.cityName || validatedData.address || `${validatedData.latitude}, ${validatedData.longitude}`,
-          isDefault: true,
-        })
-        .returning();
-      
-      return { success: true, data: result[0] };
+      const dbData = mapLocationInputForDB(validatedData, userId);
+      const result = await createUserLocation(dbData);
+      return { success: true, data: mapUserLocationForClient(result) };
     }
   } catch (error) {
     console.error('위치 설정 실패:', error);
@@ -63,7 +55,10 @@ export async function setUserLocation(input: SetUserLocationInput) {
 /**
  * 사용자 위치 조회
  */
-export async function getUserLocation() {
+export async function getUserLocation(): Promise<{
+  success: boolean;
+  data: ClientUserLocation | null;
+}> {
   const { userId } = await auth();
   
   if (!userId) {
@@ -71,31 +66,15 @@ export async function getUserLocation() {
   }
   
   try {
-    const location = await db
-      .select()
-      .from(userLocations)
-      .where(eq(userLocations.clerkUserId, userId))
-      .limit(1);
+    const location = await getUserLocationByUserId(userId);
     
-    if (location.length === 0) {
+    if (!location) {
       return { success: true, data: null };
     }
     
-    // 데이터베이스 결과를 plain object로 변환하여 직렬화 가능하게 만듦
-    const loc = location[0];
     return { 
       success: true, 
-      data: {
-        id: loc.id,
-        clerkUserId: loc.clerkUserId,
-        locationName: loc.locationName,
-        address: loc.address,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        isDefault: loc.isDefault,
-        createdAt: loc.createdAt,
-        updatedAt: loc.updatedAt,
-      }
+      data: mapUserLocationForClient(location)
     };
   } catch (error) {
     console.error('위치 조회 실패:', error);
@@ -106,7 +85,10 @@ export async function getUserLocation() {
 /**
  * 사용자 위치 업데이트
  */
-export async function updateUserLocation(input: UpdateUserLocationInput) {
+export async function updateUserLocation(input: UpdateUserLocationInput): Promise<{
+  success: boolean;
+  data: ClientUserLocation;
+}> {
   const { userId } = await auth();
   
   if (!userId) {
@@ -118,26 +100,19 @@ export async function updateUserLocation(input: UpdateUserLocationInput) {
   
   try {
     // 사용자의 위치 정보가 있는지 확인
-    const existingLocation = await db
-      .select()
-      .from(userLocations)
-      .where(eq(userLocations.clerkUserId, userId))
-      .limit(1);
+    const existsLocation = await checkUserLocationExists(userId);
     
-    if (existingLocation.length === 0) {
+    if (!existsLocation) {
       throw new Error('업데이트할 위치 정보가 없습니다.');
     }
     
-    const result = await db
-      .update(userLocations)
-      .set({
-        ...validatedData,
-        updatedAt: new Date(),
-      })
-      .where(eq(userLocations.clerkUserId, userId))
-      .returning();
+    const result = await updateUserLocationByUserId(userId, validatedData);
     
-    return { success: true, data: result[0] };
+    if (!result) {
+      throw new Error('위치 정보 업데이트에 실패했습니다.');
+    }
+    
+    return { success: true, data: mapUserLocationForClient(result) };
   } catch (error) {
     console.error('위치 업데이트 실패:', error);
     throw new Error('위치 정보를 업데이트하는데 실패했습니다.');
@@ -147,7 +122,10 @@ export async function updateUserLocation(input: UpdateUserLocationInput) {
 /**
  * 사용자 위치 삭제
  */
-export async function deleteUserLocation() {
+export async function deleteUserLocation(): Promise<{
+  success: boolean;
+  data: ClientUserLocation;
+}> {
   const { userId } = await auth();
   
   if (!userId) {
@@ -155,16 +133,13 @@ export async function deleteUserLocation() {
   }
   
   try {
-    const result = await db
-      .delete(userLocations)
-      .where(eq(userLocations.clerkUserId, userId))
-      .returning();
+    const result = await deleteUserLocationByUserId(userId);
     
-    if (result.length === 0) {
+    if (!result) {
       throw new Error('삭제할 위치 정보가 없습니다.');
     }
     
-    return { success: true, data: result[0] };
+    return { success: true, data: mapUserLocationForClient(result) };
   } catch (error) {
     console.error('위치 삭제 실패:', error);
     throw new Error('위치 정보를 삭제하는데 실패했습니다.');

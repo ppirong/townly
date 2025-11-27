@@ -1,0 +1,28 @@
+---
+always_apply: false
+description: shadcn/ui setup and initialization guidelines
+---
+# shadcn/ui Setup Guidelines
+
+This project uses shadcn/ui for all UI components. 
+
+## Initialization Status
+- **Status**: shadcn/ui is NOT yet initialized in this project
+- **Required Action**: Run the initialization command before adding any components
+
+## Initialization Command
+```bash
+npx shadcn@latest init
+```
+
+## Setup Requirements
+1. Ensure Tailwind CSS is properly configured (✅ Already installed - v4)
+2. Initialize shadcn/ui with the command above
+3. Follow the interactive setup prompts
+4. Choose appropriate configuration options for Next.js project
+
+## Important Notes
+- All UI components should use shadcn/ui components
+- Do not manually create UI components that already exist in shadcn/ui
+- Always check shadcn/ui component library first before creating custom components
+- Use `npx shadcn@latest add <component-name>` to add specific components

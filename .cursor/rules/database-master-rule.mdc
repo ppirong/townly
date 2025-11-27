@@ -1,0 +1,265 @@
+---
+alwaysApply: false
+---
+# description: MetaTrans 프로젝트 전체 규칙( DTO · Database · Data Handling · 필드 매핑 통합 마스터 규칙 )
+
+# 🏛️ MetaTrans Master Rules  
+### DTO · Database Handling · Field Mapping 통합 규칙 세트  
+(모든 팀원이 반드시 준수해야 하는 단일 권위 규칙)
+
+---
+
+# 🚨 0. ABSOLUTE RULES (프로젝트 전체 절대 규칙)
+
+### **1. DTO 매퍼 없이 DB 모델을 클라이언트로 전달 금지**
+### **2. Server Components/Server Actions 외부에서 DB 접근 금지**
+### **3. 모든 DB 접근은 반드시 `db/queries` 헬퍼만 사용**
+### **4. 모든 입력 데이터는 Zod로 검증**
+### **5. snake_case ↔ camelCase 변환은 DTO 매퍼에서만 처리**
+### **6. Date/number/array/object 변환은 반드시 안전 변환 유틸리티 사용**
+### **7. 클라이언트 컴포넌트는 DTO 타입만 사용 (DB 타입 직접 사용 금지)**
+
+---
+
+# 📦 1. DTO PATTERN MASTER RULES  
+### (기존: comprehensive-dto-pattern-guide.mdc)
+
+## 1.1 MUST (필수)
+- `dto-mappers.ts`, `admin-dto-mappers.ts` **매퍼 필수 사용**
+- 모든 **DB → 클라이언트** 데이터는 반드시 DTO를 거쳐야 함
+- **날짜(Date)** → 반드시 ISO string 변환
+- **snake_case → camelCase 변환 필수**
+- **안전 변환 유틸리티** 사용:  
+  `toISOString`, `toSafeArray`, `toRecord`, `mapArraySafely`, `toSafeNumber`
+- **관리자 페이지**는 전용 admin DTO만 사용
+- API는 반드시 `createSuccessResponse` / `createErrorResponse` 사용
+
+## 1.2 MUST NOT (금지)
+- DB 타입을 클라이언트로 직접 전달
+- 자동 변환 기대 (특히 날짜)
+- unknown/null/undefined를 그대로 렌더링
+- 관리자 데이터에 기본 DTO 사용 금지
+
+---
+
+# 📚 2. Data Handling & Database Rules  
+### (기존: database-and-data-handling.mdc)
+
+## 2.1 Database Access Rules
+### MUST
+- DB 접근은 `db/queries/*.ts` 파일에서만
+- Drizzle ORM + Type-safe schema 사용
+- 모든 쿼리 함수는 테이블 단위로 분리 (`getX`, `createX` 등)
+
+### MUST NOT
+- 컴포넌트/서버액션에서 `db` 직접 import
+- 인라인 Drizzle 쿼리
+- Raw SQL
+- Prisma/TypeORM 등 외부 ORM 사용
+
+---
+
+## 2.2 Authentication & Security Rules
+- Clerk `auth()`로 userId 필수 확인
+- userId 기반 데이터 격리 필수
+- 서버 측에서 권한 검증 수행
+
+---
+
+## 2.3 Data Retrieval Rules
+### MUST
+- 모든 fetch는 **Server Component**에서
+- 반드시 `db/queries` 사용
+
+### MUST NOT
+- 클라이언트 fetching (`useEffect`, `useSWR`)
+- CRUD 전용 API Route
+
+---
+
+## 2.4 Data Mutation Rules
+### MUST
+- `'use server'` Server Action에서만
+- Server Actions 내부에서 `db/queries` 호출
+- Zod로 모든 입력 검증
+
+### MUST NOT
+- 클라이언트에서 직접 mutate
+- Server Actions에서 db 직접 import
+- CRUD API Route 생성
+
+---
+
+# 🧱 3. DB Schema & Field Mapping Rules  
+### (기존: database-field-mapping.mdc)
+
+## 3.1 필드 네이밍 규칙
+- 스키마 필드는 **그대로 사용**
+- 대부분 camelCase  
+- 일부 테이블(professionals 등) snake_case
+
+---
+
+## 3.2 snake_case ↔ camelCase 매핑 규칙
+### DB → Client (DTO 매퍼에서만 처리)
+```typescript
+createdAt: toISO(db.created_at)
+updatedAt: toISO(db.updated_at)
+```
+
+### Client → DB (server actions에서만)
+```typescript
+camelToSnake(input)
+```
+
+---
+
+## 3.3 날짜 변환 규칙
+```typescript
+function toISO(d: Date | string) { ... }
+function toISOOrNull(d: Date | string | null) { ... }
+function toDateString(d: Date | string | null) { ... }
+```
+
+---
+
+## 3.4 숫자 변환 규칙
+```typescript
+const toSafeNumber = (v: unknown): number => ...
+```
+
+---
+# 🔧 4. Standard Utility Functions
+(전 파일 기준 통합)
+
+## 🚀 필수 유틸리티 (반드시 사용)
+```typescript
+toISOString(date)
+toISOStringOrNull(date)
+toSafeNumber(value)
+toSafeArray(value)
+toRecord(value)
+mapArraySafely(array, mapFn)
+mapNestedObject(obj, defaultValue)
+snakeToCamel(obj)
+camelToSnake(obj)
+```
+
+---
+# 🏗️ 5. DTO Mapper Standard Templates
+
+## 5.1 기본 엔티티 매퍼
+```typescript
+export function map<Entity>ForClient(db: Entity): ClientEntity {
+  return {
+    ...db,
+    createdAt: toISOStringOrNull(db.created_at),
+    updatedAt: toISOStringOrNull(db.updated_at),
+  }
+}
+```
+
+## 5.2 관리자 전용 매퍼
+```typescript
+export function map<Entity>ManagementForClient(db: MgmtEntity) {
+  return {
+    id: db.id,
+    createdAt: toISOString(db.created_at),
+    totalTests: toSafeNumber(db.totalTests),
+    specialties: toSafeArray(db.specialties),
+  }
+}
+```
+
+---
+# 🗄️ 6. Query Function Rules (db/queries)
+
+## MUST
+- 테이블 단위로 queries 파일 분리
+- 모든 함수명 명확: getTestById, createQuestion, ...
+
+## MUST NOT
+- db 직접 접근 금지
+- Snake/camel 변환 없이 필드 임의 생성 금지
+
+---
+
+# 🛠️ 7. Server Actions & Validation Pattern
+
+```typescript
+'use server'
+
+import { z } from 'zod'
+import { auth } from '@clerk/nextjs'
+import { createPortfolio } from '@/db/queries/portfolios'
+
+const Schema = z.object({
+  title: z.string().min(1),
+  category: z.enum(['a','b','c'])
+})
+
+export async function action(data: unknown) {
+  const { userId } = auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const input = Schema.parse(data)
+  return await createPortfolio({ ...input, userId })
+}
+```
+
+---
+# 🧩 8. Server Component Rules
+
+## MUST
+```tsx
+const test = await getTestById(id)
+<TestClient initialTest={mapTestForClient(test)} />
+```
+
+## MUST NOT
+```tsx
+<TestClient initialTest={dbTest}>   // DB 타입 그대로 전달 금지
+```
+
+---
+# 🖥️ 9. Client Component Rules
+
+## MUST
+- DTO 타입만 state로 사용
+
+```typescript
+const [tests, setTests] = useState<ClientTest[]>([])
+```
+
+---
+# 📋 10. Unified Checklist (마스터 체크리스트)
+
+## DTO
+- [ ] DTO 매퍼 사용?
+- [ ] snake_case → camelCase 변환?
+- [ ] 안전 변환 적용(date/number/array/object)?
+
+## Database
+- [ ] 모든 DB 접근 db/queries 경유?
+- [ ] Raw SQL 없음?
+- [ ] userId 기반 권한 검증?
+
+## Server Actions
+- [ ] 'use server' 선언?
+- [ ] Zod 검증 완료?
+
+## Components
+- [ ] Server Component에서만 fetch?
+- [ ] Client Component는 DTO만 사용?
+
+## Field Mapping
+- [ ] 스키마 필드명 정확히 사용?
+- [ ] Timestamp 수동 설정 금지?
+
+---
+
+# 🏁 결론 (핵심 요약 Top 3)
+
+1. **DTO 매퍼 없이 데이터를 전달하는 모든 코드는 금지**
+2. **DB 접근은 반드시 db/queries, 데이터 검증은 Zod로 통일**
+3. **snake/camel 변환, 날짜/숫자/배열 변환은 반드시 안전 유틸리티 사용**

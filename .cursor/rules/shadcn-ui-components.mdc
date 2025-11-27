@@ -1,0 +1,61 @@
+---
+always_apply: false
+description: shadcn/ui component usage guidelines
+---
+
+# shadcn/ui Component Usage
+
+## Component Guidelines
+- **ALWAYS** use shadcn/ui components for UI elements
+- Import components from `@/components/ui/[component-name]`
+- Follow shadcn/ui naming conventions and patterns
+
+## Common Components to Use
+- **Button**: Use for all interactive buttons
+- **Input**: Use for form inputs
+- **Card**: Use for content containers
+- **Dialog**: Use for modals and popups
+- **Sonner**: Use for all toast notifications (NEVER use alert())
+- **Badge**: Use for status indicators
+- **Tabs**: Use for tab navigation
+- **Form**: Use for form handling with validation
+
+## Installing Components
+If a particular component is not installed, use the following command pattern:
+```bash
+# Example: To install the button component
+npx shadcn@latest add button
+
+# Other common components
+npx shadcn@latest add input
+npx shadcn@latest add card
+npx shadcn@latest add dialog
+npx shadcn@latest add sonner
+npx shadcn@latest add form
+npx shadcn@latest add tabs
+npx shadcn@latest add badge
+```
+
+## Component Installation Workflow
+1. **Check if component exists**: Look for the component in `src/components/ui/`
+2. **If missing**: Run `npx shadcn@latest add [component-name]`
+3. **Import and use**: After installation, import from `@/components/ui/[component-name]`
+
+## Import Pattern
+```typescript
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { toast } from "sonner"
+```
+
+## Styling Guidelines
+- Use shadcn/ui variant props for styling
+- Leverage Tailwind classes for custom spacing and layout
+- Maintain consistency with shadcn/ui design system
+- Use CSS variables defined in globals.css for theming
+
+## Alert Policy
+- **NEVER use alert()**: Always use sonner toast for notifications
+- **Replace all alerts**: Use toast.success(), toast.error(), toast.warning()
+- **Modern UX**: Provide non-intrusive, bottom-positioned toast notifications

@@ -15,6 +15,12 @@ import {
 } from '@/db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { convertGoogleDateTimeToKST } from '@/lib/utils/datetime';
+import { 
+  deleteOldGoogleHourlyAirQualityData,
+  createGoogleHourlyAirQualityData,
+  upsertGoogleHourlyAirQualityData 
+} from '@/db/queries/google-air-quality';
+import { getApiUsageStatsByDate } from '@/db/queries/api-logs';
 
 // Google Air Quality API 타입 정의
 export interface GoogleAirQualityRequest {
@@ -139,7 +145,6 @@ class GoogleAirQualityService {
 
       await db.insert(apiCallLogs).values(logData);
     } catch (error) {
-      console.error('API 호출 로그 기록 실패:', error);
     }
   }
 
@@ -150,7 +155,6 @@ class GoogleAirQualityService {
     const startTime = Date.now();
     
     try {
-      console.log(`🌬️ Google Air Quality API 현재 대기질 조회 시작: ${request.latitude}, ${request.longitude}`);
       
       if (!this.apiKey) {
         throw new Error('Google Maps API 키가 설정되지 않았습니다.');
@@ -172,7 +176,6 @@ class GoogleAirQualityService {
         universalAqi: true,
       };
 
-      console.log('🌬️ API 요청 본문:', JSON.stringify(requestBody, null, 2));
 
       const response = await fetch(`${this.baseUrl}/currentConditions:lookup?key=${this.apiKey}`, {
         method: 'POST',
@@ -186,26 +189,17 @@ class GoogleAirQualityService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('🚨 Google Air Quality API 현재 대기질 오류:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorText: errorText,
-          requestBody: requestBody
-        });
         await this.logApiCall('/currentConditions:lookup', response.status, responseTime, false, request.clerkUserId, errorText);
         throw new Error(`Google Air Quality API 오류: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('✅ Google Air Quality API 현재 대기질 응답:', JSON.stringify(data, null, 2));
       await this.logApiCall('/currentConditions:lookup', response.status, responseTime, true, request.clerkUserId);
 
-      console.log(`✅ Google Air Quality API 현재 대기질 조회 완료 (${responseTime}ms)`);
       return data;
     } catch (error) {
       const responseTime = Date.now() - startTime;
       await this.logApiCall('/currentConditions:lookup', 500, responseTime, false, request.clerkUserId, String(error));
-      console.error('Google Air Quality API 현재 대기질 조회 실패:', error);
       throw error;
     }
   }
@@ -217,7 +211,6 @@ class GoogleAirQualityService {
     const startTime = Date.now();
     
     try {
-      console.log(`🌬️ Google Air Quality API 시간별 예보 조회 시작: ${request.latitude}, ${request.longitude}`);
       
       if (!this.apiKey) {
         throw new Error('Google Maps API 키가 설정되지 않았습니다.');
@@ -252,7 +245,6 @@ class GoogleAirQualityService {
         languageCode: request.languageCode || 'ko',
       };
 
-      console.log('🌬️ 예보 API 요청 본문 (period 방식):', JSON.stringify(requestBody, null, 2));
 
       // 모든 페이지의 데이터를 수집
       let allForecasts: any[] = [];
@@ -265,7 +257,6 @@ class GoogleAirQualityService {
           ? { ...requestBody, pageToken }
           : requestBody;
 
-        console.log(`📄 페이지 ${pageCount + 1} 요청 중...`);
 
         const response = await fetch(`${this.baseUrl}/forecast:lookup?key=${this.apiKey}`, {
           method: 'POST',
@@ -279,12 +270,6 @@ class GoogleAirQualityService {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('🚨 Google Air Quality API 예보 오류:', {
-            status: response.status,
-            statusText: response.statusText,
-            errorText: errorText,
-            requestBody: bodyWithToken
-          });
           await this.logApiCall('/forecast:lookup', response.status, responseTime, false, request.clerkUserId, errorText);
           throw new Error(`Google Air Quality API 오류: ${response.status} - ${errorText}`);
         }
@@ -293,7 +278,6 @@ class GoogleAirQualityService {
         
         if (data.hourlyForecasts && data.hourlyForecasts.length > 0) {
           allForecasts = allForecasts.concat(data.hourlyForecasts);
-          console.log(`✅ 페이지 ${pageCount + 1}: ${data.hourlyForecasts.length}개 예보 추가 (누적: ${allForecasts.length}개)`);
         }
 
         pageToken = data.nextPageToken;
@@ -308,9 +292,6 @@ class GoogleAirQualityService {
 
       await this.logApiCall('/forecast:lookup', 200, Date.now() - startTime, true, request.clerkUserId);
 
-      console.log(`✅ 총 ${pageCount}개 페이지에서 ${allForecasts.length}개 예보 수집 완료`);
-      console.log('📊 첫 번째 예보:', allForecasts[0]?.dateTime);
-      console.log('📊 마지막 예보:', allForecasts[allForecasts.length - 1]?.dateTime);
 
       return {
         hourlyForecasts: allForecasts.slice(0, requestedHours),
@@ -318,7 +299,6 @@ class GoogleAirQualityService {
     } catch (error) {
       const responseTime = Date.now() - startTime;
       await this.logApiCall('/forecast:lookup', 500, responseTime, false, request.clerkUserId, String(error));
-      console.error('Google Air Quality API 시간별 예보 조회 실패:', error);
       throw error;
     }
   }
@@ -421,25 +401,10 @@ class GoogleAirQualityService {
         };
 
         // 기존 데이터 확인 후 업데이트 또는 삽입
-        const existing = await db
-          .select()
-          .from(googleHourlyAirQualityData)
-          .where(eq(googleHourlyAirQualityData.cacheKey, cacheKey))
-          .limit(1);
-
-        if (existing.length > 0) {
-          await db
-            .update(googleHourlyAirQualityData)
-            .set({ ...dbData, updatedAt: now })
-            .where(eq(googleHourlyAirQualityData.cacheKey, cacheKey));
-        } else {
-          await db.insert(googleHourlyAirQualityData).values(dbData);
-        }
+        await upsertGoogleHourlyAirQualityData(dbData);
       }
 
-      console.log(`✅ 시간별 대기질 데이터 ${processedData.length}개 저장 완료`);
     } catch (error) {
-      console.error('시간별 대기질 데이터 저장 실패:', error);
       throw error;
     }
   }
@@ -488,7 +453,6 @@ class GoogleAirQualityService {
         rawData: data.rawData,
       }));
     } catch (error) {
-      console.error('캐시된 시간별 대기질 데이터 조회 실패:', error);
       return [];
     }
   }
@@ -508,26 +472,20 @@ class GoogleAirQualityService {
       // 2. 캐시된 데이터가 충분하면 반환
       const requiredHours = request.hours || 12;
       if (cachedData.length >= requiredHours) {
-        console.log(`✅ 캐시된 시간별 대기질 데이터 사용: ${cachedData.length}개 항목`);
         return cachedData.slice(0, requiredHours);
       }
 
       // 3. 캐시된 데이터가 부족하면 API 호출
-      console.log(`🔄 시간별 대기질 데이터 API 호출 필요 (캐시: ${cachedData.length}/${requiredHours})`);
       
       const apiResponse = await this.getHourlyForecast(request);
-      console.log(`📥 API 응답 처리: ${apiResponse.hourlyForecasts?.length || 0}개 예보 데이터`);
       
       const processedData = apiResponse.hourlyForecasts.map(data => this.processAirQualityData(data));
-      console.log(`✅ 처리된 데이터: ${processedData.length}개 항목`);
 
       // 4. 새로운 데이터를 데이터베이스에 저장
       await this.saveHourlyAirQualityData(processedData, request);
 
-      console.log(`🎯 최종 반환: ${Math.min(processedData.length, requiredHours)}개 항목 (요청: ${requiredHours}개)`);
       return processedData.slice(0, requiredHours);
     } catch (error) {
-      console.error('스마트 TTL 시간별 대기질 데이터 조회 실패:', error);
       
       // 5. API 호출 실패 시 캐시된 데이터라도 반환
       const cachedData = await this.getCachedHourlyData(
@@ -537,7 +495,6 @@ class GoogleAirQualityService {
       );
       
       if (cachedData.length > 0) {
-        console.log(`⚠️ API 실패로 캐시된 데이터 사용: ${cachedData.length}개 항목`);
         return cachedData;
       }
       
@@ -551,8 +508,6 @@ class GoogleAirQualityService {
    */
   async getDailyAirQualityWithTTL(request: GoogleDailyAirQualityRequest): Promise<ProcessedAirQualityData[]> {
     try {
-      console.log(`📊 일별 대기질 데이터 집계 시작`);
-      console.log(`🔄 전략: 12시간 시간별 예보를 가져와서 날짜별로 그룹핑 (오늘/내일)`);
 
       // 시간별 예보 API로 12시간 데이터 요청 (안정적인 기간)
       const hourlyRequest: GoogleHourlyAirQualityRequest = {
@@ -566,15 +521,12 @@ class GoogleAirQualityService {
         languageCode: request.languageCode,
       };
 
-      console.log(`🌬️ 12시간 시간별 예보 요청 중...`);
       const hourlyResponse = await this.getHourlyForecast(hourlyRequest);
 
       if (!hourlyResponse.hourlyForecasts || hourlyResponse.hourlyForecasts.length === 0) {
-        console.warn('⚠️ 시간별 예보 데이터가 없습니다');
         return [];
       }
 
-      console.log(`✅ ${hourlyResponse.hourlyForecasts.length}개 시간별 데이터 수신`);
 
       // 시간별 데이터를 처리하고 날짜별로 그룹핑
       const dailyDataMap = new Map<string, ProcessedAirQualityData[]>();
@@ -594,7 +546,6 @@ class GoogleAirQualityService {
       const dailyData: ProcessedAirQualityData[] = [];
       const sortedDates = Array.from(dailyDataMap.keys()).sort();
 
-      console.log(`📅 날짜별 그룹핑 완료: ${sortedDates.length}일치 데이터`);
 
       // 12시간 데이터로는 최대 2일치 정도 생성 가능
       for (const dateKey of sortedDates.slice(0, 2)) {
@@ -618,14 +569,11 @@ class GoogleAirQualityService {
         };
 
         dailyData.push(avgData);
-        console.log(`📊 ${dateKey}: ${dayData.length}개 시간 데이터로 일 평균 계산 완료`);
       }
 
-      console.log(`✅ 총 ${dailyData.length}일치 일별 대기질 데이터 생성 완료`);
       return dailyData;
 
     } catch (error) {
-      console.error('일별 대기질 데이터 조회 실패:', error);
       throw error;
     }
   }
@@ -649,33 +597,15 @@ class GoogleAirQualityService {
     avgResponseTime: number;
   }> {
     try {
-      const targetDate = date || new Date().toISOString().split('T')[0];
+      const stats = await getApiUsageStatsByDate('google_air_quality', date);
       
-      const stats = await db
-        .select()
-        .from(apiCallLogs)
-        .where(
-          and(
-            eq(apiCallLogs.service, 'google_air_quality'),
-            sql`DATE(${apiCallLogs.createdAt}) = ${targetDate}`
-          )
-        );
-
-      const totalCalls = stats.length;
-      const successfulCalls = stats.filter(s => s.statusCode && s.statusCode >= 200 && s.statusCode < 300).length;
-      const failedCalls = totalCalls - successfulCalls;
-      const avgResponseTime = totalCalls > 0 
-        ? Math.round(stats.reduce((acc, s) => acc + (s.responseTime || 0), 0) / totalCalls)
-        : 0;
-
       return {
-        totalCalls,
-        successfulCalls,
-        failedCalls,
-        avgResponseTime,
+        totalCalls: stats.totalCalls,
+        successfulCalls: stats.successfulCalls,
+        failedCalls: stats.failedCalls,
+        avgResponseTime: stats.avgResponseTime,
       };
     } catch (error) {
-      console.error('API 사용량 통계 조회 실패:', error);
       return {
         totalCalls: 0,
         successfulCalls: 0,
@@ -695,7 +625,6 @@ class GoogleAirQualityService {
     longitude: number
   ): Promise<void> {
     try {
-      console.log(`🌬️ 사용자 ${clerkUserId} 90시간 대기질 데이터 수집 시작`);
       
       // 1. 90시간 예보 데이터 조회
       const request: GoogleHourlyAirQualityRequest = {
@@ -712,22 +641,16 @@ class GoogleAirQualityService {
       const apiResponse = await this.getHourlyForecast(request);
       const processedData = apiResponse.hourlyForecasts.map(data => this.processAirQualityData(data));
       
-      console.log(`✅ 90시간 데이터 수집 완료: ${processedData.length}개 항목`);
 
       // 2. 현재 시간 기준 이전 데이터 삭제 (같은 사용자)
       const now = new Date();
-      await db
-        .delete(googleHourlyAirQualityData)
-        .where(
-          and(
-            eq(googleHourlyAirQualityData.clerkUserId, clerkUserId),
-            eq(googleHourlyAirQualityData.latitude, latitude.toString()),
-            eq(googleHourlyAirQualityData.longitude, longitude.toString()),
-            lte(googleHourlyAirQualityData.forecastDateTime, now)
-          )
-        );
+      await deleteOldGoogleHourlyAirQualityData(
+        clerkUserId,
+        latitude.toString(),
+        longitude.toString(),
+        now
+      );
       
-      console.log(`🗑️ 이전 시각 데이터 삭제 완료`);
 
       // 3. 새로운 90시간 데이터 저장
       const expiresAt = new Date(now.getTime() + 6 * 60 * 60 * 1000); // 6시간 후 만료
@@ -759,25 +682,10 @@ class GoogleAirQualityService {
         };
 
         // Upsert: 기존 데이터 업데이트 또는 신규 삽입
-        const existing = await db
-          .select()
-          .from(googleHourlyAirQualityData)
-          .where(eq(googleHourlyAirQualityData.cacheKey, cacheKey))
-          .limit(1);
-
-        if (existing.length > 0) {
-          await db
-            .update(googleHourlyAirQualityData)
-            .set({ ...dbData, updatedAt: now })
-            .where(eq(googleHourlyAirQualityData.cacheKey, cacheKey));
-        } else {
-          await db.insert(googleHourlyAirQualityData).values(dbData);
-        }
+        await upsertGoogleHourlyAirQualityData(dbData);
       }
 
-      console.log(`✅ 사용자 ${clerkUserId} 90시간 데이터 저장 완료: ${processedData.length}개 항목`);
     } catch (error) {
-      console.error(`❌ 사용자 ${clerkUserId} 90시간 데이터 수집 실패:`, error);
       throw error;
     }
   }
@@ -820,7 +728,6 @@ class GoogleAirQualityService {
         rawData: data.rawData,
       }));
     } catch (error) {
-      console.error('저장된 90시간 데이터 조회 실패:', error);
       return [];
     }
   }

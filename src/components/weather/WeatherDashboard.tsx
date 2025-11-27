@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { HourlyWeatherData, DailyWeatherData } from '@/lib/services/weather';
 import { getWeatherIcon } from '@/lib/weather-icons';
-import type { UserLocation } from '@/db/schema';
+import type { ClientUserLocation } from '@/lib/dto/location-mappers';
 import { setUserLocation } from '@/actions/location';
 import { getUserLocationWeather, refreshWeatherFromAPI } from '@/actions/weather';
 
@@ -51,7 +51,7 @@ interface WeatherApiStats {
 
 interface WeatherDashboardProps {
   className?: string;
-  initialLocation?: UserLocation | null;
+  initialLocation?: ClientUserLocation | null;
 }
 
 export function WeatherDashboard({ className, initialLocation }: WeatherDashboardProps) {
@@ -62,7 +62,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
   const [weatherHeadline, setWeatherHeadline] = useState<{text: string; category: string; severity: number} | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userLocation, setUserLocationState] = useState<UserLocation | null>(initialLocation || null);
+  const [userLocation, setUserLocationState] = useState<ClientUserLocation | null>(initialLocation || null);
   const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
   const [apiStats, setApiStats] = useState<WeatherApiStats | null>(null);

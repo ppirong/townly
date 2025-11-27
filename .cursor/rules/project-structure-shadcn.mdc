@@ -1,0 +1,34 @@
+---
+always_apply: false
+description: Project Structure with shadcn/ui
+---
+# Project Structure with shadcn/ui
+
+## Current Structure
+- **Main App**: [src/app/page.tsx](mdc:src/app/page.tsx) - Main application entry
+- **Layout**: [src/app/layout.tsx](mdc:src/app/layout.tsx) - Root layout component
+- **Styles**: [src/app/globals.css](mdc:src/app/globals.css) - Global styles and CSS variables
+
+## Expected Structure After shadcn/ui Init
+```
+src/
+├── app/
+│   ├── layout.tsx
+│   ├── page.tsx
+│   └── globals.css (updated with CSS variables)
+├── components/
+│   └── ui/ (shadcn/ui components)
+└── lib/
+    └── utils.ts (utility functions including cn())
+```
+
+## File Purposes
+- **components/ui/**: Auto-generated shadcn/ui components
+- **lib/utils.ts**: Utility functions for class merging and helpers
+- **components.json**: shadcn/ui configuration file (created after init)
+
+## Development Workflow
+1. Initialize shadcn/ui first: `npx shadcn@latest init`
+2. Add components as needed: `npx shadcn@latest add [component]`
+3. Import and use components in your pages/components
+4. Customize styling through CSS variables in globals.css

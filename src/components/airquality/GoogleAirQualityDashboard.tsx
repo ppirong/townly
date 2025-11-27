@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import type { UserLocation } from '@/db/schema';
+import type { ClientUserLocation } from '@/lib/dto/location-mappers';
 import { 
   getCurrentAirQuality,
   getHourlyAirQuality,
@@ -18,7 +18,7 @@ import type { ProcessedAirQualityData } from '@/lib/services/google-air-quality'
 
 interface GoogleAirQualityDashboardProps {
   className?: string;
-  initialLocation?: UserLocation | null;
+  initialLocation?: ClientUserLocation | null;
 }
 
 interface ApiUsageStats {
@@ -37,7 +37,7 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
   const [dailyData, setDailyData] = useState<ProcessedAirQualityData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userLocation, setUserLocationState] = useState<UserLocation | null>(initialLocation || null);
+  const [userLocation, setUserLocationState] = useState<ClientUserLocation | null>(initialLocation || null);
   const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [apiStats, setApiStats] = useState<ApiUsageStats | null>(null);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);

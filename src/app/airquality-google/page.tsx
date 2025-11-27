@@ -25,7 +25,7 @@ export default async function GoogleAirQualityPage() {
       longitude = parseFloat(locationResult.data.longitude);
     }
   } catch (error) {
-    console.error('사용자 위치 조회 실패:', error);
+    // 사용자 위치 조회 실패 시 기본값 사용
   }
 
   // 90시간 데이터 조회 (데이터베이스에서)
@@ -33,7 +33,7 @@ export default async function GoogleAirQualityPage() {
   try {
     data90Hour = await getStored90HourAirQuality(latitude, longitude);
   } catch (error) {
-    console.error('90시간 데이터 조회 실패:', error);
+    // 90시간 데이터 조회 실패 시 빈 배열 사용
   }
 
   return (

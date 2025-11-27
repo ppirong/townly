@@ -1,0 +1,54 @@
+---
+always_apply: false
+description: Guidelines for installing missing shadcn/ui components
+---
+# Component Installation Guidelines
+
+## Missing Component Detection
+When working with shadcn/ui components, always check if the component is already installed before use.
+
+## Installation Command Pattern
+If a particular component is not installed, use this command pattern:
+```bash
+npx shadcn@latest add [component-name]
+```
+
+## Examples
+```bash
+# Install button component
+npx shadcn@latest add button
+
+# Install input component  
+npx shadcn@latest add input
+
+# Install card component
+npx shadcn@latest add card
+
+# Install form component
+npx shadcn@latest add form
+```
+
+## Component Installation Workflow
+1. **Attempt to import**: Try importing the component
+2. **Check for errors**: If import fails, component likely not installed
+3. **Install component**: Run `npx shadcn@latest add [component-name]`
+4. **Verify installation**: Check that component appears in `src/components/ui/`
+5. **Import and use**: Use the component in your code
+
+## Common Components and Installation Commands
+- **Button**: `npx shadcn@latest add button`
+- **Input**: `npx shadcn@latest add input`
+- **Card**: `npx shadcn@latest add card`
+- **Dialog**: `npx shadcn@latest add dialog`
+- **Alert**: `npx shadcn@latest add alert`
+- **Form**: `npx shadcn@latest add form`
+- **Tabs**: `npx shadcn@latest add tabs`
+- **Badge**: `npx shadcn@latest add badge`
+- **Table**: `npx shadcn@latest add table`
+- **Select**: `npx shadcn@latest add select`
+
+## Important Notes
+- Always install components before attempting to use them
+- Component names in the install command should match the shadcn/ui component names
+- After installation, components will be available in `src/components/ui/`
+- Each component installation may add additional dependencies to package.json

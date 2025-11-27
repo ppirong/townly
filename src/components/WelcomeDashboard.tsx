@@ -4,14 +4,14 @@ import { useUser } from '@clerk/nextjs';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { setUserLocation, getUserLocation } from '@/actions/location';
-import type { UserLocation } from '@/db/schema';
+import type { ClientUserLocation } from '@/lib/dto/location-mappers';
 
 export default function WelcomeDashboard() {
   const { user } = useUser();
   const router = useRouter();
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const [currentLocation, setCurrentLocation] = useState<string>('');
-  const [savedLocation, setSavedLocation] = useState<UserLocation | null>(null);
+  const [savedLocation, setSavedLocation] = useState<ClientUserLocation | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
   // 컴포넌트 마운트 시 저장된 위치 정보 조회

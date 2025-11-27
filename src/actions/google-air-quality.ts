@@ -9,6 +9,12 @@ import {
   type GoogleDailyAirQualityRequest,
   type ProcessedAirQualityData
 } from '@/lib/services/google-air-quality';
+import { 
+  getGoogleHourlyAirQualityByUser,
+  getGoogleDailyAirQualityByUser 
+} from '@/db/queries/google-air-quality';
+import { getUserLocationByUserId } from '@/db/queries/locations';
+import { mapUserLocationForClient } from '@/lib/dto/location-mappers';
 
 // Zod 스키마 정의
 const airQualityLocationSchema = z.object({
@@ -45,7 +51,6 @@ export async function getCurrentAirQuality(
   }
   
   try {
-    console.log(`🌬️ 사용자 ${userId} 현재 대기질 조회 시작: ${latitude}, ${longitude}`);
     
     const request: GoogleAirQualityRequest = {
       latitude,
@@ -60,10 +65,8 @@ export async function getCurrentAirQuality(
     const currentData = await googleAirQualityService.getCurrentAirQuality(request);
     const processedData = googleAirQualityService.processAirQualityData(currentData);
     
-    console.log(`✅ 사용자 ${userId} 현재 대기질 조회 완료`);
     return processedData;
   } catch (error) {
-    console.error('사용자 현재 대기질 조회 실패:', error);
     throw new Error('현재 대기질 정보를 가져오는데 실패했습니다.');
   }
 }
@@ -82,7 +85,6 @@ export async function getHourlyAirQuality(input: HourlyAirQualityInput): Promise
   const validatedData = hourlyAirQualitySchema.parse(input);
   
   try {
-    console.log(`🌬️ 사용자 ${userId} 시간별 대기질 조회 시작: ${validatedData.latitude}, ${validatedData.longitude}`);
     
     const request: GoogleHourlyAirQualityRequest = {
       ...validatedData,
@@ -91,10 +93,8 @@ export async function getHourlyAirQuality(input: HourlyAirQualityInput): Promise
     
     const hourlyData = await googleAirQualityService.getHourlyAirQualityWithTTL(request);
     
-    console.log(`✅ 사용자 ${userId} 시간별 대기질 조회 완료: ${hourlyData.length}개 항목`);
     return hourlyData;
   } catch (error) {
-    console.error('사용자 시간별 대기질 조회 실패:', error);
     throw new Error('시간별 대기질 정보를 가져오는데 실패했습니다.');
   }
 }
@@ -113,7 +113,6 @@ export async function getDailyAirQuality(input: DailyAirQualityInput): Promise<P
   const validatedData = dailyAirQualitySchema.parse(input);
   
   try {
-    console.log(`🌬️ 사용자 ${userId} 일별 대기질 조회 시작: ${validatedData.latitude}, ${validatedData.longitude}`);
     
     const request: GoogleDailyAirQualityRequest = {
       ...validatedData,
@@ -122,10 +121,8 @@ export async function getDailyAirQuality(input: DailyAirQualityInput): Promise<P
     
     const dailyData = await googleAirQualityService.getDailyAirQualityWithTTL(request);
     
-    console.log(`✅ 사용자 ${userId} 일별 대기질 조회 완료: ${dailyData.length}개 항목`);
     return dailyData;
   } catch (error) {
-    console.error('사용자 일별 대기질 조회 실패:', error);
     throw new Error('일별 대기질 정보를 가져오는데 실패했습니다.');
   }
 }
@@ -148,39 +145,51 @@ export async function getUserAirQualityByCoordinates(
   }
   
   try {
-    console.log(`🌬️ 사용자 ${userId} 좌표 기반 대기질 조회 시작: ${latitude}, ${longitude}`);
     
     // 현재, 시간별, 일별 대기질을 병렬로 조회
-    const [currentAirQuality, hourlyAirQuality, dailyAirQuality] = await Promise.all([
-      getCurrentAirQuality(latitude, longitude),
-      getHourlyAirQuality({ 
+    const [currentAirQuality, hourlyResponse, dailyAirQuality] = await Promise.all([
+      googleAirQualityService.getCurrentAirQuality({ 
         latitude, 
         longitude, 
-        hours: 12, // 12시간 유지
         includeLocalAqi: true,
         includeDominantPollutant: true,
         includeHealthSuggestion: true,
         languageCode: 'ko'
       }),
-      getDailyAirQuality({ 
+      googleAirQualityService.getHourlyForecast({ 
         latitude, 
         longitude, 
-        days: 2, // 12시간 시간별 데이터로부터 2일치 생성 (오늘+내일)
+        hours: 12,
+        includeLocalAqi: true,
+        includeDominantPollutant: true,
+        includeHealthSuggestion: true,
+        languageCode: 'ko'
+      }),
+      googleAirQualityService.getDailyAirQualityWithTTL({ 
+        latitude, 
+        longitude, 
+        days: 2,
         includeLocalAqi: true,
         includeDominantPollutant: true,
         includeHealthSuggestion: true,
         languageCode: 'ko'
       }),
     ]);
+
+    // 현재 대기질 데이터 처리
+    const processedCurrentAirQuality = googleAirQualityService.processAirQualityData(currentAirQuality);
     
-    console.log(`✅ 사용자 ${userId} 좌표 기반 대기질 조회 완료`);
+    // 시간별 응답에서 실제 데이터 추출
+    const hourlyAirQuality = hourlyResponse.hourlyForecasts?.map(forecast => 
+      googleAirQualityService.processAirQualityData(forecast)
+    ) || [];
+    
     return {
-      currentAirQuality,
+      currentAirQuality: processedCurrentAirQuality,
       hourlyAirQuality,
       dailyAirQuality,
     };
   } catch (error) {
-    console.error('사용자 좌표 기반 대기질 조회 실패:', error);
     throw new Error('위치 기반 대기질 정보를 가져오는데 실패했습니다.');
   }
 }
@@ -201,17 +210,14 @@ export async function getUserLocationAirQuality(): Promise<{
   
   try {
     // 사용자 위치 정보 조회
-    const { getUserLocation } = await import('./location');
-    const locationResult = await getUserLocation();
+    const dbLocation = await getUserLocationByUserId(userId);
     
-    if (!locationResult.success || !locationResult.data) {
-      console.log(`사용자 ${userId}의 저장된 위치 정보가 없습니다.`);
+    if (!dbLocation) {
       return null;
     }
     
-    const userLocation = locationResult.data;
+    const userLocation = mapUserLocationForClient(dbLocation);
     
-    console.log(`🌬️ 사용자 ${userId} 저장된 위치 대기질 조회 시작: ${userLocation.latitude}, ${userLocation.longitude}`);
     
     // 저장된 위치의 대기질 조회
     return await getUserAirQualityByCoordinates(
@@ -219,7 +225,6 @@ export async function getUserLocationAirQuality(): Promise<{
       parseFloat(userLocation.longitude)
     );
   } catch (error) {
-    console.error('사용자 저장된 위치 대기질 조회 실패:', error);
     throw new Error('저장된 위치의 대기질 정보를 가져오는데 실패했습니다.');
   }
 }
@@ -257,7 +262,6 @@ export async function getGoogleAirQualityApiUsage(date?: string): Promise<{
       usagePercentage,
     };
   } catch (error) {
-    console.error('Google Air Quality API 사용량 조회 실패:', error);
     throw new Error('API 사용량 정보를 가져오는데 실패했습니다.');
   }
 }
@@ -280,15 +284,12 @@ export async function refreshAirQualityData(
   }
   
   try {
-    console.log(`🔄 사용자 ${userId} 대기질 데이터 새로고침 시작: ${latitude}, ${longitude}`);
     
     // 캐시를 무시하고 새로운 데이터 조회
     const result = await getUserAirQualityByCoordinates(latitude, longitude);
     
-    console.log(`✅ 사용자 ${userId} 대기질 데이터 새로고침 완료`);
     return result;
   } catch (error) {
-    console.error('대기질 데이터 새로고침 실패:', error);
     throw new Error('대기질 데이터를 새로고침하는데 실패했습니다.');
   }
 }
@@ -308,7 +309,6 @@ export async function getStored90HourAirQuality(
   }
   
   try {
-    console.log(`📊 사용자 ${userId} 저장된 90시간 대기질 조회: ${latitude}, ${longitude}`);
     
     const storedData = await googleAirQualityService.getStored90HourData(
       userId,
@@ -316,10 +316,8 @@ export async function getStored90HourAirQuality(
       longitude
     );
     
-    console.log(`✅ 저장된 90시간 데이터: ${storedData.length}개 항목`);
     return storedData;
   } catch (error) {
-    console.error('저장된 90시간 대기질 조회 실패:', error);
     throw new Error('저장된 대기질 정보를 가져오는데 실패했습니다.');
   }
 }
@@ -338,7 +336,6 @@ export async function manualCollect90HourData(
   }
   
   try {
-    console.log(`🔄 사용자 ${userId} 수동 90시간 데이터 수집 시작: ${latitude}, ${longitude}`);
     
     await googleAirQualityService.collectAndStore90HourDataForUser(
       userId,
@@ -353,14 +350,12 @@ export async function manualCollect90HourData(
       longitude
     );
     
-    console.log(`✅ 수동 90시간 데이터 수집 완료: ${storedData.length}개 항목`);
     return {
       success: true,
       message: `90시간 대기질 데이터 ${storedData.length}개 수집 완료`,
       dataCount: storedData.length,
     };
   } catch (error) {
-    console.error('수동 90시간 데이터 수집 실패:', error);
     return {
       success: false,
       message: error instanceof Error ? error.message : '데이터 수집 실패',

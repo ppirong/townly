@@ -1,0 +1,117 @@
+---
+always_apply: false
+description: Clerk 인증 시스템과 shadcn/ui 통합 가이드
+---
+
+# Clerk + shadcn/ui Integration Rules (Optimized)
+
+## 1. 기본 원칙 (핵심)
+- Clerk 인증 관련 모든 UI는 **shadcn/ui 기반**이어야 한다.
+- 인증은 **항상 Dialog(모달)** 형태로 제공한다.
+- Clerk 컴포넌트는 `appearance` 설정을 통해 **shadcn/ui 스타일과 동일한 테마**를 유지한다.
+- 인증 트리거 버튼은 반드시 **shadcn/ui Button** 컴포넌트만 사용한다.
+
+---
+
+## 2. 금지 규칙
+- ❌ Clerk 기본 버튼 / 기본 스타일 사용 금지  
+- ❌ 인증 페이지 리다이렉트 기반 UX 금지 (모달-only)  
+- ❌ shadcn/ui 스타일과 다른 임의 커스텀 스타일 금지  
+- ❌ Clerk UI를 새로 디자인하는 커스텀 인증 UI 금지  
+
+---
+
+## 3. 필수 컴포넌트
+아래 shadcn/ui 컴포넌트만 인증 관련 UI에 사용한다:
+
+- **button**
+- **dialog**
+- **card**
+- **avatar**
+- **dropdown-menu**
+- **separator**
+
+(설치 명령어는 규칙에 포함하지 않음)
+
+---
+
+## 4. 인증 버튼 패턴 규칙
+
+### 4.1 Sign In / Sign Up 버튼 (Dialog 기반)
+필수 패턴:
+```tsx
+<Dialog>
+  <DialogTrigger asChild>
+    <Button variant="default" size="sm">Sign In</Button>
+  </DialogTrigger>
+  <DialogContent className="sm:max-w-md">
+    <SignIn appearance={clerkAppearance} />
+  </DialogContent>
+</Dialog>
+```
+
+- 항상 DialogTrigger asChild 사용
+- 버튼 variant/size는 shadcn/ui 기본 규칙 유지
+- DialogContent는 기본적으로 sm:max-w-md 유지
+
+### 4.2 UserProfile 버튼 패턴
+- UI 구조는 반드시 DropdownMenu → Avatar → Dialog(UserProfile)
+- 프로필 정보는 Dropdown 상단 영역에 표시
+- 로그아웃은 DropdownMenuItem로 처리
+
+---
+
+## 5. Clerk appearance 표준 (필수)
+Clerk 컴포넌트 appearance 설정은 아래 구조를 기본으로 유지한다:
+
+```typescript
+export const clerkAppearance = {
+  elements: {
+    card: "bg-background border-border",
+    formButtonPrimary: "bg-primary text-primary-foreground hover:bg-primary/90",
+    formFieldInput: "border-input bg-background",
+    footerActionLink: "text-primary hover:text-primary/90",
+    socialButtonsBlockButton: "border-input hover:bg-accent",
+  },
+};
+```
+
+- 위 항목은 필수
+- headerTitle, headerSubtitle 등 확장 가능하나 핵심 요소는 변경 불가
+
+---
+
+## 6. 인증 버튼 구성 규칙
+- 로그인됨(isSignedIn) → UserProfileButton 노출
+- 로그아웃 상태 → SignIn / SignUp 버튼만 노출
+- 로딩 중 → shadcn/ui Skeleton 사용
+- 모든 버튼의 size는 기본 sm
+
+---
+
+## 7. 보호된 컴포넌트 규칙
+- 인증이 필요한 컴포넌트는 ProtectedComponent 패턴 사용
+- 로그인이 필요하면 SignIn Dialog 표시
+- 로딩 상태에서는 skeleton 또는 기본 로딩 UI 표시
+
+---
+
+## 8. 반응형 규칙
+- 모바일에서는 DialogContent를 w-full h-full 로 풀스크린 대응 가능
+- 데스크탑에서는 기본 sm:max-w-md 또는 확장형 max-w-4xl 사용
+
+---
+
+## 9. 에러 처리 규칙
+- Clerk 에러는 toast 기반으로 처리
+- 에러 메시지는 기본 Clerk 메시지 + error.message 포함
+
+---
+
+## 10. QA 체크리스트
+- [ ] 모든 인증 버튼이 shadcn/ui Button 사용
+- [ ] 모든 인증 UI가 Dialog 기반
+- [ ] Clerk appearance가 shadcn/ui 테마와 일치
+- [ ] 로딩 상태 처리 확인
+- [ ] 에러는 toast로 처리
+- [ ] 모바일/데스크탑 대응 완료

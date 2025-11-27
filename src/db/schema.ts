@@ -198,11 +198,14 @@ export const emailLogs = pgTable('email_logs', {
 export const userLocations = pgTable('user_locations', {
   id: uuid('id').defaultRandom().primaryKey(),
   clerkUserId: text('clerk_user_id').notNull(),
-  locationName: text('location_name').notNull(),
   latitude: text('latitude').notNull(),
   longitude: text('longitude').notNull(),
   address: text('address'),
-  isDefault: boolean('is_default').default(false).notNull(),
+  cityName: text('city_name'),
+  isDefault: boolean('is_default').default(true).notNull(),
+  nickname: text('nickname'),
+  accuracy: integer('accuracy'),
+  source: text('source').default('gps').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -594,14 +597,19 @@ export type NewMartDiscountItem = typeof martDiscountItems.$inferInsert;
  */
 export const apiCallLogs = pgTable('api_call_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
-  service: text('service').notNull(), // 서비스명 (weather, airquality 등)
-  endpoint: text('endpoint').notNull(), // API 엔드포인트
-  method: text('method').notNull(), // HTTP 메소드
-  statusCode: integer('status_code'), // 응답 상태 코드
+  apiProvider: text('api_provider').notNull(), // API 제공자 (weather, airquality 등)
+  apiEndpoint: text('api_endpoint').notNull(), // API 엔드포인트
+  httpMethod: text('http_method').default('GET').notNull(), // HTTP 메소드
+  callDate: text('call_date').notNull(), // 호출 날짜
+  callTime: timestamp('call_time').defaultNow().notNull(), // 호출 시간
+  httpStatus: integer('http_status'), // HTTP 상태 코드
   responseTime: integer('response_time'), // 응답 시간 (ms)
+  isSuccessful: boolean('is_successful').default(true).notNull(), // 성공 여부
+  userId: text('user_id'), // 사용자 ID
+  requestParams: jsonb('request_params'), // 요청 파라미터
   errorMessage: text('error_message'), // 에러 메시지
-  requestData: jsonb('request_data'), // 요청 데이터
-  responseData: jsonb('response_data'), // 응답 데이터
+  userAgent: text('user_agent'), // 사용자 에이전트
+  ipAddress: text('ip_address'), // IP 주소
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -611,12 +619,18 @@ export const apiCallLogs = pgTable('api_call_logs', {
  */
 export const dailyApiStats = pgTable('daily_api_stats', {
   id: uuid('id').defaultRandom().primaryKey(),
-  date: timestamp('date').notNull(),
-  service: text('service').notNull(),
+  statDate: text('stat_date').notNull(), // 통계 날짜
+  apiProvider: text('api_provider').notNull(), // API 제공자
   totalCalls: integer('total_calls').default(0).notNull(),
   successfulCalls: integer('successful_calls').default(0).notNull(),
   failedCalls: integer('failed_calls').default(0).notNull(),
-  averageResponseTime: integer('average_response_time'), // ms
+  avgResponseTime: integer('avg_response_time'), // 평균 응답 시간 (ms)
+  maxResponseTime: integer('max_response_time'), // 최대 응답 시간 (ms)
+  minResponseTime: integer('min_response_time'), // 최소 응답 시간 (ms)
+  endpointStats: jsonb('endpoint_stats'), // 엔드포인트별 통계
+  hourlyStats: jsonb('hourly_stats'), // 시간별 통계
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  isFinalized: boolean('is_finalized').default(false).notNull(), // 최종화 여부
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -690,21 +704,27 @@ export const individualEmailLogs = pgTable('individual_email_logs', {
  */
 export const googleHourlyAirQualityData = pgTable('google_hourly_air_quality_data', {
   id: uuid('id').defaultRandom().primaryKey(),
-  locationKey: text('location_key').notNull(),
+  clerkUserId: text('clerk_user_id'), // 실제 DB에서는 nullable
   latitude: text('latitude').notNull(),
   longitude: text('longitude').notNull(),
-  forecastDateTime: timestamp('forecast_date_time').notNull(),
-  aqi: integer('aqi'), // 대기질 지수
-  pm25: integer('pm25'), // PM2.5
-  pm10: integer('pm10'), // PM10
-  o3: integer('o3'), // 오존
-  no2: integer('no2'), // 이산화질소
-  so2: integer('so2'), // 이산화황
-  co: integer('co'), // 일산화탄소
-  rawData: jsonb('raw_data'), // 원본 API 응답 데이터
-  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  locationName: text('location_name'), // 실제 DB 구조에 맞춤
+  forecastDate: text('forecast_date').notNull(), // 실제 DB 구조
+  forecastHour: integer('forecast_hour').notNull(), // 실제 DB 구조
+  forecastDateTime: timestamp('forecast_datetime').notNull(), // 언더스코어 없음!
+  pm10: integer('pm10'),
+  pm25: integer('pm25'),
+  caiKr: integer('cai_kr'), // 실제 DB 구조
+  breezoMeterAqi: integer('breezo_meter_aqi'), // 실제 DB 구조
+  no2: integer('no2'),
+  o3: integer('o3'),
+  so2: integer('so2'),
+  co: integer('co'),
+  units: text('units').default('metric').notNull(),
+  rawData: jsonb('raw_data'),
+  cacheKey: text('cache_key').notNull(),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 /**
@@ -713,21 +733,35 @@ export const googleHourlyAirQualityData = pgTable('google_hourly_air_quality_dat
  */
 export const googleDailyAirQualityData = pgTable('google_daily_air_quality_data', {
   id: uuid('id').defaultRandom().primaryKey(),
-  locationKey: text('location_key').notNull(),
+  clerkUserId: text('clerk_user_id'), // 실제 DB에서는 nullable
   latitude: text('latitude').notNull(),
   longitude: text('longitude').notNull(),
-  forecastDate: timestamp('forecast_date').notNull(),
-  aqi: integer('aqi'), // 대기질 지수
-  pm25: integer('pm25'), // PM2.5
-  pm10: integer('pm10'), // PM10
-  o3: integer('o3'), // 오존
-  no2: integer('no2'), // 이산화질소
-  so2: integer('so2'), // 이산화황
-  co: integer('co'), // 일산화탄소
-  rawData: jsonb('raw_data'), // 원본 API 응답 데이터
-  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  locationName: text('location_name'), // 실제 DB 구조에 맞춤
+  forecastDate: text('forecast_date').notNull(), // text 타입으로 수정
+  dayOfWeek: text('day_of_week').notNull(), // 실제 DB 구조
+  pm10: integer('pm10'),
+  pm10Max: integer('pm10_max'), // 실제 DB 구조
+  pm10Min: integer('pm10_min'), // 실제 DB 구조
+  pm25: integer('pm25'),
+  pm25Max: integer('pm25_max'), // 실제 DB 구조
+  pm25Min: integer('pm25_min'), // 실제 DB 구조
+  caiKr: integer('cai_kr'), // 실제 DB 구조
+  caiKrMax: integer('cai_kr_max'), // 실제 DB 구조
+  caiKrMin: integer('cai_kr_min'), // 실제 DB 구조
+  breezoMeterAqi: integer('breezo_meter_aqi'), // 실제 DB 구조
+  breezoMeterAqiMax: integer('breezo_meter_aqi_max'), // 실제 DB 구조
+  breezoMeterAqiMin: integer('breezo_meter_aqi_min'), // 실제 DB 구조
+  no2: integer('no2'),
+  o3: integer('o3'),
+  so2: integer('so2'),
+  co: integer('co'),
+  units: text('units').default('metric').notNull(),
+  forecastDays: integer('forecast_days').default(7).notNull(),
+  rawData: jsonb('raw_data'),
+  cacheKey: text('cache_key').notNull(),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 /**

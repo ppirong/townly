@@ -17,12 +17,10 @@ export function convertAccuWeatherDateTimeToKST(accuWeatherDateTime: string): {
   forecastDate: string;
   forecastHour: number;
 } {
-  console.log('🕐 AccuWeather DateTime 처리 시작:', accuWeatherDateTime);
   
   // AccuWeather DateTime을 UTC로 파싱
   const utcDateTime = new Date(accuWeatherDateTime);
   
-  console.log('🕐 UTC 시간:', utcDateTime.toISOString());
   
   // KST 시간대로 포맷팅하여 날짜와 시간 추출 (환경 무관)
   const kstString = utcDateTime.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }); // YYYY-MM-DD HH:mm:ss
@@ -33,14 +31,6 @@ export function convertAccuWeatherDateTimeToKST(accuWeatherDateTime: string): {
   // KST 문자열을 Date 객체로 변환 (시간대 정보 없이)
   const kstDateTime = new Date(kstString.replace(' ', 'T') + '.000Z');
   
-  console.log('🕐 KST 포맷팅:', kstString);
-  console.log('🕐 KST 문자열 → Date:', kstString.replace(' ', 'T') + '.000Z');
-  console.log('📅 최종 결과:', {
-    forecastDate,
-    forecastHour,
-    kstDateTime: kstDateTime.toISOString(),
-    kstDateTimeForDB: kstString // 실제 KST 시간
-  });
   
   return {
     kstDateTime,
@@ -117,7 +107,6 @@ export function convertGoogleDateTimeToKST(googleDateTime: string): {
   forecastDate: string;
   forecastHour: number;
 } {
-  console.log('🕐 Google API DateTime 처리 시작:', googleDateTime);
   
   // Google API DateTime을 UTC로 파싱
   const utcDateTime = new Date(googleDateTime);
@@ -125,18 +114,11 @@ export function convertGoogleDateTimeToKST(googleDateTime: string): {
   // 명시적으로 KST로 변환 (UTC+9)
   const kstDateTime = new Date(utcDateTime.getTime() + (9 * 60 * 60 * 1000));
   
-  console.log('🕐 UTC 시간:', utcDateTime.toISOString());
-  console.log('🕐 KST 시간 (UTC+9):', kstDateTime.toISOString());
   
   // KST 기준으로 날짜와 시간 추출 (환경 무관하게 ISO 문자열 파싱)
   const forecastDate = kstDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
   const forecastHour = parseInt(kstDateTime.toISOString().split('T')[1].split(':')[0], 10); // KST 시간 (0-23)
   
-  console.log('📅 최종 결과:', {
-    forecastDate,
-    forecastHour,
-    kstDateTime: kstDateTime.toISOString()
-  });
   
   return {
     kstDateTime,
@@ -157,7 +139,6 @@ export function convertUTCToKST(utcDateTime: string | Date): {
   forecastDate: string;
   forecastHour: number;
 } {
-  console.log('🕐 UTC → KST 변환 시작:', utcDateTime);
   
   // UTC DateTime 파싱
   const utcDate = typeof utcDateTime === 'string' ? new Date(utcDateTime) : utcDateTime;
@@ -165,18 +146,11 @@ export function convertUTCToKST(utcDateTime: string | Date): {
   // 명시적으로 KST로 변환 (UTC+9)
   const kstDateTime = new Date(utcDate.getTime() + (9 * 60 * 60 * 1000));
   
-  console.log('🕐 UTC 시간:', utcDate.toISOString());
-  console.log('🕐 KST 시간 (UTC+9):', kstDateTime.toISOString());
   
   // KST 기준으로 날짜와 시간 추출 (환경 무관하게 ISO 문자열 파싱)
   const forecastDate = kstDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
   const forecastHour = parseInt(kstDateTime.toISOString().split('T')[1].split(':')[0], 10); // KST 시간 (0-23)
   
-  console.log('📅 최종 결과:', {
-    forecastDate,
-    forecastHour,
-    kstDateTime: kstDateTime.toISOString()
-  });
   
   return {
     kstDateTime,
@@ -189,8 +163,5 @@ export function convertUTCToKST(utcDateTime: string | Date): {
  * 시간 변환 디버깅 로그
  */
 export function logTimeConversion(step: string, original: string, converted: Date): void {
-  console.log(`🕐 [${step}]`);
-  console.log(`  - 원본: ${original}`);
-  console.log(`  - 변환: ${converted.toISOString()}`);
-  console.log(`  - KST: ${converted.toLocaleString('ko-KR')}`);
+  // 디버깅 로그 제거됨
 }
