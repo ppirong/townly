@@ -394,7 +394,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
           locationName: item.location,
           latitude: '0', // 서비스 타입에는 좌표 정보가 없음
           longitude: '0',
-          forecastDateTime: item.timestamp,
+          forecastDatetime: item.timestamp,
           forecastDate: item.forecastDate || '',
           forecastHour: Number(item.forecastHour || 0),
           temperature: Number(item.temperature || 0),

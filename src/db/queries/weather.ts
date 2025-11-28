@@ -129,7 +129,7 @@ export async function getUserHourlyWeatherData(params: {
   const conditions = [
     eq(hourlyWeatherData.clerkUserId, clerkUserId),
     gte(hourlyWeatherData.expiresAt, new Date()),
-    gte(hourlyWeatherData.forecastDateTime, startDate)
+    gte(hourlyWeatherData.forecastDatetime, startDate)
   ];
   
   if (locationKey) {
@@ -140,7 +140,7 @@ export async function getUserHourlyWeatherData(params: {
     .select()
     .from(hourlyWeatherData)
     .where(and(...conditions))
-    .orderBy(hourlyWeatherData.forecastDateTime)
+    .orderBy(hourlyWeatherData.forecastDatetime)
     .limit(hours);
 }
 

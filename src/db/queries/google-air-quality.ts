@@ -31,8 +31,8 @@ export async function getGoogleHourlyAirQualityByUser(
   if (startTime && endTime) {
     const timeConditions = [
       ...baseConditions,
-      gte(googleHourlyAirQualityData.forecastDateTime, startTime),
-      lte(googleHourlyAirQualityData.forecastDateTime, endTime)
+      gte(googleHourlyAirQualityData.forecastDatetime, startTime),
+      lte(googleHourlyAirQualityData.forecastDatetime, endTime)
     ];
     
     query = db
@@ -112,7 +112,7 @@ export async function upsertGoogleHourlyAirQualityData(data: NewGoogleHourlyAirQ
     // 업데이트
     const result = await db
       .update(googleHourlyAirQualityData)
-      .set({ ...data, lastUpdated: new Date() })
+      .set({ ...data, updatedAt: new Date() })
       .where(eq(googleHourlyAirQualityData.cacheKey, data.cacheKey!))
       .returning();
     return result[0];
@@ -151,7 +151,7 @@ export async function deleteOldGoogleHourlyAirQualityData(
   const whereConditions = [
     eq(googleHourlyAirQualityData.latitude, latitude),
     eq(googleHourlyAirQualityData.longitude, longitude),
-    lte(googleHourlyAirQualityData.forecastDateTime, beforeTime)
+    lte(googleHourlyAirQualityData.forecastDatetime, beforeTime)
   ];
 
   // clerkUserId가 있는 경우에만 조건에 추가

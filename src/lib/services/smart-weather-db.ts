@@ -95,7 +95,7 @@ export class SmartWeatherDatabaseService {
           longitude: longitude.toString(),
           forecastDate,
           forecastHour,
-          forecastDateTime: new Date(data.timestamp),
+          forecastDatetime: new Date(data.timestamp),
           temperature: data.temperature,
           conditions: data.conditions,
           weatherIcon: data.weatherIcon || null,
@@ -379,7 +379,7 @@ export class SmartWeatherDatabaseService {
           .select()
           .from(hourlyWeatherData)
           .where(and(...baseConditions))
-          .orderBy(desc(hourlyWeatherData.forecastDateTime))
+          .orderBy(desc(hourlyWeatherData.forecastDatetime))
           .limit(limit);
       } else {
         return await db

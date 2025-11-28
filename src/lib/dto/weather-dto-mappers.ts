@@ -68,7 +68,7 @@ export interface ClientHourlyWeatherData {
   locationName: string | null;
   latitude: string;
   longitude: string;
-  forecastDateTime: string;
+  forecastDatetime: string;
   forecastDate: string;
   forecastHour: number;
   temperature: number;
@@ -104,7 +104,7 @@ export interface ClientDailyWeatherData {
   units: string;
   dayWeather: Record<string, unknown> | null;
   nightWeather: Record<string, unknown> | null;
-  headline: string | null;
+  headline: Record<string, unknown> | null;
   forecastDays: number;
   rawData: Record<string, unknown> | null;
   cacheKey: string;
@@ -140,9 +140,9 @@ export function mapHourlyWeatherForClient(db: DBHourlyWeatherData): ClientHourly
     clerkUserId: db.clerkUserId,
     locationKey: db.locationKey,
     locationName: db.locationName,
-    latitude: db.latitude,
-    longitude: db.longitude,
-    forecastDateTime: toISOString(db.forecastDateTime),
+    latitude: db.latitude || '',
+    longitude: db.longitude || '',
+    forecastDatetime: toISOString(db.forecastDatetime),
     forecastDate: db.forecastDate,
     forecastHour: toSafeNumber(db.forecastHour),
     temperature: toSafeNumber(db.temperature),
@@ -183,7 +183,7 @@ export function mapDailyWeatherForClient(db: DBDailyWeatherData): ClientDailyWea
     units: db.units || 'metric',
     dayWeather: toRecord(db.dayWeather),
     nightWeather: toRecord(db.nightWeather),
-    headline: db.headline,
+    headline: toRecord(db.headline),
     forecastDays: toSafeNumber(db.forecastDays),
     rawData: toRecord(db.rawData),
     cacheKey: db.cacheKey || '',
@@ -199,8 +199,8 @@ export function mapLocationKeyForClient(db: DBWeatherLocationKey): ClientWeather
   return {
     id: db.id,
     locationName: db.locationName,
-    latitude: db.latitude,
-    longitude: db.longitude,
+    latitude: db.latitude || '',
+    longitude: db.longitude || '',
     locationKey: db.locationKey,
     localizedName: db.localizedName,
     countryCode: db.countryCode,

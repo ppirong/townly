@@ -1162,7 +1162,7 @@ async function collectWeatherData(location: string, timeOfDay: 'morning' | 'even
     
     return {
       hourlyForecasts: hourlyData.map(hour => ({
-        dateTime: new Date(hour.forecastDateTime),
+        dateTime: new Date(hour.forecastDatetime),
         temperature: hour.temperature,
         conditions: hour.conditions,
         precipitationProbability: hour.precipitationProbability || 0,

@@ -18,7 +18,7 @@ export async function POST(_request: NextRequest) {
     const allRecords = await db
       .select()
       .from(hourlyWeatherData)
-      .where(isNotNull(hourlyWeatherData.forecastDateTime));
+      .where(isNotNull(hourlyWeatherData.forecastDatetime));
 
     console.log(`📊 총 ${allRecords.length}개 레코드 발견`);
 
@@ -28,20 +28,20 @@ export async function POST(_request: NextRequest) {
       // forecast_datetime이 이미 KST 시간으로 저장되어 있으므로 직접 파싱
       // PostgreSQL timestamp는 시간대 정보 없이 저장되므로 JavaScript에서 UTC로 해석됨
       // 따라서 UTC 메서드를 사용하여 실제 저장된 KST 값을 추출
-      const correctForecastDate = record.forecastDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
-      const correctForecastHour = record.forecastDateTime.getUTCHours(); // KST 시간 (UTC로 해석된 값의 시간 부분)
+      const correctForecastDate = record.forecastDatetime.toISOString().split('T')[0]; // YYYY-MM-DD
+      const correctForecastHour = record.forecastDatetime.getUTCHours(); // KST 시간 (UTC로 해석된 값의 시간 부분)
 
       // 디버깅: 모든 계산 방법 비교
       console.log(`\n=== 레코드 ${record.id} 분석 ===`);
-      console.log(`원본 forecast_datetime: ${record.forecastDateTime}`);
-      console.log(`toISOString(): ${record.forecastDateTime.toISOString()}`);
-      console.log(`getTimezoneOffset(): ${record.forecastDateTime.getTimezoneOffset()}`);
+      console.log(`원본 forecast_datetime: ${record.forecastDatetime}`);
+      console.log(`toISOString(): ${record.forecastDatetime.toISOString()}`);
+      console.log(`getTimezoneOffset(): ${record.forecastDatetime.getTimezoneOffset()}`);
       
       // 다양한 방법으로 계산
-      const utcDate = record.forecastDateTime.toISOString().split('T')[0];
-      const utcHour = record.forecastDateTime.getUTCHours();
-      const localDate = `${record.forecastDateTime.getFullYear()}-${String(record.forecastDateTime.getMonth() + 1).padStart(2, '0')}-${String(record.forecastDateTime.getDate()).padStart(2, '0')}`;
-      const localHour = record.forecastDateTime.getHours();
+      const utcDate = record.forecastDatetime.toISOString().split('T')[0];
+      const utcHour = record.forecastDatetime.getUTCHours();
+      const localDate = `${record.forecastDatetime.getFullYear()}-${String(record.forecastDatetime.getMonth() + 1).padStart(2, '0')}-${String(record.forecastDatetime.getDate()).padStart(2, '0')}`;
+      const localHour = record.forecastDatetime.getHours();
       
       console.log(`UTC 방법: ${utcDate}, ${utcHour}시`);
       console.log(`로컬 방법: ${localDate}, ${localHour}시`);
@@ -73,7 +73,7 @@ export async function POST(_request: NextRequest) {
     const sampleRecords = await db
       .select()
       .from(hourlyWeatherData)
-      .orderBy(hourlyWeatherData.forecastDateTime)
+      .orderBy(hourlyWeatherData.forecastDatetime)
       .limit(5);
 
     return NextResponse.json({
@@ -85,7 +85,7 @@ export async function POST(_request: NextRequest) {
         id: record.id,
         forecastDate: record.forecastDate,
         forecastHour: record.forecastHour,
-        forecastDateTime: record.forecastDateTime.toISOString(),
+        forecastDatetime: record.forecastDatetime.toISOString(),
         temperature: record.temperature,
       })),
     });

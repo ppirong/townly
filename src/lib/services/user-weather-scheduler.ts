@@ -321,7 +321,7 @@ async function saveHourlyWeatherToDatabase(
       longitude: longitude.toString(),
       forecastDate,
       forecastHour,
-      forecastDateTime: kstDateTime, // KST로 변환된 시간 사용
+      forecastDatetime: kstDateTime, // KST로 변환된 시간 사용
       temperature: Math.round(forecast.Temperature.Value),
       conditions: forecast.IconPhrase || '알 수 없음',
       weatherIcon: forecast.WeatherIcon || null,
@@ -438,7 +438,7 @@ async function cleanupOldWeatherData(currentTime: Date): Promise<void> {
     // 1. 현재 시각보다 이전 시각의 시간별 데이터 삭제
     const deletedHourly = await db
       .delete(hourlyWeatherData)
-      .where(lt(hourlyWeatherData.forecastDateTime, currentTime));
+      .where(lt(hourlyWeatherData.forecastDatetime, currentTime));
     
     // 2. 오늘보다 이전 날짜의 일별 데이터 삭제
     const today = currentTime.toISOString().split('T')[0];

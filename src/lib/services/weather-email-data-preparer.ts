@@ -165,7 +165,7 @@ export class WeatherEmailDataPreparer {
             longitude: location.longitude || '126.9780',
             forecastDate: sendDate,
             forecastHour: new Date(data.timestamp).getHours(),
-            forecastDateTime: new Date(data.timestamp),
+            forecastDatetime: new Date(data.timestamp),
             temperature: data.temperature,
             conditions: data.conditions,
             weatherIcon: data.weatherIcon || null,
@@ -221,7 +221,7 @@ export class WeatherEmailDataPreparer {
         userAddress: location.address || '',
         headline,
         hourlyData: hourlyData.map((h) => ({
-          dateTime: h.forecastDateTime,
+          dateTime: h.forecastDatetime,
           hour: h.forecastHour,
           temperature: h.temperature,
           conditions: h.conditions,

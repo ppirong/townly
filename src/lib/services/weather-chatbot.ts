@@ -148,7 +148,7 @@ export class WeatherChatbotService {
       .select()
       .from(hourlyWeatherData)
       .where(and(...whereConditions))
-      .orderBy(desc(hourlyWeatherData.forecastDateTime))
+      .orderBy(desc(hourlyWeatherData.forecastDatetime))
       .limit(1);
     
     // 사용자별 데이터가 없으면 전체 데이터에서 조회
@@ -163,7 +163,7 @@ export class WeatherChatbotService {
             eq(hourlyWeatherData.locationName, location)
           )
         )
-        .orderBy(desc(hourlyWeatherData.forecastDateTime))
+        .orderBy(desc(hourlyWeatherData.forecastDatetime))
         .limit(1);
     }
     
@@ -202,7 +202,7 @@ export class WeatherChatbotService {
       .select()
       .from(hourlyWeatherData)
       .where(and(...whereConditions))
-      .orderBy(asc(hourlyWeatherData.forecastDateTime))
+      .orderBy(asc(hourlyWeatherData.forecastDatetime))
       .limit(12); // 12시간
     
     // 사용자별 데이터가 없으면 전체 데이터에서 조회
@@ -217,7 +217,7 @@ export class WeatherChatbotService {
             eq(hourlyWeatherData.locationName, location)
           )
         )
-        .orderBy(asc(hourlyWeatherData.forecastDateTime))
+        .orderBy(asc(hourlyWeatherData.forecastDatetime))
         .limit(12);
     }
     
@@ -428,7 +428,7 @@ export class WeatherChatbotService {
     let response = '⏰ 시간별 날씨 (12시간):\n\n';
     
     data.slice(0, 6).forEach((weather, index) => {
-      const hour = new Date(weather.forecastDateTime).getHours();
+      const hour = new Date(weather.forecastDatetime).getHours();
       response += `${hour}시: ${weather.temperature}°C, ${weather.conditions}`;
       
       if (weather.precipitationProbability > 0) {

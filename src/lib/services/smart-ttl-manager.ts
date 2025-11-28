@@ -143,7 +143,7 @@ export class SmartTTLManager {
         .select({
           locationKey: hourlyWeatherData.locationKey,
           createdAt: hourlyWeatherData.createdAt,
-          forecastDateTime: hourlyWeatherData.forecastDateTime,
+          forecastDatetime: hourlyWeatherData.forecastDatetime,
         })
         .from(hourlyWeatherData)
         .where(and(

@@ -491,7 +491,7 @@ class GoogleAirQualityService {
           locationName: `${request.latitude}, ${request.longitude}`,
           forecastDate, // KST 기준 날짜
           forecastHour, // KST 기준 시간
-          forecastDateTime: kstDateTime, // KST 기준 DateTime
+          forecastDatetime: kstDateTime, // KST 기준 DateTime
           pm10: data.pm10,
           pm25: data.pm25,
           caiKr: data.caiKr,
@@ -530,8 +530,8 @@ class GoogleAirQualityService {
       const whereConditions = [
         eq(googleHourlyAirQualityData.latitude, latitude.toString()),
         eq(googleHourlyAirQualityData.longitude, longitude.toString()),
-        gte(googleHourlyAirQualityData.forecastDateTime, startOfHour),
-        lte(googleHourlyAirQualityData.forecastDateTime, endTime),
+        gte(googleHourlyAirQualityData.forecastDatetime, startOfHour),
+        lte(googleHourlyAirQualityData.forecastDatetime, endTime),
         gte(googleHourlyAirQualityData.expiresAt, now),
       ];
 
@@ -543,10 +543,10 @@ class GoogleAirQualityService {
         .select()
         .from(googleHourlyAirQualityData)
         .where(and(...whereConditions))
-        .orderBy(googleHourlyAirQualityData.forecastDateTime);
+        .orderBy(googleHourlyAirQualityData.forecastDatetime);
 
       return cachedData.map(data => ({
-        dateTime: data.forecastDateTime.toISOString(),
+        dateTime: data.forecastDatetime.toISOString(),
         pm10: data.pm10 || undefined,
         pm25: data.pm25 || undefined,
         caiKr: data.caiKr || undefined,
@@ -772,7 +772,7 @@ class GoogleAirQualityService {
           locationName: `${latitude}, ${longitude}`,
           forecastDate, // KST 기준 날짜
           forecastHour, // KST 기준 시간
-          forecastDateTime: kstDateTime, // KST 기준 DateTime
+          forecastDatetime: kstDateTime, // KST 기준 DateTime
           pm10: data.pm10,
           pm25: data.pm25,
           caiKr: data.caiKr,
@@ -814,14 +814,14 @@ class GoogleAirQualityService {
             eq(googleHourlyAirQualityData.clerkUserId, clerkUserId),
             eq(googleHourlyAirQualityData.latitude, latitude.toString()),
             eq(googleHourlyAirQualityData.longitude, longitude.toString()),
-            gte(googleHourlyAirQualityData.forecastDateTime, now)
+            gte(googleHourlyAirQualityData.forecastDatetime, now)
           )
         )
-        .orderBy(googleHourlyAirQualityData.forecastDateTime)
+        .orderBy(googleHourlyAirQualityData.forecastDatetime)
         .limit(90);
 
       return storedData.map(data => ({
-        dateTime: data.forecastDateTime.toISOString(),
+        dateTime: data.forecastDatetime.toISOString(),
         pm10: data.pm10 || undefined,
         pm25: data.pm25 || undefined,
         caiKr: data.caiKr || undefined,

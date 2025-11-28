@@ -35,7 +35,7 @@ export async function GET(_request: NextRequest) {
     const recentRecords = await db
       .select()
       .from(hourlyWeatherData)
-      .where(isNotNull(hourlyWeatherData.forecastDateTime))
+      .where(isNotNull(hourlyWeatherData.forecastDatetime))
       .orderBy(desc(hourlyWeatherData.createdAt))
       .limit(10);
 
@@ -43,7 +43,7 @@ export async function GET(_request: NextRequest) {
 
     // 각 레코드의 시간 정보 분석
     const timeAnalysis = recentRecords.map((record, index) => {
-      const forecastDateTime = record.forecastDateTime;
+      const forecastDateTime = record.forecastDatetime;
       
       return {
         index,
@@ -53,7 +53,7 @@ export async function GET(_request: NextRequest) {
         storedData: {
           forecastDate: record.forecastDate,
           forecastHour: record.forecastHour,
-          forecastDateTime: forecastDateTime.toISOString(),
+          forecastDatetime: forecastDateTime.toISOString(),
         },
         timeAnalysis: {
           utcTime: forecastDateTime.toUTCString(),

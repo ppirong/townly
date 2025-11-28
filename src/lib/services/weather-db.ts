@@ -135,7 +135,7 @@ export class WeatherDatabaseService {
           longitude: longitude.toString(),
           forecastDate, // 환경 무관 KST 기준 날짜
           forecastHour, // 환경 무관 KST 기준 시간 (0-23)
-          forecastDateTime: kstDateTime, // KST로 저장
+          forecastDatetime: kstDateTime, // KST로 저장
           temperature: data.temperature,
           conditions: data.conditions,
           weatherIcon: data.weatherIcon || null,
@@ -191,7 +191,7 @@ export class WeatherDatabaseService {
             gte(hourlyWeatherData.expiresAt, new Date())
           )
         )
-        .orderBy(hourlyWeatherData.forecastDateTime);
+        .orderBy(hourlyWeatherData.forecastDatetime);
 
       if (results.length > 0) {
         
@@ -199,13 +199,13 @@ export class WeatherDatabaseService {
         return results.map(record => {
           // ✅ forecast_datetime에서 직접 시간 추출 (정확한 KST 시간)
           // PostgreSQL timestamp는 시간대 정보 없이 저장되므로 UTC 메서드로 KST 값 추출
-          const hour = record.forecastDateTime.getUTCHours();
+          const hour = record.forecastDatetime.getUTCHours();
           
           return {
             location: record.locationName,
-            timestamp: record.forecastDateTime.toISOString(),
+            timestamp: record.forecastDatetime.toISOString(),
             hour: `${hour.toString().padStart(2, '0')}시`, // forecast_datetime에서 추출한 정확한 시간
-            forecastDate: record.forecastDateTime.toISOString().split('T')[0], // YYYY-MM-DD
+            forecastDate: record.forecastDatetime.toISOString().split('T')[0], // YYYY-MM-DD
             forecastHour: hour, // 0-23
             temperature: record.temperature,
             conditions: record.conditions,

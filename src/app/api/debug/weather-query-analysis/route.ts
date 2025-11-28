@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const allUserData = await db
       .select({
         id: hourlyWeatherData.id,
-        forecastDateTime: hourlyWeatherData.forecastDateTime,
+        forecastDatetime: hourlyWeatherData.forecastDatetime,
         forecastDate: hourlyWeatherData.forecastDate,
         forecastHour: hourlyWeatherData.forecastHour,
         temperature: hourlyWeatherData.temperature,
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       })
       .from(hourlyWeatherData)
       .where(eq(hourlyWeatherData.clerkUserId, userId))
-      .orderBy(hourlyWeatherData.forecastDateTime);
+      .orderBy(hourlyWeatherData.forecastDatetime);
 
     console.log(`📊 사용자의 전체 시간별 날씨 데이터: ${allUserData.length}개`);
 
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
     const conditionTests = {
       // 조건 1: 시간 범위만
       timeRange: allUserData.filter(record => 
-        record.forecastDateTime >= currentHour && 
-        record.forecastDateTime <= maxForecastTime
+        record.forecastDatetime >= currentHour && 
+        record.forecastDatetime <= maxForecastTime
       ),
       
       // 조건 2: TTL 체크만 (만료되지 않은 것)
@@ -57,14 +57,14 @@ export async function GET(request: NextRequest) {
       
       // 조건 3: 시간 범위 + TTL 체크 (실제 쿼리 조건)
       combined: allUserData.filter(record => 
-        record.forecastDateTime >= currentHour && 
-        record.forecastDateTime <= maxForecastTime &&
+        record.forecastDatetime >= currentHour && 
+        record.forecastDatetime <= maxForecastTime &&
         record.expiresAt >= now
       ),
       
       // 조건 4: 현재 시각 이후만 (이전 로직)
       afterNow: allUserData.filter(record => 
-        record.forecastDateTime >= now
+        record.forecastDatetime >= now
       ),
     };
 
@@ -74,11 +74,11 @@ export async function GET(request: NextRequest) {
       .from(hourlyWeatherData)
       .where(and(
         eq(hourlyWeatherData.clerkUserId, userId),
-        gte(hourlyWeatherData.forecastDateTime, currentHour),
-        lte(hourlyWeatherData.forecastDateTime, maxForecastTime)
+        gte(hourlyWeatherData.forecastDatetime, currentHour),
+        lte(hourlyWeatherData.forecastDatetime, maxForecastTime)
         // TTL 체크는 제거된 상태
       ))
-      .orderBy(hourlyWeatherData.forecastDateTime)
+      .orderBy(hourlyWeatherData.forecastDatetime)
       .limit(hours);
 
     // 5. 상세 분석 결과
@@ -103,8 +103,8 @@ export async function GET(request: NextRequest) {
       
       allData: allUserData.map(record => ({
         id: record.id,
-        forecastDateTime: record.forecastDateTime.toISOString(),
-        forecastDateTimeKST: record.forecastDateTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+        forecastDatetime: record.forecastDatetime.toISOString(),
+        forecastDateTimeKST: record.forecastDatetime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
         forecastDate: record.forecastDate,
         forecastHour: record.forecastHour,
         temperature: record.temperature,
@@ -114,15 +114,15 @@ export async function GET(request: NextRequest) {
         createdAt: record.createdAt.toISOString(),
         
         // 각 조건 통과 여부
-        passesTimeRange: record.forecastDateTime >= currentHour && record.forecastDateTime <= maxForecastTime,
+        passesTimeRange: record.forecastDatetime >= currentHour && record.forecastDatetime <= maxForecastTime,
         passesTTL: record.expiresAt >= now,
-        passesAfterNow: record.forecastDateTime >= now,
+        passesAfterNow: record.forecastDatetime >= now,
       })),
       
       actualQueryResult: actualQuery.map(record => ({
         id: record.id,
-        forecastDateTime: record.forecastDateTime.toISOString(),
-        forecastDateTimeKST: record.forecastDateTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+        forecastDatetime: record.forecastDatetime.toISOString(),
+        forecastDateTimeKST: record.forecastDatetime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
         temperature: record.temperature,
         conditions: record.conditions,
       })),

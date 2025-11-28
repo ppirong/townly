@@ -17,7 +17,7 @@ export class WeatherDataCollectorService {
 
       // 요청된 시간 수만큼 자르기
       return hourlyData.slice(0, hours).map((hour: any) => ({
-        forecastDateTime: hour.forecastDateTime || hour.dateTime || new Date().toISOString(),
+        forecastDatetime: hour.forecastDatetime || hour.dateTime || new Date().toISOString(),
         temperature: hour.temperature || hour.temp || 0,
         conditions: hour.conditions || hour.description || '',
         precipitationProbability: hour.precipitationProbability || hour.pop || 0,

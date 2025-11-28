@@ -52,10 +52,10 @@ export async function getUserHourlyWeather(
         eq(hourlyWeatherData.clerkUserId, clerkUserId),
         eq(hourlyWeatherData.locationName, location),
         gte(hourlyWeatherData.expiresAt, now), // 만료되지 않은 데이터
-        gte(hourlyWeatherData.forecastDateTime, now), // 현재 시간 이후
-        lte(hourlyWeatherData.forecastDateTime, twelveHoursFromNow) // 12시간 이내
+        gte(hourlyWeatherData.forecastDatetime, now), // 현재 시간 이후
+        lte(hourlyWeatherData.forecastDatetime, twelveHoursFromNow) // 12시간 이내
       ))
-      .orderBy(hourlyWeatherData.forecastDateTime)
+      .orderBy(hourlyWeatherData.forecastDatetime)
       .limit(hours);
 
     // 2. 사용자별 데이터가 충분하면 반환
@@ -195,9 +195,9 @@ async function saveUserHourlyDataInBackground(
           locationName: location,
           latitude: null,
           longitude: null,
-          forecastDate: new Date(data.forecastDateTime).toISOString().split('T')[0],
-          forecastHour: new Date(data.forecastDateTime).getHours(),
-          forecastDateTime: new Date(data.forecastDateTime),
+          forecastDate: new Date(data.forecastDatetime).toISOString().split('T')[0],
+          forecastHour: new Date(data.forecastDatetime).getHours(),
+          forecastDatetime: new Date(data.forecastDatetime),
           temperature: data.temperature,
           conditions: data.conditions,
           weatherIcon: data.weatherIcon || null,
@@ -277,7 +277,7 @@ async function saveUserDailyDataInBackground(
  */
 function transformDBToUserWeatherData(dbData: any): UserHourlyWeatherData {
   return {
-    dateTime: dbData.forecastDateTime,
+    dateTime: dbData.forecastDatetime,
     temperature: dbData.temperature,
     conditions: dbData.conditions,
     precipitationProbability: dbData.precipitationProbability || 0,
@@ -294,7 +294,7 @@ function transformDBToUserWeatherData(dbData: any): UserHourlyWeatherData {
  */
 function transformAPIToUserWeatherData(apiData: any): UserHourlyWeatherData {
   return {
-    dateTime: new Date(apiData.forecastDateTime),
+    dateTime: new Date(apiData.forecastDatetime),
     temperature: apiData.temperature,
     conditions: apiData.conditions,
     precipitationProbability: apiData.precipitationProbability || 0,

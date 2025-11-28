@@ -1,0 +1,556 @@
+
+> townly@0.1.0 build
+> next build --turbopack
+
+   ▲ Next.js 15.5.2 (Turbopack)
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ⚠ Slow filesystem detected. The benchmark took 174ms. If /Users/jisoopark/Dropbox/백업폴더/townly/.next is a network drive, consider moving it to a local folder. If you have an antivirus enabled, consider excluding your project directory.
+ ✓ Finished writing to disk in 3.0s
+ ✓ Compiled successfully in 35.0s
+   Linting and checking validity of types ...
+
+./src/actions/email-schedules.ts
+1089:16  Warning: 'collectPersonalizedUserWeatherData' is defined but never used.  @typescript-eslint/no-unused-vars
+1149:53  Warning: 'timeOfDay' is defined but never used.  @typescript-eslint/no-unused-vars
+1151:9  Warning: 'endTime' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+1392:54  Warning: 'timezone' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/actions/google-air-quality.ts
+13:3  Warning: 'getGoogleHourlyAirQualityByUser' is defined but never used.  @typescript-eslint/no-unused-vars
+14:3  Warning: 'getGoogleDailyAirQualityByUser' is defined but never used.  @typescript-eslint/no-unused-vars
+23:3  Warning: 'handleError' is defined but never used.  @typescript-eslint/no-unused-vars
+132:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+160:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+227:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+262:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+299:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+327:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+355:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/actions/update-discount-period.ts
+6:19  Warning: 'desc' is defined but never used.  @typescript-eslint/no-unused-vars
+6:25  Warning: 'min' is defined but never used.  @typescript-eslint/no-unused-vars
+6:30  Warning: 'max' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/admin/mart/edit/[id]/discount-info/page.tsx
+14:37  Warning: 'MapPin' is defined but never used.  @typescript-eslint/no-unused-vars
+14:45  Warning: 'Clock' is defined but never used.  @typescript-eslint/no-unused-vars
+14:91  Warning: 'Tag' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/admin/mart/edit/[id]/discount-register/page.tsx
+15:27  Warning: 'Calendar' is defined but never used.  @typescript-eslint/no-unused-vars
+15:37  Warning: 'Upload' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/admin/mart/register/page.tsx
+10:10  Warning: 'Textarea' is defined but never used.  @typescript-eslint/no-unused-vars
+17:64  Warning: 'ServerMartFormData' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/airquality-google/page.tsx
+27:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+35:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/airquality-google-current/page.tsx
+14:3  Warning: 'Eye' is defined but never used.  @typescript-eslint/no-unused-vars
+16:3  Warning: 'ExternalLink' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/admin/create-email-schedules/route.ts
+11:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+169:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/admin/create-tables/route.ts
+9:28  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/admin/recalculate-schedules/route.ts
+9:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+31:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/auth/gmail/revoke/route.ts
+8:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/auth/gmail/status/route.ts
+10:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/auth/gmail/test/route.ts
+10:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/debug/accuweather-raw/route.ts
+5:27  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+56:47  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/debug/airquality/route.ts
+84:37  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+89:39  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+97:47  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+170:86  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/debug/analyze-existing-time/route.ts
+7:27  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/debug/auth-test/route.ts
+4:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/debug/check-recent-messages/route.ts
+10:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/debug/email-schedules-check/route.ts
+10:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/debug/env-check/route.ts
+8:27  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/debug/fix-forecast-hour/route.ts
+7:28  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/debug/location-weather-test/route.ts
+12:27  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/debug/test-accuweather-time/route.ts
+4:27  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+57:58  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/debug/timezone-test/route.ts
+4:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/debug/weather-query-analysis/route.ts
+7:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/debug/webhook-routing-status/route.ts
+8:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/kakao/skills/weather/route.ts
+157:21  Warning: 'confidence' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+232:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/kakao/wallet/route.ts
+9:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/kakao/webhook/route.ts
+50:11  Warning: 'logData' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+161:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+366:57  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/user/register-admin/route.ts
+4:10  Warning: 'redirect' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/weather/cache-cleanup/route.ts
+50:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/weather/cache-clear/route.ts
+1:23  Warning: 'NextResponse' is defined but never used.  @typescript-eslint/no-unused-vars
+102:64  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+110:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/weather/stats/route.ts
+1:23  Warning: 'NextResponse' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/weather-email-agent/route.ts
+13:39  Warning: 'generateTestWeatherEmail' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/webhooks/clerk/route.ts
+11:10  Warning: 'env' is defined but never used.  @typescript-eslint/no-unused-vars
+56:34  Warning: 'created_at' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+78:39  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/auth/gmail/callback/page.tsx
+21:6  Warning: React Hook useEffect has a missing dependency: 'handleCallback'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/app/auth/gmail/page.tsx
+78:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+103:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/debug/force-sync/page.tsx
+12:50  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+14:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+90:6  Warning: React Hook useEffect has a missing dependency: 'runAuthTests'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/app/layout.tsx
+6:3  Warning: 'SignedOut' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/sign-up/[[...sign-up]]/page.tsx
+20:9  Warning: 'handleAfterSignUp' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/AuthButtons.tsx
+65:20  Warning: 'isLoading' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/admin/DiscountFlyer/DiscountEditManager.tsx
+32:10  Warning: 'isSaving' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+32:20  Warning: 'setIsSaving' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+347:53  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/admin/DiscountFlyer/DiscountFlyerCard.tsx
+8:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+46:10  Warning: 'imageFile' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+256:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/admin/DiscountFlyer/DiscountFlyerManager.tsx
+8:10  Warning: 'MartDiscount' is defined but never used.  @typescript-eslint/no-unused-vars
+43:6  Warning: React Hook useEffect has a missing dependency: 'loadDiscountFlyers'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/admin/DiscountFlyer/DiscountItemCard.tsx
+8:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+57:10  Warning: 'imageFile' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/admin/DiscountFlyer/DiscountItemForm.tsx
+8:10  Warning: 'Textarea' is defined but never used.  @typescript-eslint/no-unused-vars
+13:10  Warning: 'cn' is defined but never used.  @typescript-eslint/no-unused-vars
+49:10  Warning: 'imageFile' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/admin/DiscountFlyer/DiscountItemsListManager.tsx
+3:20  Warning: 'useEffect' is defined but never used.  @typescript-eslint/no-unused-vars
+6:29  Warning: 'CardHeader' is defined but never used.  @typescript-eslint/no-unused-vars
+6:41  Warning: 'CardTitle' is defined but never used.  @typescript-eslint/no-unused-vars
+10:3  Warning: 'getDiscountItems' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/admin/SmartTTLDashboard.tsx
+18:3  Warning: 'PieChart' is defined but never used.  @typescript-eslint/no-unused-vars
+19:3  Warning: 'Pie' is defined but never used.  @typescript-eslint/no-unused-vars
+20:3  Warning: 'Cell' is defined but never used.  @typescript-eslint/no-unused-vars
+21:3  Warning: 'LineChart' is defined but never used.  @typescript-eslint/no-unused-vars
+22:3  Warning: 'Line' is defined but never used.  @typescript-eslint/no-unused-vars
+123:14  Warning: 'err' is defined but never used.  @typescript-eslint/no-unused-vars
+177:14  Warning: 'err' is defined but never used.  @typescript-eslint/no-unused-vars
+625:72  Warning: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+641:70  Warning: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/airquality/AirQualityDashboard.tsx
+7:10  Warning: 'Input' is defined but never used.  @typescript-eslint/no-unused-vars
+12:3  Warning: 'getSeoulAirQuality' is defined but never used.  @typescript-eslint/no-unused-vars
+16:3  Warning: 'getSeoulStations' is defined but never used.  @typescript-eslint/no-unused-vars
+18:3  Warning: 'getAirQualityByLocation' is defined but never used.  @typescript-eslint/no-unused-vars
+22:3  Warning: 'getProcessedWeeklyForecast' is defined but never used.  @typescript-eslint/no-unused-vars
+86:64  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+87:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+605:6  Warning: React Hook useEffect has a missing dependency: 'fetchCurrentAirQualityByStation'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+629:6  Warning: React Hook useEffect has missing dependencies: 'fetchCurrentAirQualityByStation', 'fetchDailyAirQuality', 'fetchHourlyAirQuality', 'fetchRegionalDailyAirQuality', 'fetchRegionalHourlyAirQuality', and 'selectedSido'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+1420:31  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/airquality/DailyAirQuality.tsx
+38:46  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+73:6  Warning: React Hook useEffect has a missing dependency: 'fetchDailyData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/airquality/GoogleAirQualityDashboard.tsx
+10:3  Warning: 'getCurrentAirQuality' is defined but never used.  @typescript-eslint/no-unused-vars
+11:3  Warning: 'getHourlyAirQuality' is defined but never used.  @typescript-eslint/no-unused-vars
+12:3  Warning: 'getDailyAirQuality' is defined but never used.  @typescript-eslint/no-unused-vars
+189:6  Warning: React Hook useEffect has a missing dependency: 'fetchUserAirQualityData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/airquality/GoogleCurrentAirQuality.tsx
+97:6  Warning: React Hook useEffect has a missing dependency: 'fetchCurrentAirQuality'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+108:6  Warning: React Hook useEffect has a missing dependency: 'fetchCurrentAirQuality'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/airquality/HourlyAirQuality.tsx
+38:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+73:6  Warning: React Hook useEffect has a missing dependency: 'fetchHourlyData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/airquality/HourlyForecast.tsx
+7:10  Warning: 'getLatestHourlyForecast' is defined but never used.  @typescript-eslint/no-unused-vars
+17:3  Warning: 'grade' is defined but never used.  @typescript-eslint/no-unused-vars
+125:6  Warning: React Hook useEffect has a missing dependency: 'fetchForecastData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/airquality/RegionalAirQualityPanel.tsx
+12:3  Warning: 'getSupportedRegions' is defined but never used.  @typescript-eslint/no-unused-vars
+19:3  Warning: 'AIR_QUALITY_GRADES' is defined but never used.  @typescript-eslint/no-unused-vars
+45:6  Warning: React Hook useEffect has a missing dependency: 'loadRegionalData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/airquality/SevenDayForecast.tsx
+8:31  Warning: 'getUserRegionalForecast' is defined but never used.  @typescript-eslint/no-unused-vars
+23:43  Warning: 'dayOffset' is defined but never used.  @typescript-eslint/no-unused-vars
+102:6  Warning: React Hook useEffect has a missing dependency: 'loadForecastData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/debug/ClerkClientStatus.tsx
+11:9  Warning: 'clerk' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/email/EmailManagementDashboard.tsx
+29:30  Warning: 'UserEmailSettings' is defined but never used.  @typescript-eslint/no-unused-vars
+81:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+95:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+112:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+133:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/email/EmailScheduleForm.tsx
+188:45  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/email/EmailSendHistoryTable.tsx
+6:29  Warning: 'CardDescription' is defined but never used.  @typescript-eslint/no-unused-vars
+6:46  Warning: 'CardHeader' is defined but never used.  @typescript-eslint/no-unused-vars
+6:58  Warning: 'CardTitle' is defined but never used.  @typescript-eslint/no-unused-vars
+99:9  Warning: 'getEmailTypeLabel' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/email/GmailAuthStatus.tsx
+64:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/email/ManualEmailSender.tsx
+192:53  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/email/SubscriberStatsCard.tsx
+3:29  Warning: 'CardDescription' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/weather/WeatherDashboard.tsx
+10:10  Warning: 'mapHourlyWeatherForClient' is defined but never used.  @typescript-eslint/no-unused-vars
+10:37  Warning: 'mapDailyWeatherForClient' is defined but never used.  @typescript-eslint/no-unused-vars
+153:6  Warning: React Hook useCallback has a missing dependency: 'fetchWeatherData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+555:16  Warning: 'locationError' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/db/queries/api-logs.ts
+3:29  Warning: 'sql' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/db/queries/marts.ts
+7:22  Warning: 'Mart' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/db/queries/weather.ts
+15:29  Warning: 'desc' is defined but never used.  @typescript-eslint/no-unused-vars
+166:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+249:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/config/air-quality.ts
+90:37  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/dto/kakao-dto-mappers.ts
+6:15  Warning: 'KakaoMessage' is defined but never used.  @typescript-eslint/no-unused-vars
+7:10  Warning: 'toISOString' is defined but never used.  @typescript-eslint/no-unused-vars
+7:23  Warning: 'toISOStringOrNull' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/dto/mart-dto-mappers.ts
+7:23  Warning: 'toISOStringOrNull' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/errors/index.ts
+63:44  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+71:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+93:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+150:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+169:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+176:20  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+177:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+200:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+217:27  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+222:13  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+223:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+242:86  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+288:70  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+322:45  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+324:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+343:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+378:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/kakao-webhook-tester.ts
+13:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+23:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+32:18  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+33:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+35:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+62:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+64:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+112:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/airkorea.ts
+885:32  Warning: 'date' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/services/api-tracking.ts
+21:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+36:33  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+137:61  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+167:61  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+239:31  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/email-template-service.ts
+21:11  Warning: 'greeting' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+277:11  Warning: 'greeting' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/services/gmail-service.ts
+8:18  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+9:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+91:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/google-air-quality.ts
+10:3  Warning: 'googleDailyAirQualityData' is defined but never used.  @typescript-eslint/no-unused-vars
+13:8  Warning: 'NewGoogleDailyAirQualityData' is defined but never used.  @typescript-eslint/no-unused-vars
+16:29  Warning: 'sql' is defined but never used.  @typescript-eslint/no-unused-vars
+20:3  Warning: 'createGoogleHourlyAirQualityData' is defined but never used.  @typescript-eslint/no-unused-vars
+24:31  Warning: 'generateCacheKey' is defined but never used.  @typescript-eslint/no-unused-vars
+24:49  Warning: 'calculateTtl' is defined but never used.  @typescript-eslint/no-unused-vars
+31:3  Warning: 'ErrorSeverity' is defined but never used.  @typescript-eslint/no-unused-vars
+34:3  Warning: 'logError' is defined but never used.  @typescript-eslint/no-unused-vars
+124:12  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+159:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+355:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+448:36  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+560:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+713:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+835:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/services/kakao-business.ts
+74:12  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/regional-airquality.ts
+195:37  Warning: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+267:43  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+452:5  Warning: 'endDate' is defined but never used.  @typescript-eslint/no-unused-vars
+472:5  Warning: 'endDate' is defined but never used.  @typescript-eslint/no-unused-vars
+489:39  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+518:38  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/smart-ttl-manager.ts
+7:29  Warning: 'dailyWeatherData' is defined but never used.  @typescript-eslint/no-unused-vars
+93:3  Warning: 'dataType' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+129:30  Warning: 'dataType' is defined but never used.  @typescript-eslint/no-unused-vars
+129:60  Warning: 'forecastTime' is defined but never used.  @typescript-eslint/no-unused-vars
+212:5  Warning: 'clerkUserId' is defined but never used.  @typescript-eslint/no-unused-vars
+213:5  Warning: 'dataType' is defined but never used.  @typescript-eslint/no-unused-vars
+214:5  Warning: 'locationKey' is defined but never used.  @typescript-eslint/no-unused-vars
+215:5  Warning: 'forecastTime' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/services/smart-weather-db.ts
+10:3  Warning: 'weatherLocationKeys' is defined but never used.  @typescript-eslint/no-unused-vars
+13:8  Warning: 'NewWeatherLocationKey' is defined but never used.  @typescript-eslint/no-unused-vars
+18:3  Warning: 'DailyWeatherData' is defined but never used.  @typescript-eslint/no-unused-vars
+115:17  Warning: 'result' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+258:17  Warning: 'result' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+362:14  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/user-pattern-analyzer.ts
+7:29  Warning: 'dailyWeatherData' is defined but never used.  @typescript-eslint/no-unused-vars
+9:15  Warning: 'UserPattern' is defined but never used.  @typescript-eslint/no-unused-vars
+133:51  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+151:51  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+170:57  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+227:56  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/user-weather-collector.ts
+185:12  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+233:12  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+278:47  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+295:49  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+312:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+329:50  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/user-weather-scheduler.ts
+8:14  Warning: 'and' is defined but never used.  @typescript-eslint/no-unused-vars
+211:56  Warning: 'latitude' is defined but never used.  @typescript-eslint/no-unused-vars
+211:74  Warning: 'longitude' is defined but never used.  @typescript-eslint/no-unused-vars
+211:102  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+247:55  Warning: 'latitude' is defined but never used.  @typescript-eslint/no-unused-vars
+247:73  Warning: 'longitude' is defined but never used.  @typescript-eslint/no-unused-vars
+247:101  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+289:12  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+360:12  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+370:51  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/weather-ai-summary.ts
+559:58  Warning: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+725:13  Warning: 'subject' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/services/weather-cache.ts
+12:41  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/weather-chatbot.ts
+7:47  Warning: 'weatherLocationKeys' is defined but never used.  @typescript-eslint/no-unused-vars
+16:10  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+18:9  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+97:108  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+131:84  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+186:89  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+235:88  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+281:58  Warning: 'clerkUserId' is defined but never used.  @typescript-eslint/no-unused-vars
+281:89  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+307:70  Warning: 'clerkUserId' is defined but never used.  @typescript-eslint/no-unused-vars
+307:101  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+338:76  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+366:75  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+403:38  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+427:37  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+430:40  Warning: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+447:36  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/weather-data-collector.ts
+2:15  Warning: 'HourlyWeatherData' is defined but never used.  @typescript-eslint/no-unused-vars
+2:34  Warning: 'DailyWeatherData' is defined but never used.  @typescript-eslint/no-unused-vars
+11:74  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+19:52  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+37:71  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+45:49  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/weather-db.ts
+13:8  Warning: 'NewWeatherLocationKey' is defined but never used.  @typescript-eslint/no-unused-vars
+15:24  Warning: 'lte' is defined but never used.  @typescript-eslint/no-unused-vars
+15:29  Warning: 'count' is defined but never used.  @typescript-eslint/no-unused-vars
+18:3  Warning: 'mapHourlyWeatherForClient' is defined but never used.  @typescript-eslint/no-unused-vars
+19:3  Warning: 'mapDailyWeatherForClient' is defined but never used.  @typescript-eslint/no-unused-vars
+21:8  Warning: 'ClientHourlyWeatherData' is defined but never used.  @typescript-eslint/no-unused-vars
+22:8  Warning: 'ClientDailyWeatherData' is defined but never used.  @typescript-eslint/no-unused-vars
+26:3  Warning: 'locationSchema' is defined but never used.  @typescript-eslint/no-unused-vars
+28:3  Warning: 'hourlyWeatherInputSchema' is defined but never used.  @typescript-eslint/no-unused-vars
+29:3  Warning: 'dailyWeatherInputSchema' is defined but never used.  @typescript-eslint/no-unused-vars
+30:8  Warning: 'LocationInput' is defined but never used.  @typescript-eslint/no-unused-vars
+172:5  Warning: 'weatherData' is defined but never used.  @typescript-eslint/no-unused-vars
+173:5  Warning: 'locationName' is defined but never used.  @typescript-eslint/no-unused-vars
+174:5  Warning: 'clerkUserId' is defined but never used.  @typescript-eslint/no-unused-vars
+298:5  Warning: 'weatherResponse' is defined but never used.  @typescript-eslint/no-unused-vars
+299:5  Warning: 'locationName' is defined but never used.  @typescript-eslint/no-unused-vars
+300:5  Warning: 'clerkUserId' is defined but never used.  @typescript-eslint/no-unused-vars
+341:44  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+342:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+346:44  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+367:13  Warning: 'hourlyDeleted' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+368:13  Warning: 'dailyDeleted' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+369:13  Warning: 'locationDeleted' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+395:13  Warning: 'hourlyDeleted' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+400:13  Warning: 'dailyDeleted' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+405:13  Warning: 'locationDeleted' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/services/weather-email-data-preparer.ts
+10:29  Warning: 'desc' is defined but never used.  @typescript-eslint/no-unused-vars
+208:39  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/weather-faq.ts
+154:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/services/weather-intent.ts
+170:37  Warning: 'confidence' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/services/weather.ts
+159:11  Warning: 'kstNow' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+162:65  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+162:70  Warning: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+208:15  Warning: 'saveResult' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+352:93  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+418:15  Warning: 'saveResult' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/utils/api-response.ts
+8:41  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+17:13  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+44:13  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/utils/datetime.ts
+165:35  Warning: 'step' is defined but never used.  @typescript-eslint/no-unused-vars
+165:49  Warning: 'original' is defined but never used.  @typescript-eslint/no-unused-vars
+165:67  Warning: 'converted' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/utils.ts
+50:58  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+52:36  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+66:50  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+66:72  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+67:32  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+75:50  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+75:72  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+76:32  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/weather-icons.ts
+132:9  Warning: 'iconSize' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+Failed to compile.
+
+./src/app/api/debug/analyze-existing-time/route.ts:38:42
+Type error: Property 'forecastDateTime' does not exist on type 'PgTableWithColumns<{ name: "hourly_weather_data"; schema: undefined; columns: { id: PgColumn<{ name: "id"; tableName: "hourly_weather_data"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; ... 8 more ...; generated: undefined; }, {}, {}>; ... 21 more ...; clerkUserId: PgColumn<...>; }; d...'. Did you mean 'forecastDatetime'?
+
+[0m [90m 36 |[39m       [33m.[39mselect()
+ [90m 37 |[39m       [33m.[39m[36mfrom[39m(hourlyWeatherData)
+[31m[1m>[22m[39m[90m 38 |[39m       [33m.[39mwhere(isNotNull(hourlyWeatherData[33m.[39mforecastDateTime))
+ [90m    |[39m                                          [31m[1m^[22m[39m
+ [90m 39 |[39m       [33m.[39morderBy(desc(hourlyWeatherData[33m.[39mcreatedAt))
+ [90m 40 |[39m       [33m.[39mlimit([35m10[39m)[33m;[39m
+ [90m 41 |[39m[0m
+Next.js build worker exited with code: 1 and signal: null
