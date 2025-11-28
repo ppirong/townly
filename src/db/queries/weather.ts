@@ -41,7 +41,7 @@ export async function saveLocationKey(data: {
   countryCode?: string;
   administrativeArea?: string;
   searchType?: string;
-  rawLocationData?: any;
+  rawLocationData?: Record<string, unknown>;
 }) {
   const newLocationKey: NewWeatherLocationKey = {
     locationName: data.locationName,

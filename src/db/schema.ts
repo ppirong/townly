@@ -398,7 +398,6 @@ export const marts = pgTable('marts', {
   region: text('region').notNull(), // 지역
   address: text('address'), // 주소
   phone: text('phone'), // 전화번호
-  managerName: text('manager_name'), // 담당자 이름
   email: text('email'), // 이메일
   website: text('website'), // 웹사이트
   

@@ -11,7 +11,7 @@ export default async function WeatherPage() {
   }
 
   // 사용자의 저장된 위치 정보 조회
-  let userLocation = null;
+  let userLocation: Awaited<ReturnType<typeof getUserLocation>>['data'] = null;
   try {
     const locationResult = await getUserLocation();
     if (locationResult.success && locationResult.data) {
@@ -50,20 +50,22 @@ export default async function WeatherPage() {
           )}
         </div>
         
-        <WeatherDashboard initialLocation={userLocation ? {
-          id: userLocation.id,
-          clerkUserId: userLocation.clerkUserId,
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-          address: userLocation.address,
-          cityName: userLocation.locationName,
-          isDefault: userLocation.isDefault,
-          nickname: null,
-          accuracy: null,
-          source: 'gps',
-          createdAt: userLocation.createdAt,
-          updatedAt: userLocation.updatedAt,
-        } : null} />
+        <WeatherDashboard 
+          initialLocation={userLocation ? {
+            id: userLocation.id,
+            clerkUserId: userLocation.clerkUserId,
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+            address: userLocation.address,
+            cityName: userLocation.locationName,
+            isDefault: userLocation.isDefault,
+            nickname: null,
+            accuracy: null,
+            source: 'gps',
+            createdAt: userLocation.createdAt,
+            updatedAt: userLocation.updatedAt,
+          } : null} 
+        />
       </div>
     </div>
   );

@@ -4,10 +4,10 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { type Mart } from "@/db/schema";
+import { type AdminMart } from "@/lib/dto/mart-dto-mappers";
 
 interface MartCardProps {
-  mart: Mart;
+  mart: AdminMart;
 }
 
 export default function MartCard({ mart }: MartCardProps) {

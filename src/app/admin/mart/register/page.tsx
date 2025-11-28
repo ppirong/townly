@@ -39,9 +39,10 @@ const REGIONS = {
 
 interface MartFormData {
   name: string;
-  managerName: string;
-  managerPhone: string;
+  phone: string;
   address: string;
+  email?: string;
+  website?: string;
   latitude: string;
   longitude: string;
   businessHours: string;
@@ -59,9 +60,10 @@ function MartRegisterContent() {
   const [activeTab, setActiveTab] = useState('mart-info');
   const [formData, setFormData] = useState<MartFormData>({
     name: '',
-    managerName: '',
-    managerPhone: '',
+    phone: '',
     address: '',
+    email: '',
+    website: '',
     latitude: '',
     longitude: '',
     businessHours: '',
@@ -79,8 +81,7 @@ function MartRegisterContent() {
     
     // 필수 필드 검증
     if (!formData.name.trim()) newErrors.name = '마트 이름을 입력해주세요';
-    if (!formData.managerName.trim()) newErrors.managerName = '담당자 이름을 입력해주세요';
-    if (!formData.managerPhone.trim()) newErrors.managerPhone = '담당자 연락처를 입력해주세요';
+    if (!formData.phone.trim()) newErrors.phone = '연락처를 입력해주세요';
     if (!formData.address.trim()) newErrors.address = '마트 주소를 입력해주세요';
     // 위도/경도는 필수 항목에서 제외
     if (!formData.businessHours.trim()) newErrors.businessHours = '영업 시간을 입력해주세요';
@@ -103,8 +104,8 @@ function MartRegisterContent() {
     const mobileRegex = /^01([0|1|6|7|8|9])-?([0-9]{3,4})-?([0-9]{4})$/;
     const landlineRegex = /^0([2|3|4|5|6|7|8])-?([0-9]{3,4})-?([0-9]{4})$/;
     
-    if (formData.managerPhone && !mobileRegex.test(formData.managerPhone) && !landlineRegex.test(formData.managerPhone)) {
-      newErrors.managerPhone = '올바른 전화번호 형식이 아닙니다 (휴대폰 또는 지역번호 포함 유선전화)';
+    if (formData.phone && !mobileRegex.test(formData.phone) && !landlineRegex.test(formData.phone)) {
+      newErrors.phone = '올바른 전화번호 형식이 아닙니다 (휴대폰 또는 지역번호 포함 유선전화)';
     }
     
     setErrors(newErrors);
@@ -149,7 +150,7 @@ function MartRegisterContent() {
   };
 
   const handleInputChange = (field: keyof MartFormData, value: string) => {
-    if (field === 'managerPhone') {
+    if (field === 'phone') {
       value = formatPhoneNumber(value);
     }
     
@@ -182,8 +183,9 @@ function MartRegisterContent() {
             
             setFormData({
               name: martData.name || '',
-              managerName: '', // 서버에서 제공하지 않는 필드
-              managerPhone: martData.phone || '',
+              phone: martData.phone || '',
+              email: martData.email || '',
+              website: martData.website || '',
               address: martData.address || '',
               latitude: martData.latitude || '',
               longitude: martData.longitude || '',
@@ -314,38 +316,55 @@ function MartRegisterContent() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="managerName" className="text-[#cecac4] text-sm font-medium">
-                      마트 담당자 이름 *
+                    <Label htmlFor="email" className="text-[#cecac4] text-sm font-medium">
+                      이메일
                     </Label>
                     <Input
-                      id="managerName"
-                      value={formData.managerName}
-                      onChange={(e) => handleInputChange('managerName', e.target.value)}
-                      maxLength={20}
-                      className={`bg-[#43494b]/30 border-[#6f675b] text-[#e8e6e3] rounded-lg ${errors.managerName ? 'border-red-500' : ''}`}
-                      placeholder="담당자 이름을 입력하세요"
+                      id="email"
+                      type="email"
+                      value={formData.email || ''}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className={`bg-[#43494b]/30 border-[#6f675b] text-[#e8e6e3] rounded-lg ${errors.email ? 'border-red-500' : ''}`}
+                      placeholder="이메일을 입력하세요 (선택사항)"
                     />
-                    {errors.managerName && (
-                      <p className="text-red-500 text-xs mt-1">{errors.managerName}</p>
+                    {errors.email && (
+                      <p className="text-red-500 text-xs mt-1">{errors.email}</p>
                     )}
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="managerPhone" className="text-[#cecac4] text-sm font-medium">
-                    마트 담당자 연락처 *
+                  <Label htmlFor="phone" className="text-[#cecac4] text-sm font-medium">
+                    마트 연락처 *
                   </Label>
                   <Input
-                    id="managerPhone"
-                    value={formData.managerPhone}
-                    onChange={(e) => handleInputChange('managerPhone', e.target.value)}
-                    className={`bg-[#43494b]/30 border-[#6f675b] text-[#e8e6e3] rounded-lg ${errors.managerPhone ? 'border-red-500' : ''}`}
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    className={`bg-[#43494b]/30 border-[#6f675b] text-[#e8e6e3] rounded-lg ${errors.phone ? 'border-red-500' : ''}`}
                     placeholder="010-0000-0000 또는 031-123-4567"
                   />
-                  {errors.managerPhone ? (
-                    <p className="text-red-500 text-xs mt-1">{errors.managerPhone}</p>
+                  {errors.phone ? (
+                    <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
                   ) : (
                     <p className="text-[#9d9588] text-xs">휴대폰 번호(010-XXXX-XXXX) 또는 유선전화(031-XXX-XXXX) 형식으로 입력하세요. 숫자만 입력하시면 자동으로 하이픈이 추가됩니다.</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="website" className="text-[#cecac4] text-sm font-medium">
+                    웹사이트
+                  </Label>
+                  <Input
+                    id="website"
+                    type="url"
+                    value={formData.website || ''}
+                    onChange={(e) => handleInputChange('website', e.target.value)}
+                    className={`bg-[#43494b]/30 border-[#6f675b] text-[#e8e6e3] rounded-lg ${errors.website ? 'border-red-500' : ''}`}
+                    placeholder="https://example.com (선택사항)"
+                  />
+                  {errors.website && (
+                    <p className="text-red-500 text-xs mt-1">{errors.website}</p>
                   )}
                 </div>
 

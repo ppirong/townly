@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import MartCard from "./MartCard";
-import { type Mart } from "@/db/schema";
+import { type AdminMart } from "@/lib/dto/mart-dto-mappers";
 import Link from "next/link";
 
 interface MartManagementDashboardProps {
-  marts: Mart[];
+  marts: AdminMart[];
 }
 
 export default function MartManagementDashboard({ marts }: MartManagementDashboardProps) {

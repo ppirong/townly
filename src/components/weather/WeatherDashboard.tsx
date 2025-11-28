@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -110,28 +110,8 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
     return { min: minTemp, max: maxTemp };
   };
 
-  useEffect(() => {
-    // 초기 위치 정보가 있으면 자동으로 설정하고 날씨 조회
-    if (initialLocation) {
-      const locationName = initialLocation.cityName || 
-                          initialLocation.address || 
-                          `${parseFloat(initialLocation.latitude).toFixed(4)}, ${parseFloat(initialLocation.longitude).toFixed(4)}`;
-      setLocation(locationName);
-      
-      // userLocation 상태도 업데이트 (초기값과 다를 수 있음)
-      if (!userLocation) {
-        setUserLocationState(initialLocation);
-      }
-      
-      // 사용자별 날씨 정보 조회
-      setTimeout(() => {
-        fetchUserWeatherData();
-      }, 500);
-    }
-  }, [initialLocation]);
-
   // 사용자별 날씨 데이터 조회 (새로운 Server Actions 사용)
-  const fetchUserWeatherData = async () => {
+  const fetchUserWeatherData = useCallback(async () => {
     if (!userLocation) return;
     
     setLoading(true);
@@ -169,7 +149,27 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       // API 통계는 별도로 조회
       await fetchApiStats();
     }
-  };
+  }, [userLocation]);
+
+  useEffect(() => {
+    // 초기 위치 정보가 있으면 자동으로 설정하고 날씨 조회
+    if (initialLocation) {
+      const locationName = initialLocation.cityName || 
+                          initialLocation.address || 
+                          `${parseFloat(initialLocation.latitude).toFixed(4)}, ${parseFloat(initialLocation.longitude).toFixed(4)}`;
+      setLocation(locationName);
+      
+      // userLocation 상태도 업데이트 (초기값과 다를 수 있음)
+      if (!userLocation) {
+        setUserLocationState(initialLocation);
+      }
+      
+      // 사용자별 날씨 정보 조회
+      setTimeout(() => {
+        fetchUserWeatherData();
+      }, 500);
+    }
+  }, [initialLocation, userLocation, fetchUserWeatherData]);
 
   const fetchWeatherData = async (locationName?: string) => {
     const targetLocation = locationName || location;
