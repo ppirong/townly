@@ -971,12 +971,30 @@ export async function executeScheduledEmail(scheduleId: string) {
     const userLocationName = '서울';
     console.log(`📍 크론잡 이메일 발송 - 기본 위치 사용: ${userLocationName}`);
 
+    // targetType 매핑: DB 값을 스키마에서 요구하는 형식으로 변환
+    let mappedTargetType: 'all_users' | 'active_users' | 'specific_users' | 'test';
+    switch (scheduleData.targetType) {
+      case 'all':
+        mappedTargetType = 'all_users';
+        break;
+      case 'specific':
+        mappedTargetType = 'specific_users';
+        break;
+      case 'active':
+        mappedTargetType = 'active_users';
+        break;
+      default:
+        // DB에 이미 올바른 형식으로 저장된 경우
+        mappedTargetType = scheduleData.targetType as 'all_users' | 'active_users' | 'specific_users';
+        break;
+    }
+
     // 크론잡 전용 이메일 발송 함수 호출 (인증 없이)
     const result = await sendScheduledEmailWithoutAuth({
       subject: scheduleData.emailSubject,
       location: userLocationName,
       timeOfDay: scheduleData.scheduleTime.startsWith('06') ? 'morning' : 'evening',
-      targetType: scheduleData.targetType as 'all' | 'specific',
+      targetType: mappedTargetType,
       targetUserIds: scheduleData.targetUserIds ? scheduleData.targetUserIds as string[] : undefined,
       forceRefreshWeather: true,
       useAgent: true, // 🤖 에이전트를 사용하여 고품질 날씨 이메일 생성

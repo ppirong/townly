@@ -227,7 +227,6 @@ export function getCurrentEnvironment(): Environment {
   
   // NODE_ENV 기반 확인
   if (nodeEnv === 'production') return 'production';
-  if (nodeEnv === 'staging') return 'staging';
   
   return 'development';
 }

@@ -51,9 +51,9 @@ export async function GET(_request: NextRequest) {
       },
       allForecasts: data.slice(0, 3).map((forecast: Record<string, unknown>) => ({
         dateTime: forecast.DateTime,
-        parsed: new Date(forecast.DateTime).toISOString(),
-        kstDisplay: new Date(forecast.DateTime).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-        temperature: forecast.Temperature.Value,
+        parsed: new Date(forecast.DateTime as string).toISOString(),
+        kstDisplay: new Date(forecast.DateTime as string).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+        temperature: (forecast.Temperature as any)?.Value,
         conditions: forecast.IconPhrase
       }))
     });

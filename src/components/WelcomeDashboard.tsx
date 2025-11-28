@@ -23,13 +23,13 @@ export default function WelcomeDashboard() {
     try {
       const result = await getUserLocation();
       if (result.success && result.data) {
-        const mappedLocation: UserLocation = {
+        const mappedLocation: ClientUserLocation = {
           id: result.data.id,
           clerkUserId: result.data.clerkUserId,
           latitude: result.data.latitude,
           longitude: result.data.longitude,
           address: result.data.address,
-          cityName: result.data.locationName,
+          cityName: result.data.cityName,
           isDefault: result.data.isDefault,
           nickname: null,
           accuracy: null,
@@ -200,7 +200,7 @@ export default function WelcomeDashboard() {
                 </p>
               )}
               <p className="text-xs text-green-600 mt-1">
-                마지막 업데이트: {new Date(savedLocation.updatedAt).toLocaleString('ko-KR')}
+                마지막 업데이트: {savedLocation.updatedAt ? new Date(savedLocation.updatedAt).toLocaleString('ko-KR') : '정보 없음'}
               </p>
             </div>
           )}

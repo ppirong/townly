@@ -386,16 +386,15 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       const result = await refreshWeatherFromAPI();
 
       if (result.success && result.data) {
-        // 새로운 데이터로 UI 업데이트 - API 데이터는 이미 클라이언트 형식
-        // refreshWeatherFromAPI는 API 서비스 타입을 반환하므로 DTO 매퍼 불필요
+        // API 서비스 타입을 클라이언트 DTO로 변환
         const hourlyData = result.data.hourlyWeather.map(item => ({
-          id: item.id || '',
-          clerkUserId: item.clerkUserId || null,
-          locationKey: item.locationKey || '',
-          locationName: item.locationName || null,
-          latitude: String(item.latitude || ''),
-          longitude: String(item.longitude || ''),
-          forecastDateTime: item.forecastDateTime || new Date().toISOString(),
+          id: `${item.location}-${item.timestamp}`, // ID 생성
+          clerkUserId: null,
+          locationKey: '', // 서비스 타입에는 locationKey가 없음
+          locationName: item.location,
+          latitude: '0', // 서비스 타입에는 좌표 정보가 없음
+          longitude: '0',
+          forecastDateTime: item.timestamp,
           forecastDate: item.forecastDate || '',
           forecastHour: Number(item.forecastHour || 0),
           temperature: Number(item.temperature || 0),
@@ -407,36 +406,36 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
           rainProbability: Number(item.rainProbability || 0),
           windSpeed: Number(item.windSpeed || 0),
           units: item.units || 'metric',
-          cacheKey: item.cacheKey || null,
-          expiresAt: item.expiresAt || new Date().toISOString(),
-          createdAt: item.createdAt || new Date().toISOString(),
+          cacheKey: null, // 서비스 타입에는 cacheKey가 없음
+          expiresAt: new Date().toISOString(), // 기본값 설정
+          createdAt: new Date().toISOString(), // 기본값 설정
         }));
         
         const dailyData = result.data.dailyWeather.dailyForecasts.map(item => ({
-          id: item.id || '',
-          clerkUserId: item.clerkUserId || null,
-          locationKey: item.locationKey || '',
-          locationName: item.locationName || null,
-          latitude: String(item.latitude || ''),
-          longitude: String(item.longitude || ''),
-          forecastDate: item.forecastDate || '',
+          id: `${item.location}-${item.date}`, // ID 생성
+          clerkUserId: null,
+          locationKey: '', // 서비스 타입에는 locationKey가 없음
+          locationName: item.location,
+          latitude: '0', // 서비스 타입에는 좌표 정보가 없음
+          longitude: '0',
+          forecastDate: item.date,
           dayOfWeek: item.dayOfWeek || '',
           temperature: Number(item.temperature || 0),
           highTemp: Number(item.highTemp || 0),
           lowTemp: Number(item.lowTemp || 0),
           conditions: item.conditions || '',
           weatherIcon: Number(item.weatherIcon || 0),
-          precipitationProbability: Number(item.precipitationProbability || 0),
-          rainProbability: Number(item.rainProbability || 0),
+          precipitationProbability: Number(item.dayWeather?.precipitationProbability || 0),
+          rainProbability: Number(item.dayWeather?.precipitationProbability || 0), // 같은 값 사용
           units: item.units || 'metric',
           dayWeather: item.dayWeather || null,
           nightWeather: item.nightWeather || null,
-          headline: item.headline || null,
-          forecastDays: Number(item.forecastDays || 0),
-          rawData: item.rawData || null,
-          cacheKey: item.cacheKey || '',
-          expiresAt: item.expiresAt || new Date().toISOString(),
-          createdAt: item.createdAt || new Date().toISOString(),
+          headline: null, // 서비스 타입에는 headline이 없음
+          forecastDays: 1, // 기본값
+          rawData: null, // 서비스 타입에는 rawData가 없음
+          cacheKey: '', // 기본값
+          expiresAt: new Date().toISOString(), // 기본값
+          createdAt: new Date().toISOString(), // 기본값
         }));
         
         setHourlyData(hourlyData);
@@ -908,7 +907,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                       {/* 시간 표시 */}
                       <div className="text-center border-b border-sky-200 dark:border-gray-700 mb-2 pb-1.5">
                         <div className="font-bold text-gray-800 dark:text-gray-200 text-xs">
-                          {weather.hour}
+                          {weather.forecastHour}시
                         </div>
                       </div>
                       
@@ -1015,7 +1014,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                     {/* 헤더: 날짜와 요일 */}
                     <div className="text-center border-b border-blue-200 dark:border-gray-700 mb-2 pb-1.5">
                       <div className="font-bold text-gray-800 dark:text-gray-200 text-xs">
-                        {weather.date}
+                        {weather.forecastDate}
                       </div>
                       <div className="text-[10px] text-gray-600 dark:text-gray-400">
                         ({weather.dayOfWeek})
@@ -1027,10 +1026,10 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                       <div className="text-center mb-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2">
                         <div className="text-[10px] text-amber-700 dark:text-amber-300 font-medium mb-1">낮</div>
                         <div className="text-2xl mb-1">
-                          {getWeatherIcon(weather.dayWeather.icon, weather.dayWeather.conditions)}
+                          {getWeatherIcon(weather.dayWeather?.icon as number, weather.dayWeather?.conditions as string)}
                         </div>
                          <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                           ☔ {weather.dayWeather.precipitationProbability || 0}%
+                            ☔ {(weather.dayWeather?.precipitationProbability as number) || 0}%
                          </div>
                       </div>
                     )}
@@ -1079,10 +1078,10 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                        <div className="text-center bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-2">
                          <div className="text-[10px] text-indigo-700 dark:text-indigo-300 font-medium mb-1">밤</div>
                          <div className="text-2xl mb-1">
-                           {getWeatherIcon(weather.nightWeather.icon, weather.nightWeather.conditions)}
+                           {getWeatherIcon(weather.nightWeather?.icon as number, weather.nightWeather?.conditions as string)}
                          </div>
                          <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                           ☔ {weather.nightWeather.precipitationProbability || 0}%
+                           ☔ {(weather.nightWeather?.precipitationProbability as number) || 0}%
                          </div>
                        </div>
                      )}

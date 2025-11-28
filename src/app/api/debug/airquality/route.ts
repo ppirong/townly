@@ -81,8 +81,9 @@ export async function GET(request: NextRequest) {
 
     // 운정 측정소 데이터 특별 처리
     let unjeongData = null;
-    if (apiResponse.response.header.resultCode === '00') {
-      const items = apiResponse.response.body.items;
+    const response = apiResponse as any;
+    if (response.response?.header?.resultCode === '00') {
+      const items = response.response.body.items;
       
       // 운정 측정소 찾기
       unjeongData = items.find((item: any) => 
