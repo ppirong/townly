@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getHourlyWeather, getDailyWeather } from '@/lib/services/weather';
-import { universalWeatherRAGService } from '@/lib/services/universal-weather-rag';
+import { weatherChatbotService } from '@/lib/services/weather-chatbot';
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       
       for (const query of testQueries) {
         try {
-          const ragResponse = await universalWeatherRAGService.processWeatherQuery(
+          const ragResponse = await weatherChatbotService.processMessage(
             query,
             '', // 위치 불필요
             userId

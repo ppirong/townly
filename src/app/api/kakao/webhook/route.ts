@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { kakaoMessages, webhookLogs } from '@/db/schema';
 import { getClaudeResponse, generateContextualSystemPrompt, validateAndProcessResponse } from '@/lib/services/claude';
 import { weatherIntentDetector } from '@/lib/services/weather-intent-detector';
-import { agentWeatherRAGService } from '@/lib/services/agent-weather-rag';
+import { weatherChatbotService } from '@/lib/services/weather-chatbot';
 
 /**
  * 카카오톡 챗봇 스킬 웹훅 엔드포인트
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
       
       try {
         // 에이전트 기반 날씨 RAG 시스템 호출
-        const weatherResponse = await agentWeatherRAGService.processWeatherQuery(
+        const weatherResponse = await weatherChatbotService.processMessage(
           userUtterance,
           '', // 위치 정보 불필요 (사용자 기반)
           userId
