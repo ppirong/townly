@@ -20,7 +20,7 @@ import {
   getAirQualityGradeInfo,
   extractMainAirQualityIndicators
 } from '@/lib/schemas/regional-airquality';
-import { type RegionInfo } from '@/lib/data/stations';
+import { type RegionInfo, type StationInfo } from '@/lib/data/stations';
 
 interface RegionalAirQualityPanelProps {
   stationName?: string;
@@ -28,7 +28,7 @@ interface RegionalAirQualityPanelProps {
 }
 
 interface RegionalData {
-  station: any;
+  station: StationInfo;
   region: RegionInfo;
   hourlyData: RegionalAirQualityResponse | null;
   dailyData: RegionalAirQualityResponse | null;
@@ -57,7 +57,14 @@ export function RegionalAirQualityPanel({ stationName, className }: RegionalAirQ
         ]);
 
         setRegionalData({
-          station: { name: stationName },
+          station: { 
+            name: stationName,
+            sido: hourlyResult.regionName || '',
+            latitude: 0,
+            longitude: 0,
+            address: '',
+            regionCode: hourlyResult.regionCode
+          } as StationInfo,
           region: { name: hourlyResult.regionName, code: hourlyResult.regionCode } as RegionInfo,
           hourlyData: hourlyResult,
           dailyData: dailyResult,
@@ -72,7 +79,14 @@ export function RegionalAirQualityPanel({ stationName, className }: RegionalAirQ
           ]);
 
           setRegionalData({
-            station: { name: userStation.stationName },
+            station: { 
+              name: userStation.stationName,
+              sido: hourlyResult.regionName || '',
+              latitude: 0,
+              longitude: 0,
+              address: '',
+              regionCode: hourlyResult.regionCode
+            } as StationInfo,
             region: { name: hourlyResult.regionName, code: hourlyResult.regionCode } as RegionInfo,
             hourlyData: hourlyResult,
             dailyData: dailyResult,

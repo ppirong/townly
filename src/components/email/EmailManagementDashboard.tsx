@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import Image from 'next/image';
 import { 
   Table,
   TableBody,
@@ -26,6 +27,7 @@ import {
   sendManualEmailWithAgent
 } from '@/actions/email-schedules';
 import type { EmailSchedule, UserEmailSettings } from '@/db/schema';
+import type { CreateEmailScheduleInput, UpdateEmailScheduleInput, SendManualEmailInput } from '@/lib/schemas/email';
 
 interface EmailManagementDashboardProps {
   initialSchedules: EmailSchedule[];
@@ -69,7 +71,7 @@ export function EmailManagementDashboard({
     setTimeout(() => setAlert(null), 5000);
   };
 
-  const handleCreateSchedule = async (data: any) => {
+  const handleCreateSchedule = async (data: CreateEmailScheduleInput) => {
     setIsLoading(true);
     try {
       await createEmailSchedule(data);
@@ -83,7 +85,7 @@ export function EmailManagementDashboard({
     }
   };
 
-  const handleUpdateSchedule = async (id: string, data: any) => {
+  const handleUpdateSchedule = async (id: string, data: UpdateEmailScheduleInput) => {
     setIsLoading(true);
     try {
       await updateEmailSchedule(id, data);
@@ -114,7 +116,7 @@ export function EmailManagementDashboard({
     }
   };
 
-  const handleSendManualEmail = async (data: any) => {
+  const handleSendManualEmail = async (data: SendManualEmailInput) => {
     setIsLoading(true);
     try {
       // useAgent 옵션에 따라 적절한 함수 호출
@@ -122,8 +124,9 @@ export function EmailManagementDashboard({
         ? await sendManualEmailWithAgent(data)
         : await sendManualEmail(data);
         
-      const successMessage = data.useAgent && (result as any).agentStats
-        ? `이메일이 발송되었습니다. (성공: ${result.successCount}, 실패: ${result.failureCount}) - 평균 점수: ${(result as any).agentStats.averageScore.toFixed(1)}/100`
+      const resultWithStats = result as { successCount: number; failureCount: number; agentStats?: { averageScore: number } };
+      const successMessage = data.useAgent && resultWithStats.agentStats
+        ? `이메일이 발송되었습니다. (성공: ${result.successCount}, 실패: ${result.failureCount}) - 평균 점수: ${resultWithStats.agentStats.averageScore.toFixed(1)}/100`
         : `이메일이 발송되었습니다. (성공: ${result.successCount}, 실패: ${result.failureCount})`;
         
       showAlert('success', successMessage);
@@ -160,7 +163,7 @@ export function EmailManagementDashboard({
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id as 'schedules' | 'manual' | 'subscribers' | 'history')}
             className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
               activeTab === tab.id
                 ? 'bg-background shadow-sm text-foreground'
@@ -262,7 +265,7 @@ function ScheduleTable({
   isLoading 
 }: {
   schedules: EmailSchedule[];
-  onUpdate: (id: string, data: any) => void;
+  onUpdate: (id: string, data: UpdateEmailScheduleInput) => void;
   onDelete: (id: string) => void;
   isLoading: boolean;
 }) {
@@ -296,7 +299,7 @@ function ScheduleTable({
               </Badge>
             </TableCell>
             <TableCell>
-              {schedule.nextSendAt.toLocaleString('ko-KR')}
+              {schedule.nextSendAt ? schedule.nextSendAt.toLocaleString('ko-KR') : '없음'}
             </TableCell>
             <TableCell>{schedule.totalSentCount}</TableCell>
             <TableCell>
@@ -360,10 +363,12 @@ function SubscriberTable({
               <TableCell>
                 <div className="flex items-center gap-3">
                   {subscriber.imageUrl && (
-                    <img 
+                    <Image 
                       src={subscriber.imageUrl} 
                       alt="프로필" 
                       className="w-8 h-8 rounded-full"
+                      width={32}
+                      height={32}
                     />
                   )}
                   <div>

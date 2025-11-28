@@ -1,7 +1,6 @@
 'use server';
 
 import { auth } from '@clerk/nextjs/server';
-import { z } from 'zod';
 import * as weatherQueries from '@/db/queries/weather';
 import * as locationQueries from '@/db/queries/locations';
 import { 
@@ -13,15 +12,11 @@ import {
 } from '@/lib/dto/weather-dto-mappers';
 import { 
   hourlyWeatherApiRequestSchema,
-  dailyWeatherApiRequestSchema,
-  internalHourlyWeatherRequestSchema,
-  internalDailyWeatherRequestSchema,
-  userWeatherCollectionSchema
+  dailyWeatherApiRequestSchema
 } from '@/lib/schemas/weather-schemas';
 import type { 
   HourlyWeatherData,
-  DailyWeatherResponse,
-  DailyWeatherData
+  DailyWeatherResponse
 } from '@/lib/services/weather';
 
 // 마스터 규칙: 표준 Zod 스키마 사용
@@ -117,7 +112,14 @@ export async function getUserWeatherByCoordinates(
   units: 'metric' | 'imperial' = 'metric'
 ): Promise<{
   hourlyWeather: ClientHourlyWeatherData[];
-  dailyWeather: { dailyForecasts: ClientDailyWeatherData[] };
+  dailyWeather: { 
+    dailyForecasts: ClientDailyWeatherData[];
+    headline?: {
+      text: string;
+      category: string;
+      severity: number;
+    } | null;
+  };
 }> {
   const { userId } = await auth();
   
@@ -135,7 +137,10 @@ export async function getUserWeatherByCoordinates(
     
     return {
       hourlyWeather,
-      dailyWeather,
+      dailyWeather: {
+        ...dailyWeather,
+        headline: null, // DB에서 조회한 데이터에는 headline이 없으므로 null로 설정
+      },
     };
   } catch (error) {
     console.error('사용자 좌표 기반 날씨 조회 실패:', error);
@@ -147,8 +152,15 @@ export async function getUserWeatherByCoordinates(
  * 사용자 저장된 위치의 날씨 조회 - DB에서만 조회
  */
 export async function getUserLocationWeather(): Promise<{
-  hourlyWeather: HourlyWeatherData[];
-  dailyWeather: DailyWeatherResponse;
+  hourlyWeather: ClientHourlyWeatherData[];
+  dailyWeather: { 
+    dailyForecasts: ClientDailyWeatherData[];
+    headline?: {
+      text: string;
+      category: string;
+      severity: number;
+    } | null;
+  };
 } | null> {
   const { userId } = await auth();
   

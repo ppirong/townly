@@ -138,12 +138,14 @@ export default function AuthButtons() {
           {isAdmin ? (
             <UserButton.Action
               label="관리자 설정"
-              onClick={() => window.location.href = "/admin/kakao"}
+              labelIcon={<span>⚙️</span>}
+              onClick={() => { window.location.href = "/admin/kakao"; }}
             />
           ) : (
             <UserButton.Action
               label="내 설정"
-              onClick={() => window.location.href = "/profile"}
+              labelIcon={<span>👤</span>}
+              onClick={() => { window.location.href = "/profile"; }}
             />
           )}
         </UserButton.MenuItems>

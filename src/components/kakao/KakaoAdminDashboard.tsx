@@ -12,16 +12,10 @@ import {
   markAllMessagesAsRead,
   getUnreadMessageCount 
 } from '@/actions/kakao';
+import { ClientKakaoMessage, mapKakaoMessagesForClient } from '@/lib/dto/kakao-dto-mappers';
 
-interface Message {
-  id: string;
-  userKey: string;
-  message: string;
-  messageType: string | null;
-  receivedAt: Date;
-  isRead: boolean | null;
-  createdAt: Date;
-}
+// DB 마스터 규칙 1.1: DTO 타입 사용
+type Message = ClientKakaoMessage;
 
 interface Filters {
   isRead?: boolean;
@@ -54,10 +48,13 @@ export function KakaoAdminDashboard() {
         ...filters,
       });
       
+      // DB 마스터 규칙 1.1: DTO 매퍼 필수 사용
+      const clientMessages = mapKakaoMessagesForClient(result.messages);
+      
       if (append) {
-        setMessages(prev => [...prev, ...result.messages]);
+        setMessages(prev => [...prev, ...clientMessages]);
       } else {
-        setMessages(result.messages);
+        setMessages(clientMessages);
       }
       
       setTotalMessages(result.total);

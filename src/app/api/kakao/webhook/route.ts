@@ -11,7 +11,6 @@ import { weatherChatbotService } from '@/lib/services/weather-chatbot';
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  let statusCode = '200';
   let errorMessage: string | null = null;
   
   // 개발 환경 감지
@@ -59,16 +58,18 @@ export async function POST(request: NextRequest) {
     };
     
     if (!body) {
-      statusCode = '400';
       errorMessage = 'Request body is empty';
       
       // 에러 로그 저장
       await db.insert(webhookLogs).values({
-        ...logData,
-        statusCode,
-        errorMessage,
+        source: 'kakao',
+        eventType: 'error',
+        method: 'POST',
+        url: request.url,
+        statusCode: 400,
+        errorMessage: errorMessage,
+        processingTime: Date.now() - startTime,
         isSuccessful: false,
-        processingTime: `${Date.now() - startTime}ms`,
       });
       
       // 카카오톡 챗봇 스킬 에러 응답 형식
@@ -92,16 +93,19 @@ export async function POST(request: NextRequest) {
       skillRequest = JSON.parse(body);
     } catch (error) {
       console.error('JSON parsing error:', error);
-      statusCode = '400';
       errorMessage = 'Invalid JSON';
       
       // JSON 파싱 에러 로그 저장
       await db.insert(webhookLogs).values({
-        ...logData,
-        statusCode,
-        errorMessage,
+        source: 'kakao',
+        eventType: 'error',
+        method: 'POST',
+        url: request.url,
+        requestBody: { error: 'Invalid JSON' },
+        statusCode: 400,
+        errorMessage: errorMessage,
+        processingTime: Date.now() - startTime,
         isSuccessful: false,
-        processingTime: `${Date.now() - startTime}ms`,
       });
       
       // 카카오톡 챗봇 스킬 에러 응답 형식
@@ -163,20 +167,18 @@ export async function POST(request: NextRequest) {
       
       try {
         // 에이전트 기반 날씨 RAG 시스템 호출
-        const weatherResponse = await weatherChatbotService.processMessage(
+        const weatherResponse = await weatherChatbotService.processWeatherQuery(
           userUtterance,
-          '', // 위치 정보 불필요 (사용자 기반)
-          userId
+          userId,
+          '' // 위치 정보 불필요 (사용자 기반)
         );
         
         responseResult = {
-          text: weatherResponse.answer,
+          text: weatherResponse.message,
           type: 'weather_agent_rag',
           confidence: weatherResponse.confidence,
           metadata: {
-            method: weatherResponse.method,
-            agentPipeline: weatherResponse.debugInfo?.agentPipeline,
-            qualityMetrics: weatherResponse.debugInfo?.qualityMetrics
+            method: 'weather_chatbot'
           }
         };
         
@@ -208,15 +210,17 @@ export async function POST(request: NextRequest) {
     try {
       // 메시지와 AI 응답을 데이터베이스에 저장 (개선된 버전)
       const messageRecord = await db.insert(kakaoMessages).values({
-        userKey: userId,
-        message: userUtterance.trim(),
+        userId: userId,
+        userKey: userId, // 호환성을 위해 추가
+        userMessage: userUtterance.trim(),
+        botResponse: responseResult.text,
+        message: userUtterance.trim(), // 호환성을 위해 추가
         messageType: messageType,
         aiResponse: responseResult.text,
         responseType: responseResult.type,
         processingTime: aiProcessingTime,
         channelId: expectedBotId,
         rawData: skillRequest,
-        receivedAt: new Date(),
       }).returning({ id: kakaoMessages.id });
       
       console.log('💾 메시지와 AI 응답이 데이터베이스에 저장되었습니다. ID:', messageRecord[0]?.id);
@@ -252,19 +256,15 @@ export async function POST(request: NextRequest) {
 
     // 성공 로그 저장
     await db.insert(webhookLogs).values({
+      source: 'kakao',
+      eventType: 'message',
       method: 'POST',
       url: request.url,
-      userAgent: request.headers.get('user-agent') || 'unknown',
-      requestBody: body,
-      requestHeaders: Object.fromEntries(request.headers.entries()),
-      statusCode: '200',
-      responseBody: JSON.stringify(skillResponse),
-      processingTime: `${Date.now() - startTime}ms`,
-      ipAddress: request.headers.get('x-forwarded-for') || 
-                 request.headers.get('x-real-ip') || 
-                 'unknown',
+      requestBody: JSON.parse(body),
+      responseData: skillResponse,
+      statusCode: 200,
+      processingTime: Date.now() - startTime,
       isSuccessful: true,
-      timestamp: new Date(),
     });
 
     console.log('✅ 카카오톡 챗봇 응답 전송 완료');
@@ -278,20 +278,16 @@ export async function POST(request: NextRequest) {
     // 에러 로그 저장
     try {
       await db.insert(webhookLogs).values({
+        source: 'kakao',
+        eventType: 'error',
         method: 'POST',
         url: request.url,
-        userAgent: request.headers.get('user-agent') || 'unknown',
-        requestBody: 'Error reading request body',
-        requestHeaders: Object.fromEntries(request.headers.entries()),
-        statusCode: '500',
-        responseBody: JSON.stringify({ error: 'Internal server error' }),
-        processingTime: `${Date.now() - startTime}ms`,
+        requestBody: { error: 'Error reading request body' },
+        responseData: { error: 'Internal server error' },
+        statusCode: 500,
+        processingTime: Date.now() - startTime,
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        ipAddress: request.headers.get('x-forwarded-for') || 
-                   request.headers.get('x-real-ip') || 
-                   'unknown',
         isSuccessful: false,
-        timestamp: new Date(),
       });
     } catch (logError) {
       console.error('로그 저장 중 오류:', logError);
@@ -326,19 +322,14 @@ export async function GET(request: NextRequest) {
 
     // GET 요청 로그 저장
     await db.insert(webhookLogs).values({
+      source: 'kakao',
+      eventType: 'healthcheck',
       method: 'GET',
       url: request.url,
-      userAgent: request.headers.get('user-agent') || 'unknown',
-      requestBody: null,
-      requestHeaders: Object.fromEntries(request.headers.entries()),
-      statusCode: '200',
-      responseBody: JSON.stringify(responseData),
-      processingTime: `${Date.now() - startTime}ms`,
-      ipAddress: request.headers.get('x-forwarded-for') || 
-                 request.headers.get('x-real-ip') || 
-                 'unknown',
+      responseData: responseData,
+      statusCode: 200,
+      processingTime: Date.now() - startTime,
       isSuccessful: true,
-      timestamp: new Date(),
     });
 
     return NextResponse.json(responseData);
@@ -348,20 +339,15 @@ export async function GET(request: NextRequest) {
     // GET 요청 에러 로그 저장
     try {
       await db.insert(webhookLogs).values({
+        source: 'kakao',
+        eventType: 'error',
         method: 'GET',
         url: request.url,
-        userAgent: request.headers.get('user-agent') || 'unknown',
-        requestBody: null,
-        requestHeaders: Object.fromEntries(request.headers.entries()),
-        statusCode: '500',
-        responseBody: JSON.stringify({ error: 'Internal server error' }),
-        processingTime: `${Date.now() - startTime}ms`,
+        responseData: { error: 'Internal server error' },
+        statusCode: 500,
+        processingTime: Date.now() - startTime,
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        ipAddress: request.headers.get('x-forwarded-for') || 
-                   request.headers.get('x-real-ip') || 
-                   'unknown',
         isSuccessful: false,
-        timestamp: new Date(),
       });
     } catch (logError) {
       console.error('GET 요청 로그 저장 중 오류:', logError);

@@ -11,6 +11,7 @@ import { CalendarIcon, Upload, X, Loader2, Save, ArrowLeft, RefreshCw } from 'lu
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 import DatePicker, { registerLocale } from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "@/styles/datepicker-custom.css";
@@ -280,9 +281,11 @@ export default function DiscountItemForm({
                 <div className="datepicker-container w-full">
                   <DatePicker
                     selected={date}
-                    onChange={(selectedDate: Date) => {
-                      setDate(selectedDate);
-                      setError(null);
+                    onChange={(selectedDate: Date | null) => {
+                      if (selectedDate) {
+                        setDate(selectedDate);
+                        setError(null);
+                      }
                     }}
                     locale="ko"
                     dateFormat="yyyy년 MM월 dd일 (eee)"
@@ -296,21 +299,9 @@ export default function DiscountItemForm({
                     wrapperClassName="w-full block"
                     popperClassName="w-full max-w-full"
                     popperPlacement="bottom"
-                    popperModifiers={[
-                      {
-                        name: "preventOverflow",
-                        options: {
-                          rootBoundary: "viewport",
-                          tether: false,
-                          altAxis: true,
-                        },
-                      },
-                    ]}
-                    // 이미 등록된 날짜 표시
-                    highlightDates={existingDates.map(date => ({
-                      date,
-                      className: 'already-registered-date'
-                    }))}
+                    popperModifiers={[]}
+                    // 이미 등록된 날짜 표시 (Date[] 타입으로 수정)
+                    highlightDates={existingDates}
                     dayClassName={(date) => {
                       // 이미 등록된 날짜인지 확인
                       const isExistingDate = existingDates.some(
@@ -320,7 +311,7 @@ export default function DiscountItemForm({
                           existingDate.getDate() === date.getDate()
                       );
                       
-                      return isExistingDate ? 'already-registered-date' : undefined;
+                      return isExistingDate ? 'already-registered-date' : '';
                     }}
                     customInput={
                       <div className="w-full relative">
@@ -413,10 +404,12 @@ export default function DiscountItemForm({
               ) : (
                 <div className="space-y-4">
                   <div className="relative">
-                    <img
+                    <Image
                       src={imagePreview}
                       alt="전단지 미리보기"
                       className="w-full h-64 object-cover rounded-lg border border-[#756d60]/50"
+                      width={400}
+                      height={256}
                     />
                     <Button
                       variant="destructive"

@@ -3,11 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, CalendarDays, Calendar, Info } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  updateMartDiscount, 
   deleteMartDiscount, 
   getDiscountWithItems,
   createDiscountItem,
@@ -119,6 +118,7 @@ export default function DiscountEditManager({ martId, martName, discount }: Disc
         originalImageUrl: data.originalImageUrl,
         imageSize: data.imageSize,
         products: data.products,
+        originalProducts: data.products, // 초기 생성 시 products와 동일하게 설정
         ocrAnalyzed: data.ocrAnalyzed || false,
       };
 

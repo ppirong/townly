@@ -66,7 +66,7 @@ function DiscountInfoContent() {
               if (itemsResult.success && itemsResult.data?.items) {
                 itemsResult.data.items.forEach(item => {
                   if (item.products && Array.isArray(item.products)) {
-                    productCount += (item.products as any).length;
+                    productCount += Array.isArray(item.products) ? item.products.length : 0;
                   }
                 });
               }

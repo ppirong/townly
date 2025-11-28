@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react';
 import DiscountFlyerCard, { DiscountFlyerData } from './DiscountFlyerCard';
 import { createMartDiscount, getMartDiscounts, deleteMartDiscount, updateMartDiscount } from '@/actions/mart-discounts';
 import { MartDiscount } from '@/db/schema';
+import { ClientMartDiscount, mapMartDiscountsForClient } from '@/lib/dto/mart-dto-mappers';
 import { toast } from 'sonner';
 
 interface DiscountFlyerManagerProps {
@@ -14,7 +15,7 @@ interface DiscountFlyerManagerProps {
 }
 
 export default function DiscountFlyerManager({ martId, martName }: DiscountFlyerManagerProps) {
-  const [discountFlyers, setDiscountFlyers] = useState<MartDiscount[]>([]);
+  const [discountFlyers, setDiscountFlyers] = useState<ClientMartDiscount[]>([]);
   const [newFlyers, setNewFlyers] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -24,7 +25,8 @@ export default function DiscountFlyerManager({ martId, martName }: DiscountFlyer
     try {
       const result = await getMartDiscounts(martId);
       if (result.success && result.data) {
-        setDiscountFlyers(result.data);
+        // DB 마스터 규칙 1.1: DTO 매퍼 필수 사용
+        setDiscountFlyers(mapMartDiscountsForClient(result.data));
       } else {
         toast.error(result.message || '할인 전단지를 불러오는데 실패했습니다.');
       }
@@ -52,10 +54,9 @@ export default function DiscountFlyerManager({ martId, martName }: DiscountFlyer
       const result = await createMartDiscount(martId, {
         title: data.title,
         description: data.description,
-        discountDate: data.discountDate,
+        startDate: data.discountDate, // discountDate를 startDate로 사용
+        endDate: new Date(data.discountDate.getTime() + 7 * 24 * 60 * 60 * 1000), // 7일 후를 endDate로 설정
         imageUrl: data.imageUrl,
-        products: data.products,
-        ocrAnalyzed: data.products.length > 0,
       });
 
       if (result.success) {
@@ -81,10 +82,12 @@ export default function DiscountFlyerManager({ martId, martName }: DiscountFlyer
       const result = await updateMartDiscount(data.id, {
         title: data.title,
         description: data.description,
-        discountDate: data.discountDate,
+        // discountDate는 할인 전단지가 아닌 할인 항목에만 존재
+        // startDate/endDate로 할인 기간 설정
+        startDate: data.discountDate,
+        endDate: new Date(data.discountDate.getTime() + 7 * 24 * 60 * 60 * 1000), // 7일 후
         imageUrl: data.imageUrl,
-        products: data.products,
-        ocrAnalyzed: data.products.length > 0,
+        // products, ocrAnalyzed는 UpdateDiscountInput에 없음 (할인 항목 전용)
       });
 
       if (result.success) {
@@ -173,9 +176,9 @@ export default function DiscountFlyerManager({ martId, martName }: DiscountFlyer
               id: flyer.id,
               title: flyer.title,
               description: flyer.description || undefined,
-              discountDate: new Date(flyer.discountDate),
+              discountDate: new Date(flyer.startDate), // startDate 사용
               imageUrl: flyer.imageUrl || undefined,
-              products: (flyer.products as any) || [],
+              products: [], // 할인 전단지에는 products가 없음, 빈 배열로 초기화
             }}
             onSave={handleUpdateFlyer}
             onDelete={() => handleDeleteFlyer(flyer.id)}

@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { compressImage, validateImageFile, fileToBase64 } from '@/lib/utils/image-compression';
 import { ProductInfo } from '@/lib/utils/ocr-analysis';
 import { analyzeImageWithClaude } from '@/lib/utils/claude-ocr';
+import Image from 'next/image';
 
 interface DiscountItemCardProps {
   onSave: (data: DiscountItemData) => Promise<void>;
@@ -295,10 +296,12 @@ export default function DiscountItemCard({
           ) : (
             <div className="space-y-4">
               <div className="relative">
-                <img
+                <Image
                   src={imagePreview}
                   alt="할인 상품 미리보기"
                   className="w-full h-64 object-cover rounded-lg"
+                  width={400}
+                  height={256}
                 />
                 <Button
                   variant="destructive"

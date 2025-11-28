@@ -52,9 +52,9 @@ export function toSafeArray<T>(value: unknown): T[] {
 /**
  * 객체를 안전하게 변환
  */
-export function toRecord(value: unknown): Record<string, any> {
+export function toRecord(value: unknown): Record<string, unknown> {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, any>;
+    return value as Record<string, unknown>;
   }
   return {};
 }
@@ -102,11 +102,11 @@ export interface ClientDailyWeatherData {
   precipitationProbability: number;
   rainProbability: number;
   units: string;
-  dayWeather: Record<string, any> | null;
-  nightWeather: Record<string, any> | null;
+  dayWeather: Record<string, unknown> | null;
+  nightWeather: Record<string, unknown> | null;
   headline: string | null;
   forecastDays: number;
-  rawData: Record<string, any> | null;
+  rawData: Record<string, unknown> | null;
   cacheKey: string;
   expiresAt: string;
   createdAt: string;
@@ -122,7 +122,7 @@ export interface ClientWeatherLocationKey {
   countryCode: string | null;
   administrativeArea: string | null;
   searchType: string;
-  rawLocationData: Record<string, any> | null;
+  rawLocationData: Record<string, unknown> | null;
   cacheKey: string;
   expiresAt: string;
   createdAt: string;

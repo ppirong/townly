@@ -3,7 +3,7 @@
 import { db } from '@/db';
 import { martDiscounts, martDiscountItems, marts } from '@/db/schema';
 import { auth } from '@clerk/nextjs/server';
-import { eq, desc, and, inArray, asc } from 'drizzle-orm';
+import { eq, desc, asc } from 'drizzle-orm';
 import { z } from 'zod';
 import crypto from 'crypto';
 
@@ -224,8 +224,8 @@ export async function updateMartDiscount(discountId: string, input: UpdateDiscou
       return { success: false, message: '할인 전단지를 찾을 수 없습니다.' };
     }
 
-    // 업데이트할 데이터 준비
-    const updateData: any = {
+    // 업데이트할 데이터 준비 (명시적 타입 지정)
+    const updateData: Partial<typeof martDiscounts.$inferInsert> = {
       ...validatedData,
       updatedAt: new Date(),
     };
@@ -431,7 +431,7 @@ export async function updateDiscountItem(itemId: string, input: UpdateDiscountIt
     // 할인 날짜 검증 제거 - 날짜 변경 시에도 제약 없이 수정 가능하도록 함
 
     // 업데이트할 데이터 준비
-    const updateData: any = {
+    const updateData: Partial<UpdateDiscountItemInput> & { updatedAt: Date } = {
       ...validatedData,
       updatedAt: new Date(),
     };

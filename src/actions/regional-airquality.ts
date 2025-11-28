@@ -5,6 +5,8 @@ import {
   getStationWithRegion, 
   findNearestStationWithRegion,
   getRegionByStationName,
+  type StationInfo,
+  type RegionInfo,
 } from '@/lib/data/stations';
 import {
   type RegionalAirQualityRequest,
@@ -172,7 +174,7 @@ export async function getUserRegionalAirQuality(
   type: 'hourly' | 'daily' = 'hourly',
   date: string = new Date().toISOString().split('T')[0],
   numOfRows: number = type === 'hourly' ? 24 : 7
-): Promise<{ station: any; region: any; airQuality: RegionalAirQualityResponse } | null> {
+): Promise<{ station: StationInfo; region: RegionInfo; airQuality: RegionalAirQualityResponse } | null> {
   const { userId } = await auth();
   
   if (!userId) {

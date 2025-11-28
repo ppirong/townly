@@ -63,19 +63,19 @@ export async function POST(request: NextRequest) {
       
       for (const query of testQueries) {
         try {
-          const ragResponse = await weatherChatbotService.processMessage(
+          const ragResponse = await weatherChatbotService.processWeatherQuery(
             query,
-            '', // 위치 불필요
-            userId
+            userId,
+            '' // 위치 불필요
           );
           
           results.push({
             query,
             success: ragResponse.success,
-            method: ragResponse.method,
+            method: 'weather_chatbot',
             confidence: ragResponse.confidence,
-            sourceCount: ragResponse.sourceData.length,
-            answer: ragResponse.answer.substring(0, 100) + '...'
+            sourceCount: ragResponse.data ? 1 : 0,
+            answer: ragResponse.message.substring(0, 100) + '...'
           });
         } catch (error) {
           results.push({

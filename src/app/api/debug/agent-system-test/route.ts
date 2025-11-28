@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // 기존 weather chatbot을 사용한 기본 테스트
     const startTime = Date.now();
-    const result = await weatherChatbotService.processMessage(query, userId);
+    const result = await weatherChatbotService.processWeatherQuery(query, userId);
     const endTime = Date.now();
     
     return NextResponse.json({
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       userId,
       result: {
         success: result.success,
-        answer: result.response,
+        answer: result.message,
         method: 'weather_chatbot'
       },
       performance: {

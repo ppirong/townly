@@ -58,7 +58,6 @@ export async function POST(_request: NextRequest) {
           .set({
             forecastDate: correctForecastDate,
             forecastHour: correctForecastHour,
-            updatedAt: new Date(),
           })
           .where(eq(hourlyWeatherData.id, record.id));
 

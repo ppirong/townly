@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Plus, Calendar, Edit, Trash2, ShoppingBag, DollarSign } from 'lucide-react';
+import Image from 'next/image';
 import { 
   getDiscountItems,
   deleteDiscountItem
@@ -76,7 +77,7 @@ export default function DiscountItemsListManager({
   };
 
   // 상품 개수 계산
-  const getProductCount = (products: any) => {
+  const getProductCount = (products: unknown) => {
     if (!products || !Array.isArray(products)) return 0;
     return products.length;
   };
@@ -127,10 +128,12 @@ export default function DiscountItemsListManager({
                   {/* 할인 정보 이미지 */}
                   <div className="relative h-40 bg-[#18212e]">
                     {item.imageUrl ? (
-                      <img
+                      <Image
                         src={item.imageUrl}
                         alt={`${formatDiscountDate(item.discountDate)} 할인 정보`}
                         className="w-full h-full object-cover"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#18212e] to-[#2a2f3a]">

@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
     console.log('🔍 에어코리아 API 디버깅 시작');
     console.log('📋 요청 파라미터:', validatedParams);
 
-    let apiResponse: any;
-    const debugInfo: any = {
+    let apiResponse: Record<string, unknown>;
+    const debugInfo: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
       request: validatedParams,
       apiUrl: '',

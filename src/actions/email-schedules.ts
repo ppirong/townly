@@ -976,7 +976,7 @@ export async function executeScheduledEmail(scheduleId: string) {
       subject: scheduleData.emailSubject,
       location: userLocationName,
       timeOfDay: scheduleData.scheduleTime.startsWith('06') ? 'morning' : 'evening',
-      targetType: scheduleData.targetType as any,
+      targetType: scheduleData.targetType as 'all' | 'specific',
       targetUserIds: scheduleData.targetUserIds ? scheduleData.targetUserIds as string[] : undefined,
       forceRefreshWeather: true,
       useAgent: true, // 🤖 에이전트를 사용하여 고품질 날씨 이메일 생성

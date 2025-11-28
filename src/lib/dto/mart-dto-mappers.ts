@@ -3,7 +3,7 @@
  * 마스터 규칙: DB 타입을 클라이언트로 직접 전달 금지, 반드시 DTO 매퍼 사용
  */
 
-import type { Mart } from '@/db/schema';
+import type { Mart, MartDiscount } from '@/db/schema';
 import { toISOString, toISOStringOrNull, toSafeNumber, toSafeArray } from '@/lib/utils';
 
 /**
@@ -156,4 +156,46 @@ export function mapMartsForAdmin(dbMarts: Mart[]): AdminMart[] {
  */
 export function mapMartsForList(dbMarts: Mart[]): MartListItem[] {
   return dbMarts.map(mapMartForList);
+}
+
+/**
+ * 클라이언트용 마트 할인 전단지 DTO 타입
+ */
+export interface ClientMartDiscount {
+  id: string;
+  martId: string;
+  title: string;
+  description: string | null;
+  startDate: string;
+  endDate: string;
+  discountRate: string | null;
+  imageUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 마트 할인 전단지 DTO 매퍼
+ * DB 마스터 규칙 5.1: 기본 엔티티 매퍼 적용
+ */
+export function mapMartDiscountForClient(db: MartDiscount): ClientMartDiscount {
+  return {
+    id: db.id,
+    martId: db.martId,
+    title: db.title,
+    description: db.description,
+    startDate: toISOString(db.startDate),
+    endDate: toISOString(db.endDate),
+    discountRate: db.discountRate,
+    imageUrl: db.imageUrl,
+    createdAt: toISOString(db.createdAt),
+    updatedAt: toISOString(db.updatedAt),
+  };
+}
+
+/**
+ * 마트 할인 전단지 배열 DTO 매퍼
+ */
+export function mapMartDiscountsForClient(dbDiscounts: MartDiscount[]): ClientMartDiscount[] {
+  return dbDiscounts.map(mapMartDiscountForClient);
 }

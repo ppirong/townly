@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
         const logs = await db
           .select()
           .from(apiCallLogs)
-          .where(eq(apiCallLogs.service, 'accuweather'))
+          .where(eq(apiCallLogs.apiProvider, 'accuweather'))
           .orderBy(desc(apiCallLogs.createdAt))
           .limit(10);
 
@@ -97,14 +97,14 @@ export async function GET(request: NextRequest) {
         // 최근 호출 로그도 몇 개 가져오기
         const recentLogs = await db
           .select({
-            endpoint: apiCallLogs.endpoint,
+            endpoint: apiCallLogs.apiEndpoint,
             callTime: apiCallLogs.createdAt,
-            httpStatus: apiCallLogs.statusCode,
+            httpStatus: apiCallLogs.httpStatus,
             responseTime: apiCallLogs.responseTime,
-            service: apiCallLogs.service
+            service: apiCallLogs.apiProvider
           })
           .from(apiCallLogs)
-          .where(eq(apiCallLogs.service, 'accuweather'))
+          .where(eq(apiCallLogs.apiProvider, 'accuweather'))
           .orderBy(desc(apiCallLogs.createdAt))
           .limit(5);
 

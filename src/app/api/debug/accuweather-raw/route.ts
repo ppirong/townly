@@ -49,7 +49,7 @@ export async function GET(_request: NextRequest) {
         convertedToKst: firstKstFromUtc,
         directKstDisplay: firstDateTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
       },
-      allForecasts: data.slice(0, 3).map((forecast: any) => ({
+      allForecasts: data.slice(0, 3).map((forecast: Record<string, unknown>) => ({
         dateTime: forecast.DateTime,
         parsed: new Date(forecast.DateTime).toISOString(),
         kstDisplay: new Date(forecast.DateTime).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),

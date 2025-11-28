@@ -38,9 +38,9 @@ export default async function WeatherPage() {
                     <p className="text-sm font-medium text-blue-800">
                       설정된 위치: {userLocation.address || `${parseFloat(userLocation.latitude).toFixed(4)}, ${parseFloat(userLocation.longitude).toFixed(4)}`}
                     </p>
-                    {userLocation.locationName && (
+                    {userLocation.cityName && (
                       <p className="text-xs text-blue-600">
-                        날씨 조회 지역: {userLocation.locationName}
+                        날씨 조회 지역: {userLocation.cityName}
                       </p>
                     )}
                   </div>
@@ -57,7 +57,7 @@ export default async function WeatherPage() {
             latitude: userLocation.latitude,
             longitude: userLocation.longitude,
             address: userLocation.address,
-            cityName: userLocation.locationName,
+            cityName: userLocation.cityName,
             isDefault: userLocation.isDefault,
             nickname: null,
             accuracy: null,

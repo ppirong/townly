@@ -78,10 +78,10 @@ interface KakaoSkillResponse {
     values: Array<{
       name: string;
       lifeSpan: number;
-      params: Record<string, any>;
+      params: Record<string, unknown>;
     }>;
   };
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 export async function POST(request: NextRequest) {
@@ -110,8 +110,8 @@ export async function POST(request: NextRequest) {
     
     const weatherResponse = await weatherChatbotService.processWeatherQuery(
       userMessage,
-      userLocation || 'Seoul', // 기본값 제공
-      clerkUserId
+      clerkUserId,
+      userLocation || 'Seoul' // 기본값 제공
     );
     
     console.log('날씨 응답:', weatherResponse);
@@ -119,15 +119,16 @@ export async function POST(request: NextRequest) {
     // 🔥 중요: 메시지를 데이터베이스에 저장 (admin 페이지에서 확인 가능)
     try {
       const messageRecord = await db.insert(kakaoMessages).values({
-        userKey: userId,
-        message: userMessage.trim(),
+        userId: userId,
+        userKey: userId, // 호환성을 위해 추가
+        userMessage: userMessage.trim(),
+        botResponse: weatherResponse.message,
+        message: userMessage.trim(), // 호환성을 위해 추가
         messageType: 'text',
         aiResponse: weatherResponse.message,
         responseType: 'weather_skill',
         processingTime: `${Date.now() - Date.now()}ms`, // 임시 처리 시간
-        channelId: '68bef0501c4ef66e4f5d73be', // 기본 채널 ID
         rawData: validatedData,
-        receivedAt: new Date(),
       }).returning({ id: kakaoMessages.id });
       
       console.log('💾 날씨 스킬 메시지와 응답이 데이터베이스에 저장되었습니다. ID:', messageRecord[0]?.id);

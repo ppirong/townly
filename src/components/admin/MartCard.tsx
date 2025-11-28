@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { type AdminMart } from "@/lib/dto/mart-dto-mappers";
+import Image from "next/image";
 
 interface MartCardProps {
   mart: AdminMart;
@@ -18,10 +19,12 @@ export default function MartCard({ mart }: MartCardProps) {
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 rounded-full bg-[#18212e] flex items-center justify-center text-white shadow-sm">
               {mart.logoUrl ? (
-                <img
+                <Image
                   src={mart.logoUrl}
                   alt={mart.name}
                   className="w-10 h-10 rounded-full object-cover"
+                  width={40}
+                  height={40}
                 />
               ) : (
                 <span className="text-xl font-bold">{mart.name.charAt(0)}</span>

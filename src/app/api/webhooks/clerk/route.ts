@@ -11,8 +11,8 @@ import { setUserRole } from '@/lib/services/user-role-service';
 import { env } from '@/lib/env';
 
 export async function POST(req: NextRequest) {
-  // Clerk 웹훅 시크릿 키 확인
-  const WEBHOOK_SECRET = env.CLERK_WEBHOOK_SECRET;
+  // Clerk 웹훅 시크릿 키 확인 (환경변수에서 직접 가져오기)
+  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
   
   if (!WEBHOOK_SECRET) {
     console.error('CLERK_WEBHOOK_SECRET이 설정되지 않았습니다.');
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 요청 헤더 확인
-  const headerPayload = headers();
+  const headerPayload = await headers();
   const svix_id = headerPayload.get('svix-id');
   const svix_timestamp = headerPayload.get('svix-timestamp');
   const svix_signature = headerPayload.get('svix-signature');
@@ -74,10 +74,11 @@ export async function POST(req: NextRequest) {
       
       // 2. URL에서 역할 정보 확인 (리다이렉트 URL, 첫 번째 로그인 URL, 마지막 로그인 URL 순)
       if (role !== 'admin') {
-        // 가입 시 사용한 리다이렉트 URL 확인
-        if (evt.data?.redirect_url) {
+        // 가입 시 사용한 리다이렉트 URL 확인 (타입 안전성을 위해 any로 캐스팅)
+        const eventData = evt.data as any;
+        if (eventData?.redirect_url) {
           try {
-            const url = new URL(evt.data.redirect_url);
+            const url = new URL(eventData.redirect_url);
             const roleParam = url.searchParams.get('role');
             if (roleParam === 'admin') {
               role = 'admin';
@@ -89,9 +90,9 @@ export async function POST(req: NextRequest) {
         }
         
         // 첫 번째 로그인 URL 확인
-        if (role !== 'admin' && evt.data?.first_sign_in_url) {
+        if (role !== 'admin' && eventData?.first_sign_in_url) {
           try {
-            const url = new URL(evt.data.first_sign_in_url);
+            const url = new URL(eventData.first_sign_in_url);
             const roleParam = url.searchParams.get('role');
             if (roleParam === 'admin') {
               role = 'admin';
@@ -103,9 +104,9 @@ export async function POST(req: NextRequest) {
         }
         
         // 마지막 로그인 URL 확인
-        if (role !== 'admin' && evt.data?.last_sign_in_url) {
+        if (role !== 'admin' && eventData?.last_sign_in_url) {
           try {
-            const url = new URL(evt.data.last_sign_in_url);
+            const url = new URL(eventData.last_sign_in_url);
             const roleParam = url.searchParams.get('role');
             if (roleParam === 'admin') {
               role = 'admin';
@@ -119,8 +120,9 @@ export async function POST(req: NextRequest) {
       
       console.log(`최종 역할 결정: ${role}, 사용자 ID: ${userId}`);
       
-      // 사용자 역할 설정
-      await setUserRole(userId, role);
+      // 사용자 역할 설정 (타입 안전성 확보)
+      const validRole: "customer" | "admin" = role === 'admin' ? 'admin' : 'customer';
+      await setUserRole(userId, validRole);
       console.log(`사용자 ${userId}의 역할이 ${role}로 설정되었습니다.`);
     } catch (error) {
       console.error('사용자 역할 설정 실패:', error);

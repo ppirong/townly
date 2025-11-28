@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { HourlyWeatherData, DailyWeatherData } from '@/lib/services/weather';
+import type { ClientHourlyWeatherData, ClientDailyWeatherData } from '@/lib/dto/weather-dto-mappers';
+import { mapHourlyWeatherForClient, mapDailyWeatherForClient } from '@/lib/dto/weather-dto-mappers';
 import { getWeatherIcon } from '@/lib/weather-icons';
 import type { ClientUserLocation } from '@/lib/dto/location-mappers';
 import { setUserLocation } from '@/actions/location';
@@ -21,7 +22,7 @@ interface WeatherApiStats {
     successRate: number;
     avgResponseTime: number;
     hourlyUsage: Array<{ hour: number; calls: number }>;
-    endpointUsage: Record<string, any>;
+    endpointUsage: Record<string, { calls: number; avgResponseTime: number }>;
   };
   limit: {
     current: number;
@@ -57,8 +58,8 @@ interface WeatherDashboardProps {
 export function WeatherDashboard({ className, initialLocation }: WeatherDashboardProps) {
   const [location, setLocation] = useState('서울');
   const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
-  const [hourlyData, setHourlyData] = useState<HourlyWeatherData[]>([]);
-  const [dailyData, setDailyData] = useState<DailyWeatherData[]>([]);
+  const [hourlyData, setHourlyData] = useState<ClientHourlyWeatherData[]>([]);
+  const [dailyData, setDailyData] = useState<ClientDailyWeatherData[]>([]);
   const [weatherHeadline, setWeatherHeadline] = useState<{text: string; category: string; severity: number} | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -318,7 +319,14 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
     try {
       console.log('🧹 캐시 삭제 및 새로운 데이터 조회 시작...');
 
-      const requestBody: any = {
+      const requestBody: {
+        mode: string;
+        units: string;
+        latitude?: string;
+        longitude?: string;
+        locationName?: string;
+        location?: string;
+      } = {
         mode: 'refresh_location', // 명시적으로 새로고침 모드 지정
         units: units,
       };
@@ -378,9 +386,61 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       const result = await refreshWeatherFromAPI();
 
       if (result.success && result.data) {
-        // 새로운 데이터로 UI 업데이트
-        setHourlyData(result.data.hourlyWeather);
-        setDailyData(result.data.dailyWeather.dailyForecasts);
+        // 새로운 데이터로 UI 업데이트 - API 데이터는 이미 클라이언트 형식
+        // refreshWeatherFromAPI는 API 서비스 타입을 반환하므로 DTO 매퍼 불필요
+        const hourlyData = result.data.hourlyWeather.map(item => ({
+          id: item.id || '',
+          clerkUserId: item.clerkUserId || null,
+          locationKey: item.locationKey || '',
+          locationName: item.locationName || null,
+          latitude: String(item.latitude || ''),
+          longitude: String(item.longitude || ''),
+          forecastDateTime: item.forecastDateTime || new Date().toISOString(),
+          forecastDate: item.forecastDate || '',
+          forecastHour: Number(item.forecastHour || 0),
+          temperature: Number(item.temperature || 0),
+          conditions: item.conditions || '',
+          weatherIcon: Number(item.weatherIcon || 0),
+          humidity: Number(item.humidity || 0),
+          precipitation: Number(item.precipitation || 0),
+          precipitationProbability: Number(item.precipitationProbability || 0),
+          rainProbability: Number(item.rainProbability || 0),
+          windSpeed: Number(item.windSpeed || 0),
+          units: item.units || 'metric',
+          cacheKey: item.cacheKey || null,
+          expiresAt: item.expiresAt || new Date().toISOString(),
+          createdAt: item.createdAt || new Date().toISOString(),
+        }));
+        
+        const dailyData = result.data.dailyWeather.dailyForecasts.map(item => ({
+          id: item.id || '',
+          clerkUserId: item.clerkUserId || null,
+          locationKey: item.locationKey || '',
+          locationName: item.locationName || null,
+          latitude: String(item.latitude || ''),
+          longitude: String(item.longitude || ''),
+          forecastDate: item.forecastDate || '',
+          dayOfWeek: item.dayOfWeek || '',
+          temperature: Number(item.temperature || 0),
+          highTemp: Number(item.highTemp || 0),
+          lowTemp: Number(item.lowTemp || 0),
+          conditions: item.conditions || '',
+          weatherIcon: Number(item.weatherIcon || 0),
+          precipitationProbability: Number(item.precipitationProbability || 0),
+          rainProbability: Number(item.rainProbability || 0),
+          units: item.units || 'metric',
+          dayWeather: item.dayWeather || null,
+          nightWeather: item.nightWeather || null,
+          headline: item.headline || null,
+          forecastDays: Number(item.forecastDays || 0),
+          rawData: item.rawData || null,
+          cacheKey: item.cacheKey || '',
+          expiresAt: item.expiresAt || new Date().toISOString(),
+          createdAt: item.createdAt || new Date().toISOString(),
+        }));
+        
+        setHourlyData(hourlyData);
+        setDailyData(dailyData);
         setWeatherHeadline(result.data.dailyWeather.headline || null);
         
         setError(`✅ ${result.message}`);

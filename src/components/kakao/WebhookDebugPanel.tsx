@@ -19,6 +19,7 @@ import {
   TestTube
 } from 'lucide-react';
 import { getWebhookDebugInfo, testWebhookConnection } from '@/actions/kakao';
+import { ClientWebhookLog, mapWebhookLogsForClient } from '@/lib/dto/kakao-dto-mappers';
 
 interface WebhookStats {
   totalRequests: number;
@@ -32,15 +33,8 @@ interface MessageStats {
   recentMessageCount: number;
 }
 
-interface WebhookLog {
-  id: string;
-  method: string;
-  statusCode: string;
-  isSuccessful: boolean | null;
-  errorMessage: string | null;
-  timestamp: Date;
-  processingTime: string | null;
-}
+// DB 마스터 규칙 1.1: DTO 타입 사용
+type WebhookLog = ClientWebhookLog;
 
 interface WebhookDebugData {
   webhookStats: WebhookStats;
@@ -73,7 +67,12 @@ export function WebhookDebugPanel() {
     
     try {
       const data = await getWebhookDebugInfo();
-      setDebugData(data);
+      // DB 마스터 규칙 1.1: DTO 매퍼 필수 사용
+      const clientData = {
+        ...data,
+        recentLogs: mapWebhookLogsForClient(data.recentLogs)
+      };
+      setDebugData(clientData);
     } catch (err) {
       setError(err instanceof Error ? err.message : '디버깅 정보를 불러오는 중 오류가 발생했습니다.');
     } finally {

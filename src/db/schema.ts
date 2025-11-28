@@ -446,6 +446,9 @@ export const martDiscounts = pgTable('mart_discounts', {
   endDate: timestamp('end_date').notNull(), // 할인 종료 날짜
   discountRate: text('discount_rate'), // 할인율
   
+  // 이미지 정보 (drizzle/schema.ts와 동기화)
+  imageUrl: text('image_url'), // 할인 이미지 URL
+  
   // 시간 정보
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
