@@ -64,6 +64,26 @@ export default function RootLayout({
           <main className="min-h-screen bg-[#121212]">
             {children}
           </main>
+          <footer className="bg-[#1E1E1E] border-t border-[#2D2D2D] py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+                <div className="flex items-center">
+                  <span className="text-2xl mr-2">🏘️</span>
+                  <span className="text-lg font-semibold text-white">Townly</span>
+                </div>
+                <div className="flex items-center space-x-6 text-sm">
+                  <Link 
+                    href="/privacy-policy" 
+                    className="text-gray-400 hover:text-white transition-colors duration-200"
+                  >
+                    개인정보처리방침
+                  </Link>
+                  <span className="text-gray-500">|</span>
+                  <span className="text-gray-500">© 2025 Townly. All rights reserved.</span>
+                </div>
+              </div>
+            </div>
+          </footer>
         </body>
       </html>
     </ClerkProvider>

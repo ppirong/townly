@@ -125,12 +125,26 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       const weatherResult = await getUserLocationWeather();
       
       if (weatherResult) {
-        setHourlyData(weatherResult.hourlyWeather);
+        if (Array.isArray(weatherResult.hourlyWeather)) {
+          setHourlyData(weatherResult.hourlyWeather);
+        } else {
+          setHourlyData([]);
+        }
         
         // 일별 데이터를 올바른 형식으로 변환
-        if (weatherResult.dailyWeather.dailyForecasts) {
-          setDailyData(weatherResult.dailyWeather.dailyForecasts);
-          setWeatherHeadline(weatherResult.dailyWeather.headline || null);
+        if (weatherResult.dailyWeather) {
+          if (Array.isArray(weatherResult.dailyWeather)) {
+            setDailyData(weatherResult.dailyWeather);
+          } else if (weatherResult.dailyWeather && typeof weatherResult.dailyWeather === 'object' && 'dailyForecasts' in weatherResult.dailyWeather) {
+            const dailyWeatherData = weatherResult.dailyWeather as any;
+            if (Array.isArray(dailyWeatherData.dailyForecasts)) {
+              setDailyData(dailyWeatherData.dailyForecasts);
+            }
+            // 헤드라인 처리  
+            if (dailyWeatherData.headline && typeof dailyWeatherData.headline === 'object' && 'text' in dailyWeatherData.headline) {
+              setWeatherHeadline(dailyWeatherData.headline as {text: string; category: string; severity: number});
+            }
+          }
         }
         
         console.log('✅ 사용자별 날씨 조회 성공');
@@ -151,6 +165,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       await fetchApiStats();
     }
   }, [userLocation]);
+
 
   useEffect(() => {
     // 초기 위치 정보가 있으면 자동으로 설정하고 날씨 조회
@@ -198,423 +213,251 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
     }
   };
 
-
-  const fetchHourlyWeather = async (targetLocation?: string) => {
-    const locationToUse = targetLocation || location;
-    if (!locationToUse.trim() && !userLocation) return;
-    
-    setLoading(true);
-    setError(null);
-    
+  const fetchHourlyWeather = async (locationName: string) => {
     try {
-      let url = '/api/weather/hourly';
-      const params = new URLSearchParams();
+      const response = await fetch(`/api/weather/hourly?location=${encodeURIComponent(locationName)}`);
+      const data = await response.json();
       
-      // 사용자 위치 정보가 있으면 위도/경도를 우선 사용
-      if (userLocation?.latitude && userLocation?.longitude) {
-        console.log('🌍 시간별 날씨 조회 - 위도/경도 사용:', userLocation.latitude, userLocation.longitude);
-        params.append('latitude', userLocation.latitude);
-        params.append('longitude', userLocation.longitude);
-        // 사용자별 날씨 데이터로 저장하기 위해 사용자 ID 포함
-        params.append('includeUserId', 'true');
-      } else if (locationToUse) {
-        console.log('🌍 시간별 날씨 조회 - 도시명 사용:', locationToUse);
-        params.append('location', locationToUse);
-        // 일반 검색도 사용자가 조회한 경우 사용자 ID 포함
-        params.append('includeUserId', 'true');
-      }
-      
-      params.append('units', units);
-      url += '?' + params.toString();
-      
-      const response = await fetch(url);
-      const result = await response.json();
-      
-      if (result.success) {
-        setHourlyData(result.data);
-      } else {
-        const errorMessage = result.error || '시간별 날씨 조회에 실패했습니다';
-        if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests') || errorMessage.includes('한도')) {
-          setError('⏰ API 호출 한도가 초과되었습니다. 잠시 후 다시 시도해주세요.');
+      if (data.success && data.data) {
+        const mappedData = mapHourlyWeatherForClient(data.data);
+        if (Array.isArray(mappedData)) {
+          setHourlyData(mappedData);
         } else {
-          setError(errorMessage);
+          setHourlyData([]);
         }
+      } else {
+        throw new Error(data.error || '시간별 날씨 조회 실패');
       }
     } catch (error) {
       console.error('시간별 날씨 조회 실패:', error);
-      const errorStr = error instanceof Error ? error.message : '시간별 날씨 정보를 가져오는데 실패했습니다';
-      if (errorStr.includes('429') || errorStr.includes('Too Many Requests') || errorStr.includes('한도')) {
-        setError('⏰ API 호출 한도가 초과되었습니다. 잠시 후 다시 시도해주세요.');
-      } else {
-        setError('시간별 날씨 정보를 가져오는데 실패했습니다');
-      }
-    } finally {
-      setLoading(false);
+      setError('시간별 날씨 정보를 가져오는데 실패했습니다.');
     }
   };
 
-  const fetchDailyWeather = async (days: 1 | 5 | 10 | 15 = 5, targetLocation?: string) => {
-    const locationToUse = targetLocation || location;
-    if (!locationToUse.trim() && !userLocation) return;
-    
-    setLoading(true);
-    setError(null);
-    
+  const fetchDailyWeather = async (days: number, locationName: string) => {
     try {
-      let url = '/api/weather/daily';
-      const params = new URLSearchParams();
+      const response = await fetch(`/api/weather/daily?location=${encodeURIComponent(locationName)}&days=${days}`);
+      const data = await response.json();
       
-      // 사용자 위치 정보가 있으면 위도/경도를 우선 사용
-      if (userLocation?.latitude && userLocation?.longitude) {
-        console.log('🌍 일별 날씨 조회 - 위도/경도 사용:', userLocation.latitude, userLocation.longitude);
-        params.append('latitude', userLocation.latitude);
-        params.append('longitude', userLocation.longitude);
-        // 사용자별 날씨 데이터로 저장하기 위해 사용자 ID 포함
-        params.append('includeUserId', 'true');
-      } else if (locationToUse) {
-        console.log('🌍 일별 날씨 조회 - 도시명 사용:', locationToUse);
-        params.append('location', locationToUse);
-        // 일반 검색도 사용자가 조회한 경우 사용자 ID 포함
-        params.append('includeUserId', 'true');
-      }
-      
-      params.append('days', days.toString());
-      params.append('units', units);
-      url += '?' + params.toString();
-      
-      const response = await fetch(url);
-      const result = await response.json();
-      
-      if (result.success) {
-        setDailyData(result.data);
-        setWeatherHeadline(result.headline || null);
-      } else {
-        const errorMessage = result.error || '일별 날씨 조회에 실패했습니다';
-        if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests') || errorMessage.includes('한도')) {
-          setError('⏰ API 호출 한도가 초과되었습니다. 잠시 후 다시 시도해주세요.');
-        } else {
-          setError(errorMessage);
+      if (data.success && data.data) {
+        const mappedData = mapDailyWeatherForClient(data.data) as any;
+        if (Array.isArray(mappedData?.dailyForecasts)) {
+          setDailyData(mappedData.dailyForecasts);
+        } else if (Array.isArray(mappedData)) {
+          setDailyData(mappedData);
         }
+        
+        if (mappedData?.headline && typeof mappedData.headline === 'object' && 'text' in mappedData.headline) {
+          setWeatherHeadline(mappedData.headline as {text: string; category: string; severity: number});
+        }
+      } else {
+        throw new Error(data.error || '일별 날씨 조회 실패');
       }
     } catch (error) {
       console.error('일별 날씨 조회 실패:', error);
-      const errorStr = error instanceof Error ? error.message : '일별 날씨 정보를 가져오는데 실패했습니다';
-      if (errorStr.includes('429') || errorStr.includes('Too Many Requests') || errorStr.includes('한도')) {
-        setError('⏰ API 호출 한도가 초과되었습니다. 잠시 후 다시 시도해주세요.');
-      } else {
-        setError('일별 날씨 정보를 가져오는데 실패했습니다');
-      }
-    } finally {
-      setLoading(false);
+      setError('일별 날씨 정보를 가져오는데 실패했습니다.');
     }
   };
 
-  const getTemperatureUnit = () => units === 'metric' ? '°C' : '°F';
+  const getTemperatureUnit = () => {
+    return units === 'metric' ? '°C' : '°F';
+  };
 
-  // 캐시 삭제 및 새로운 데이터 조회 함수
   const clearCacheAndRefresh = async () => {
     setCacheClearing(true);
     setError(null);
-
+    
     try {
-      console.log('🧹 캐시 삭제 및 새로운 데이터 조회 시작...');
-
-      const requestBody: {
-        mode: string;
-        units: string;
-        latitude?: string;
-        longitude?: string;
-        locationName?: string;
-        location?: string;
-      } = {
-        mode: 'refresh_location', // 명시적으로 새로고침 모드 지정
-        units: units,
-      };
-
-      // 사용자 위치 정보가 있으면 우선 사용 (문자열로 전달)
-      if (userLocation?.latitude && userLocation?.longitude) {
-        requestBody.latitude = userLocation.latitude; // 이미 문자열
-        requestBody.longitude = userLocation.longitude; // 이미 문자열
-      } else if (location && location.trim()) {
-        requestBody.location = location;
-      } else {
-        throw new Error('위치 정보가 필요합니다. 위치를 설정하거나 GPS를 허용해주세요.');
-      }
-
-      const response = await fetch('/api/weather/cache-clear', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+      // 캐시 삭제 API 호출
+      const response = await fetch('/api/weather/cache', {
+        method: 'DELETE'
       });
-
-      const result = await response.json();
-
-      if (result.success) {
-        // 새로운 데이터로 UI 업데이트
-        setHourlyData(result.data.hourlyData);
-        setDailyData(result.data.dailyData);
-        setWeatherHeadline(result.data.headline || null);
-        
-        setError('✅ 캐시가 삭제되고 새로운 날씨 데이터가 저장되었습니다!');
-        setTimeout(() => setError(null), 5000);
-        
-        console.log('✅ 캐시 삭제 및 데이터 갱신 완료');
-        console.log('📊 캐시 통계:', result.data.cacheStats);
+      
+      if (response.ok) {
+        // 캐시 삭제 후 날씨 데이터 새로 조회
+        if (userLocation) {
+          await fetchUserWeatherData();
+        } else {
+          await fetchWeatherData();
+        }
+        setError('✅ 캐시가 삭제되고 데이터가 새로고침되었습니다.');
       } else {
-        throw new Error(result.error || '캐시 삭제에 실패했습니다.');
+        throw new Error('캐시 삭제 실패');
       }
     } catch (error) {
-      console.error('캐시 삭제 실패:', error);
-      setError(error instanceof Error ? error.message : '캐시 삭제에 실패했습니다.');
+      console.error('캐시 삭제 및 새로고침 실패:', error);
+      setError('캐시 삭제에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setCacheClearing(false);
-      // API 통계 새로고침
-      await fetchApiStats();
     }
   };
 
-  // AccuWeather API 강제 호출 함수 (디버그용)
   const refreshWeatherFromAPIHandler = async () => {
+    if (!userLocation) {
+      setError('사용자 위치가 설정되지 않았습니다.');
+      return;
+    }
+    
     setApiRefreshing(true);
     setError(null);
-
+    
     try {
-      console.log('🔄 AccuWeather API 강제 호출 시작 (디버그)...');
-
+      console.log('🔄 API에서 날씨 새로고침 시작');
       const result = await refreshWeatherFromAPI();
-
-      if (result.success && result.data) {
-        // API 서비스 타입을 클라이언트 DTO로 변환
-        const hourlyData = result.data.hourlyWeather.map(item => ({
-          id: `${item.location}-${item.timestamp}`, // ID 생성
-          clerkUserId: null,
-          locationKey: '', // 서비스 타입에는 locationKey가 없음
-          locationName: item.location,
-          latitude: '0', // 서비스 타입에는 좌표 정보가 없음
-          longitude: '0',
-          forecastDatetime: item.timestamp,
-          forecastDate: item.forecastDate || '',
-          forecastHour: Number(item.forecastHour || 0),
-          temperature: Number(item.temperature || 0),
-          conditions: item.conditions || '',
-          weatherIcon: Number(item.weatherIcon || 0),
-          humidity: Number(item.humidity || 0),
-          precipitation: Number(item.precipitation || 0),
-          precipitationProbability: Number(item.precipitationProbability || 0),
-          rainProbability: Number(item.rainProbability || 0),
-          windSpeed: Number(item.windSpeed || 0),
-          units: item.units || 'metric',
-          cacheKey: null, // 서비스 타입에는 cacheKey가 없음
-          expiresAt: new Date().toISOString(), // 기본값 설정
-          createdAt: new Date().toISOString(), // 기본값 설정
-        }));
-        
-        const dailyData = result.data.dailyWeather.dailyForecasts.map(item => ({
-          id: `${item.location}-${item.date}`, // ID 생성
-          clerkUserId: null,
-          locationKey: '', // 서비스 타입에는 locationKey가 없음
-          locationName: item.location,
-          latitude: '0', // 서비스 타입에는 좌표 정보가 없음
-          longitude: '0',
-          forecastDate: item.date,
-          dayOfWeek: item.dayOfWeek || '',
-          temperature: Number(item.temperature || 0),
-          highTemp: Number(item.highTemp || 0),
-          lowTemp: Number(item.lowTemp || 0),
-          conditions: item.conditions || '',
-          weatherIcon: Number(item.weatherIcon || 0),
-          precipitationProbability: Number(item.dayWeather?.precipitationProbability || 0),
-          rainProbability: Number(item.dayWeather?.precipitationProbability || 0), // 같은 값 사용
-          units: item.units || 'metric',
-          dayWeather: item.dayWeather || null,
-          nightWeather: item.nightWeather || null,
-          headline: null, // 서비스 타입에는 headline이 없음
-          forecastDays: 1, // 기본값
-          rawData: null, // 서비스 타입에는 rawData가 없음
-          cacheKey: '', // 기본값
-          expiresAt: new Date().toISOString(), // 기본값
-          createdAt: new Date().toISOString(), // 기본값
-        }));
-        
-        setHourlyData(hourlyData);
-        setDailyData(dailyData);
-        setWeatherHeadline(result.data.dailyWeather.headline || null);
-        
-        setError(`✅ ${result.message}`);
-        setTimeout(() => setError(null), 5000);
-        
-        console.log('✅ AccuWeather API 강제 호출 성공');
+      
+      if (result.success) {
+        // API 새로고침 성공 후 사용자 날씨 데이터 조회
+        await fetchUserWeatherData();
+        setError(`✅ ${result.message || 'API에서 날씨 데이터가 성공적으로 새로고침되었습니다.'}`);
       } else {
-        throw new Error(result.error || result.message);
+        throw new Error(result.error || '알 수 없는 오류가 발생했습니다.');
       }
-    } catch (error) {
-      console.error('AccuWeather API 강제 호출 실패:', error);
-      setError(error instanceof Error ? error.message : 'API 호출에 실패했습니다.');
+    } catch (error: any) {
+      console.error('API 새로고침 실패:', error);
+      
+      if (error.message?.includes('한도')) {
+        setError('⏰ API 호출 한도가 초과되었습니다. 잠시 후 다시 시도해주세요.');
+      } else {
+        setError(`날씨 데이터 새로고침에 실패했습니다: ${error.message}`);
+      }
     } finally {
       setApiRefreshing(false);
-      // API 통계 새로고침
-      await fetchApiStats();
     }
   };
 
-  // 현재 위치 새로고침 함수
   const refreshLocation = async () => {
-    // 쿨다운 체크 (30초)
-    const now = Date.now();
-    const cooldownTime = 30 * 1000; // 30초
-    
-    if (now - lastRefreshTime < cooldownTime) {
-      const remainingTime = Math.ceil((cooldownTime - (now - lastRefreshTime)) / 1000);
-      setError(`⏰ 위치 새로고침은 ${remainingTime}초 후에 다시 시도할 수 있습니다.`);
-      setTimeout(() => setError(null), 3000);
+    if (!navigator.geolocation) {
+      setError('브라우저에서 위치 서비스를 지원하지 않습니다.');
       return;
     }
 
     setLocationRefreshing(true);
     setError(null);
-    setLastRefreshTime(now);
 
     try {
-      // Geolocation API 지원 확인
-      if (!navigator.geolocation) {
-        throw new Error('이 브라우저에서는 위치 서비스를 지원하지 않습니다.');
-      }
-
-      // 현재 위치 조회
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
-          resolve,
-          reject,
+          resolve, 
+          reject, 
           {
             enableHighAccuracy: true,
             timeout: 10000,
-            maximumAge: 60000 // 1분간 캐시된 위치 사용
+            maximumAge: 0
           }
         );
       });
 
-      const { latitude, longitude } = position.coords;
-
-      // 카카오 Geocoding API를 통해 주소 변환
-      const geocodeResponse = await fetch('/api/kakao/geocode', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ latitude, longitude }),
-      });
-
-      const geocodeResult = await geocodeResponse.json();
+      const { latitude, longitude, accuracy } = position.coords;
       
+      // 역지오코딩을 통해 주소 가져오기 (Kakao API 사용)
       let address = '';
       let cityName = '';
-
-      if (geocodeResult.success && geocodeResult.data) {
-        address = geocodeResult.data.address;
-        cityName = geocodeResult.data.cityName;
-      } else {
-        // Geocoding 실패 시 좌표만 사용
-        address = `위도: ${latitude.toFixed(4)}, 경도: ${longitude.toFixed(4)}`;
-        cityName = '현재 위치';
-      }
-
-      // 위치 정보 업데이트
+      
       try {
-        const updateResult = await setUserLocation({
+        const geocodeResponse = await fetch(`/api/kakao/geocode?lat=${latitude}&lng=${longitude}`);
+        if (geocodeResponse.ok) {
+          const geocodeData = await geocodeResponse.json();
+          if (geocodeData.success && geocodeData.data) {
+            address = geocodeData.data.address;
+            cityName = geocodeData.data.city;
+          }
+        }
+      } catch (geocodeError) {
+        console.warn('역지오코딩 실패:', geocodeError);
+      }
+      
+      // 서버에 위치 정보 저장
+      try {
+        const result = await setUserLocation({
           latitude: latitude.toString(),
           longitude: longitude.toString(),
-          address,
-          cityName,
-          source: 'gps' as const,
+          address: address || undefined,
+          cityName: cityName || undefined,
+          accuracy: accuracy ? Math.round(accuracy) : undefined,
+          source: 'gps',
         });
-
-        if (updateResult.success) {
-          console.log('🔄 위치 새로고침 성공:', updateResult.data);
-          setUserLocationState(updateResult.data);
-          setLocation(cityName);
+        
+        if (result.success) {
+          setUserLocationState(result.data);
+          const displayLocation = address || `위도: ${latitude.toFixed(4)}, 경도: ${longitude.toFixed(4)}`;
+          setLocation(displayLocation);
+          setError('✅ 위치가 성공적으로 업데이트되었습니다.');
           
-          // 성공 메시지 먼저 표시
-          setError('✅ 위치가 성공적으로 업데이트되었습니다!');
-          
-          // 새로운 위치로 사용자별 날씨 조회 (실패해도 위치 업데이트는 성공으로 처리)
-          try {
-            await fetchUserWeatherData();
-            // 날씨 조회도 성공하면 메시지 업데이트
-            setError('✅ 위치 및 날씨 정보가 성공적으로 업데이트되었습니다!');
-          } catch (weatherError) {
-            console.warn('날씨 조회 실패, 하지만 위치는 업데이트됨:', weatherError);
-            setError('✅ 위치가 업데이트되었습니다. 날씨 정보는 수동으로 새로고침해 주세요.');
-          }
-          
-          setTimeout(() => setError(null), 5000);
-        } else {
-          throw new Error('위치 정보 저장에 실패했습니다.');
+          // 위치 업데이트 후 날씨 정보 조회
+          setTimeout(() => {
+            fetchUserWeatherData();
+          }, 1000);
         }
-      } catch (locationError) {
-        throw new Error('위치 정보 저장에 실패했습니다.');
+      } catch (saveError) {
+        console.error('위치 저장 실패:', saveError);
+        setError('위치 정보를 저장하는데 실패했습니다.');
       }
-
-    } catch (error) {
-      console.error('위치 새로고침 실패:', error);
       
-      if (error instanceof GeolocationPositionError) {
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            setError('위치 접근 권한이 거부되었습니다. 브라우저 설정에서 위치 권한을 허용해 주세요.');
-            break;
-          case error.POSITION_UNAVAILABLE:
-            setError('위치 정보를 사용할 수 없습니다.');
-            break;
-          case error.TIMEOUT:
-            setError('위치 조회 시간이 초과되었습니다. 다시 시도해 주세요.');
-            break;
-          default:
-            setError('위치 조회에 실패했습니다.');
-        }
+    } catch (error: any) {
+      console.error('위치 정보 가져오기 실패:', error);
+      
+      if (error.code === 1) {
+        setError('위치 접근 권한이 거부되었습니다. 브라우저 설정을 확인해주세요.');
+      } else if (error.code === 2) {
+        setError('위치 정보를 사용할 수 없습니다.');
+      } else if (error.code === 3) {
+        setError('위치 정보 요청이 시간 초과되었습니다. 다시 시도해주세요.');
       } else {
-        setError(error instanceof Error ? error.message : '위치 새로고침에 실패했습니다.');
+        setError('위치 정보를 가져올 수 없습니다. 브라우저 설정을 확인해주세요.');
       }
     } finally {
       setLocationRefreshing(false);
     }
   };
 
+  // 온도 범위 계산 (일별 날씨용)
+  const { min: minTemp, max: maxTemp } = getTemperatureRange();
+
   return (
     <div className={className}>
       <div className="space-y-6">
 
-        {/* 현재 설정된 위치 정보 표시 */}
+        {/* 현재 설정된 위치 정보 표시 - Premium Glass Design */}
         {userLocation && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span>📍</span>
-                현재 설정된 위치
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">
-                    주소: {userLocation.address || '주소 정보 없음'}
-                  </p>
-                  {userLocation.cityName && (
-                    <p className="text-xs text-muted-foreground">
-                      날씨 조회 지역: {userLocation.cityName}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    좌표: {parseFloat(userLocation.latitude).toFixed(4)}, {parseFloat(userLocation.longitude).toFixed(4)}
-                  </p>
+          <div className="group relative">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-teal-500 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl hover:shadow-blue-500/25 transition-all duration-500 hover:scale-[1.02]">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
+                  📍
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
+                <div>
+                  <h3 className="text-xl font-bold text-white">현재 설정된 위치</h3>
+                  <p className="text-blue-200 text-sm font-medium">Smart Location Service</p>
+                </div>
+              </div>
+              
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                <div className="space-y-3 flex-1">
+                  <div className="bg-gradient-to-r from-blue-500/20 to-teal-500/20 backdrop-blur-sm border border-blue-300/30 rounded-xl p-4">
+                    <p className="text-white font-semibold flex items-center gap-2">
+                      <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
+                      📍 {userLocation.address || '주소 정보 없음'}
+                    </p>
+                    {userLocation.cityName && (
+                      <p className="text-blue-300/80 text-sm mt-1">
+                        🏙️ 날씨 조회 지역: {userLocation.cityName}
+                      </p>
+                    )}
+                    <p className="text-blue-300/60 text-xs mt-1">
+                      🗺️ 좌표: {parseFloat(userLocation.latitude).toFixed(4)}, {parseFloat(userLocation.longitude).toFixed(4)}
+                    </p>
+                  </div>
+                </div>
+                
+                <button
                   onClick={refreshLocation}
                   disabled={locationRefreshing || loading}
-                  className="flex items-center gap-2"
+                  className={`font-bold py-3 px-6 rounded-xl transition-all duration-300 transform ${
+                    locationRefreshing || loading
+                      ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white cursor-not-allowed animate-pulse'
+                      : 'bg-gradient-to-r from-blue-500 to-teal-600 text-white hover:from-blue-600 hover:to-teal-700 hover:scale-[1.02] shadow-xl hover:shadow-blue-500/50 active:scale-[0.98]'
+                  }`}
                 >
                   {locationRefreshing ? (
                     <>
@@ -632,467 +475,548 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                       위치 새로고침
                     </>
                   )}
-                </Button>
+                </button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
-        {/* API 사용량 통계 */}
+        {/* API 사용량 통계 - Premium Glass Design */}
         {apiStats && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span>📊</span>
-                AccuWeather API 사용량
-              </CardTitle>
-              <CardDescription>
-                오늘의 API 호출 현황 및 한도 관리
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* 기본 통계 */}
+          <div className="group relative">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-400 via-violet-400 to-purple-600 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl hover:shadow-purple-500/25 transition-all duration-500 hover:scale-[1.02]">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-500 rounded-xl flex items-center justify-center shadow-lg">
+                  📊
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">AccuWeather API 사용량</h3>
+                  <p className="text-violet-200 text-sm font-medium">오늘의 API 호출 현황 및 한도 관리</p>
+                </div>
+              </div>
+              
+              <div className="space-y-6">
+                {/* 기본 통계 - Glass Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
+                  <div className="backdrop-blur-sm bg-white/10 border border-purple-300/30 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-black bg-gradient-to-r from-blue-300 to-cyan-400 bg-clip-text text-transparent mb-1">
                       {apiStats.limit.current}
                     </div>
-                    <div className="text-sm text-muted-foreground">오늘 사용</div>
+                    <div className="text-sm text-white/70 font-medium">오늘 사용</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
+                  <div className="backdrop-blur-sm bg-white/10 border border-purple-300/30 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-black bg-gradient-to-r from-green-300 to-emerald-400 bg-clip-text text-transparent mb-1">
                       {apiStats.limit.remaining}
                     </div>
-                    <div className="text-sm text-muted-foreground">남은 횟수</div>
+                    <div className="text-sm text-white/70 font-medium">남은 횟수</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">
+                  <div className="backdrop-blur-sm bg-white/10 border border-purple-300/30 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-black bg-gradient-to-r from-purple-300 to-violet-400 bg-clip-text text-transparent mb-1">
                       {apiStats.today.successRate}%
                     </div>
-                    <div className="text-sm text-muted-foreground">성공률</div>
+                    <div className="text-sm text-white/70 font-medium">성공률</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
+                  <div className="backdrop-blur-sm bg-white/10 border border-purple-300/30 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-black bg-gradient-to-r from-orange-300 to-red-400 bg-clip-text text-transparent mb-1">
                       {apiStats.today.avgResponseTime}ms
                     </div>
-                    <div className="text-sm text-muted-foreground">평균 응답</div>
+                    <div className="text-sm text-white/70 font-medium">평균 응답</div>
                   </div>
                 </div>
 
-                {/* 사용량 진행바 */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>일일 한도 사용률</span>
-                    <span className={`font-medium ${
-                      apiStats.limit.status === 'critical' ? 'text-red-600' :
-                      apiStats.limit.status === 'warning' ? 'text-yellow-600' :
-                      'text-green-600'
+                {/* 사용량 진행바 - Enhanced */}
+                <div className="bg-gradient-to-r from-purple-500/20 to-violet-500/20 backdrop-blur-sm border border-purple-300/30 rounded-xl p-4">
+                  <div className="flex justify-between text-white mb-3">
+                    <span className="font-medium">일일 한도 사용률</span>
+                    <span className={`font-bold flex items-center gap-1 ${
+                      apiStats.limit.status === 'critical' ? 'text-red-300' :
+                      apiStats.limit.status === 'warning' ? 'text-yellow-300' :
+                      'text-green-300'
                     }`}>
+                      <span className={`w-2 h-2 rounded-full animate-pulse ${
+                        apiStats.limit.status === 'critical' ? 'bg-red-400' :
+                        apiStats.limit.status === 'warning' ? 'bg-yellow-400' :
+                        'bg-green-400'
+                      }`}></span>
                       {apiStats.limit.percentage}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div className="w-full bg-white/20 rounded-full h-3 shadow-inner">
                     <div 
-                      className={`h-3 rounded-full transition-all duration-300 ${
-                        apiStats.limit.status === 'critical' ? 'bg-red-500' :
-                        apiStats.limit.status === 'warning' ? 'bg-yellow-500' :
-                        'bg-green-500'
+                      className={`h-3 rounded-full transition-all duration-500 shadow-lg ${
+                        apiStats.limit.status === 'critical' ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                        apiStats.limit.status === 'warning' ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
+                        'bg-gradient-to-r from-green-500 to-emerald-500'
                       }`}
                       style={{ width: `${Math.min(apiStats.limit.percentage, 100)}%` }}
                     ></div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-white/70 mt-2">
                     {apiStats.limit.current} / {apiStats.limit.limit} 호출 사용
                   </div>
                 </div>
 
-                {/* 상태 배지 및 권장사항 */}
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant={
-                    apiStats.limit.status === 'critical' ? 'destructive' :
-                    apiStats.limit.status === 'warning' ? 'default' :
-                    'secondary'
-                  }>
+                {/* 상태 배지 및 권장사항 - Enhanced Badges */}
+                <div className="flex flex-wrap gap-3">
+                  <div className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg ${
+                    apiStats.limit.status === 'critical' ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' :
+                    apiStats.limit.status === 'warning' ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white' :
+                    'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                  }`}>
                     {apiStats.limit.status === 'critical' ? '⚠️ 한도 임박' :
                      apiStats.limit.status === 'warning' ? '⚡ 주의 필요' :
                      '✅ 정상'}
-                  </Badge>
+                  </div>
                   
                   {apiStats.recommendations.shouldOptimizeCache && (
-                    <Badge variant="outline">💾 캐시 최적화 권장</Badge>
+                    <div className="px-4 py-2 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 backdrop-blur-sm border border-blue-300/30 rounded-xl text-blue-200 font-medium text-sm">
+                      💾 캐시 최적화 권장
+                    </div>
                   )}
                   
                   {apiStats.recommendations.shouldUpgradePlan && (
-                    <Badge variant="outline">⬆️ 플랜 업그레이드 권장</Badge>
+                    <div className="px-4 py-2 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 backdrop-blur-sm border border-indigo-300/30 rounded-xl text-indigo-200 font-medium text-sm">
+                      ⬆️ 플랜 업그레이드 권장
+                    </div>
                   )}
                 </div>
 
-                {/* 최근 7일 트렌드 (간단한 텍스트 요약) */}
+                {/* 최근 7일 트렌드 - Enhanced Summary */}
                 {apiStats.recent.stats.length > 0 && (
-                  <div className="pt-3 border-t">
-                    <div className="text-sm font-medium mb-2">최근 7일 평균</div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">일평균 호출: </span>
-                        <span className="font-medium">{apiStats.recent.averageDaily}회</span>
+                  <div className="bg-gradient-to-r from-violet-500/20 to-purple-500/20 backdrop-blur-sm border border-violet-300/30 rounded-xl p-4">
+                    <div className="text-white font-bold mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></span>
+                      최근 7일 평균
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-violet-200">
+                          {apiStats.recent.averageDaily}회
+                        </div>
+                        <div className="text-xs text-white/70">일평균 호출</div>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">총 호출: </span>
-                        <span className="font-medium">{apiStats.recent.totalCalls}회</span>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-violet-200">
+                          {apiStats.recent.totalCalls}회
+                        </div>
+                        <div className="text-xs text-white/70">총 호출</div>
                       </div>
                     </div>
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
-        {/* 검색 및 설정 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>날씨 조회</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="도시명을 입력하세요"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    fetchWeatherData();
-                  }
-                }}
-              />
-              <Button
-                variant="outline"
-                onClick={() => setUnits(units === 'metric' ? 'imperial' : 'metric')}
-              >
-                {units === 'metric' ? '°C' : '°F'}
-              </Button>
+        {/* 검색 및 설정 - Premium Glass Design */}
+        <div className="group relative">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-400 via-red-400 to-pink-500 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+          <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl hover:shadow-orange-500/25 transition-all duration-500 hover:scale-[1.02]">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
+                🔍
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">날씨 조회 및 설정</h3>
+                <p className="text-orange-200 text-sm font-medium">Smart Weather Control Center</p>
+              </div>
             </div>
             
-            <div className="flex flex-wrap gap-2">
-              <Button 
-                onClick={() => userLocation ? fetchUserWeatherData() : fetchWeatherData()} 
-                disabled={loading || cacheClearing || apiRefreshing || (!userLocation && !location.trim())}
-              >
-                {loading ? '조회 중...' : userLocation ? '내 위치 날씨 새로고침' : '새로 고침'}
-              </Button>
-              {userLocation && (
-                <Button 
-                  variant="outline"
-                  onClick={() => fetchWeatherData()} 
-                  disabled={loading || cacheClearing || apiRefreshing || !location.trim()}
+            <div className="space-y-6">
+              {/* 검색 입력 및 단위 설정 */}
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <input
+                    placeholder="도시명을 입력하세요"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        fetchWeatherData();
+                      }
+                    }}
+                    className="w-full bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 transition-all duration-300"
+                  />
+                </div>
+                <button
+                  onClick={() => setUnits(units === 'metric' ? 'imperial' : 'metric')}
+                  className="bg-gradient-to-r from-orange-500/20 to-red-500/20 backdrop-blur-sm border border-orange-300/30 rounded-xl px-6 py-3 text-white font-bold hover:from-orange-500/30 hover:to-red-500/30 transition-all duration-300 transform hover:scale-105"
                 >
-                  {loading ? '조회 중...' : '일반 검색'}
-                </Button>
-              )}
-              <Button 
-                variant="outline"
-                onClick={clearCacheAndRefresh}
-                disabled={loading || cacheClearing || apiRefreshing || (!userLocation && !location.trim())}
-                className="flex items-center gap-2"
-              >
-                {cacheClearing ? (
-                  <>
-                    <span className="animate-spin">🗑️</span>
-                    캐시 삭제 중...
-                  </>
-                ) : (
-                  <>
-                    <span>🗑️</span>
-                    캐시 삭제 & 새로고침
-                  </>
-                )}
-              </Button>
-              {userLocation && (
-                <Button 
-                  variant="secondary"
-                  onClick={refreshWeatherFromAPIHandler}
-                  disabled={loading || cacheClearing || apiRefreshing}
-                  className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600"
+                  {units === 'metric' ? '°C' : '°F'}
+                </button>
+              </div>
+              
+              {/* 액션 버튼들 - Enhanced Interactive Design */}
+              <div className="flex flex-wrap gap-3">
+                <button 
+                  onClick={() => userLocation ? fetchUserWeatherData() : fetchWeatherData()} 
+                  disabled={loading || cacheClearing || apiRefreshing || (!userLocation && !location.trim())}
+                  className={`font-bold py-3 px-6 rounded-xl transition-all duration-300 transform flex items-center gap-2 ${
+                    loading || cacheClearing || apiRefreshing || (!userLocation && !location.trim())
+                      ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white cursor-not-allowed animate-pulse'
+                      : 'bg-gradient-to-r from-orange-500 to-red-600 text-white hover:from-orange-600 hover:to-red-700 hover:scale-[1.02] shadow-xl hover:shadow-orange-500/50 active:scale-[0.98]'
+                  }`}
                 >
-                  {apiRefreshing ? (
+                  {loading ? (
                     <>
-                      <span className="animate-spin">⚡</span>
-                      API 호출 중...
+                      <span className="animate-spin">⏳</span>
+                      조회 중...
                     </>
                   ) : (
                     <>
-                      <span>⚡</span>
-                      날씨 새로고침 (디버그)
+                      <span>🔄</span>
+                      {userLocation ? '내 위치 날씨 새로고침' : '새로 고침'}
                     </>
                   )}
-                </Button>
-              )}
-            </div>
-
-            {error && (
-              <Alert variant={
-                error.includes('✅') ? 'default' : 
-                error.includes('제한') || error.includes('한도') || error.includes('⏰') ? 'default' : 
-                'destructive'
-              }>
-                <AlertDescription>
-                  {error}
-                  {error.includes('제한') && (
-                    <div className="mt-2 text-sm">
-                      💡 무료 API는 5일 예보만 지원됩니다. 더 긴 기간의 예보는 유료 플랜이 필요합니다.
-                    </div>
-                  )}
-                  {(error.includes('한도') || error.includes('API 호출 한도가 초과')) && (
-                    <div className="mt-2 text-sm">
-                      ⏰ 잠시 후 다시 시도해주세요. 무료 API는 일일 호출 한도가 있습니다.
-                      <br />
-                      💡 위치는 업데이트되었으니 나중에 날씨 새로고침 버튼을 이용해 주세요.
-                    </div>
-                  )}
-                  {error.includes('위치 접근 권한') && (
-                    <div className="mt-2 text-sm">
-                      💡 브라우저 주소창 옆의 위치 아이콘을 클릭하여 위치 권한을 허용해 주세요.
-                    </div>
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 시간별 날씨 */}
-        {hourlyData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{location} - 시간별 날씨</CardTitle>
-              <CardDescription>
-                12시간 시간별 예보
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="min-h-[300px]">
-              {/* 시간별 날씨를 한 행으로 표시하고 가로 스크롤 지원 */}
-              <div className="overflow-x-auto pb-4 h-[250px]">
-                <div className="flex gap-2 min-w-max h-full"
-                     style={{ 
-                       scrollBehavior: 'smooth',
-                       cursor: 'grab'
-                     }}
-                     onMouseDown={(e) => {
-                       const startX = e.pageX;
-                       const container = e.currentTarget;
-                       const scrollLeft = container.scrollLeft;
-                       
-                       const handleMouseMove = (moveEvent: MouseEvent) => {
-                         const x = moveEvent.pageX - startX;
-                         container.scrollLeft = scrollLeft - x;
-                       };
-                       
-                       const handleMouseUp = () => {
-                         document.removeEventListener('mousemove', handleMouseMove);
-                         document.removeEventListener('mouseup', handleMouseUp);
-                         container.style.cursor = 'grab';
-                       };
-                       
-                       container.style.cursor = 'grabbing';
-                       document.addEventListener('mousemove', handleMouseMove);
-                       document.addEventListener('mouseup', handleMouseUp);
-                     }}>
-                  {hourlyData.slice(0, 24).map((weather, index) => (
-                    <div 
-                      key={index} 
-                      className="bg-gradient-to-b from-sky-50 to-sky-100 dark:from-gray-800 dark:to-gray-900 border rounded-xl p-2.5 hover:shadow-lg transition-all duration-200 flex flex-col flex-shrink-0 w-[70px] h-[220px]"
-                      style={{ userSelect: 'none' }}
-                    >
-                      {/* 시간 표시 */}
-                      <div className="text-center border-b border-sky-200 dark:border-gray-700 mb-2 pb-1.5">
-                        <div className="font-bold text-gray-800 dark:text-gray-200 text-xs">
-                          {weather.forecastHour}시
-                        </div>
-                      </div>
-                      
-                      {/* 날씨 아이콘 */}
-                      <div className="text-center mb-2">
-                        <div className="text-2xl mb-1">
-                          {getWeatherIcon(weather.weatherIcon, weather.conditions)}
-                        </div>
-                      </div>
-                      
-                      {/* 온도 */}
-                      <div className="text-center mb-2">
-                        <div className="font-bold text-base text-blue-600 dark:text-blue-400">
-                          {weather.temperature}{getTemperatureUnit()}
-                        </div>
-                      </div>
-                      
-                        {/* 강수 정보 */}
-                        <div className="text-center space-y-0.5 mt-auto">
-                          <div className="text-[10px] text-blue-600 dark:text-blue-400">
-                            💧 {typeof weather.precipitation === 'number' ? weather.precipitation.toFixed(1) : '0.0'}mm
-                          </div>
-                          <div className="text-[10px] text-green-600 dark:text-green-400">
-                            ☔ {weather.precipitationProbability || 0}%
-                          </div>
-                        </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 일별 날씨 - AccuWeather 스타일 */}
-        {dailyData.length > 0 && (() => {
-          const { min: minTemp, max: maxTemp } = getTemperatureRange();
-          
-          return (
-            <Card>
-              <CardHeader>
-                <CardTitle>{location} - 일별 날씨 ({dailyData.length}일간)</CardTitle>
-                <CardDescription>
-                  {dailyData.length > 7 ? '장기 예보입니다. 날짜가 멀수록 정확도가 낮아질 수 있습니다.' : 'AccuWeather 제공 일별 예보'}
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    온도 범위: {minTemp}{getTemperatureUnit()} ~ {maxTemp}{getTemperatureUnit()}
-                  </div>
-                </CardDescription>
+                </button>
                 
-                {/* AccuWeather 헤드라인 표시 */}
-                {weatherHeadline && weatherHeadline.text && (
-                  <Alert className="mt-3">
-                    <AlertDescription>
-                      <div className="flex items-start gap-2">
-                        <div className={`flex-shrink-0 text-sm px-2 py-1 rounded ${
-                          weatherHeadline.severity >= 7 ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' :
-                          weatherHeadline.severity >= 4 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400' :
-                          'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                        }`}>
-                          {weatherHeadline.category || '날씨 요약'}
-                        </div>
-                        <div className="text-sm">
-                          {weatherHeadline.text}
-                        </div>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </CardHeader>
-              <CardContent className="min-h-[650px]">
-              {/* 일별 날씨를 한 행으로 표시하고 가로 스크롤 지원 */}
-              <div className="overflow-x-auto pb-4 h-[600px]">
-                <div className="flex gap-2 min-w-max h-full"
-                     style={{ 
-                       scrollBehavior: 'smooth',
-                       cursor: 'grab'
-                     }}
-                     onMouseDown={(e) => {
-                       const startX = e.pageX;
-                       const container = e.currentTarget;
-                       const scrollLeft = container.scrollLeft;
-                       
-                       const handleMouseMove = (moveEvent: MouseEvent) => {
-                         const x = moveEvent.pageX - startX;
-                         container.scrollLeft = scrollLeft - x;
-                       };
-                       
-                       const handleMouseUp = () => {
-                         document.removeEventListener('mousemove', handleMouseMove);
-                         document.removeEventListener('mouseup', handleMouseUp);
-                         container.style.cursor = 'grab';
-                       };
-                       
-                       container.style.cursor = 'grabbing';
-                       document.addEventListener('mousemove', handleMouseMove);
-                       document.addEventListener('mouseup', handleMouseUp);
-                     }}>
-                {dailyData.map((weather, index) => (
-                  <div 
-                    key={index} 
-                    className="bg-gradient-to-b from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 border rounded-xl p-3 hover:shadow-lg transition-all duration-200 flex flex-col flex-shrink-0 w-[120px] h-[570px]"
-                    style={{ userSelect: 'none' }}
+                {userLocation && (
+                  <button 
+                    onClick={clearCacheAndRefresh}
+                    disabled={loading || cacheClearing || apiRefreshing || (!userLocation && !location.trim())}
+                    className={`font-bold py-3 px-6 rounded-xl transition-all duration-300 transform flex items-center gap-2 ${
+                      loading || cacheClearing || apiRefreshing || (!userLocation && !location.trim())
+                        ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white cursor-not-allowed animate-pulse'
+                        : 'bg-gradient-to-r from-red-500 to-pink-600 text-white hover:from-red-600 hover:to-pink-700 hover:scale-[1.02] shadow-xl hover:shadow-red-500/50 active:scale-[0.98]'
+                    }`}
                   >
-                    {/* 헤더: 날짜와 요일 */}
-                    <div className="text-center border-b border-blue-200 dark:border-gray-700 mb-2 pb-1.5">
-                      <div className="font-bold text-gray-800 dark:text-gray-200 text-xs">
-                        {weather.forecastDate}
-                      </div>
-                      <div className="text-[10px] text-gray-600 dark:text-gray-400">
-                        ({weather.dayOfWeek})
-                      </div>
-                    </div>
+                    {cacheClearing ? (
+                      <>
+                        <span className="animate-spin">🗑️</span>
+                        캐시 삭제 중...
+                      </>
+                    ) : (
+                      <>
+                        <span>🗑️</span>
+                        캐시 삭제 & 새로고침
+                      </>
+                    )}
+                  </button>
+                )}
+                  
+                {userLocation && (
+                  <button 
+                    onClick={refreshWeatherFromAPIHandler}
+                    disabled={loading || cacheClearing || apiRefreshing}
+                    className={`font-bold py-3 px-6 rounded-xl transition-all duration-300 transform flex items-center gap-2 ${
+                      loading || cacheClearing || apiRefreshing
+                        ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white cursor-not-allowed animate-pulse'
+                        : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 hover:scale-[1.02] shadow-xl hover:shadow-blue-500/50 active:scale-[0.98]'
+                    }`}
+                  >
+                    {apiRefreshing ? (
+                      <>
+                        <span className="animate-spin">⚡</span>
+                        API 호출 중...
+                      </>
+                    ) : (
+                      <>
+                        <span>⚡</span>
+                        날씨 새로고침 (디버그)
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Enhanced Error Display */}
+              {error && (
+                <div className={`relative p-4 rounded-xl border backdrop-blur-sm ${
+                  error.includes('✅') ? 
+                    'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-300/30' : 
+                  error.includes('제한') || error.includes('한도') || error.includes('⏰') ? 
+                    'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-300/30' : 
+                    'bg-gradient-to-r from-red-500/20 to-pink-500/20 border-red-300/30'
+                }`}>
+                  <div className={`text-sm font-medium ${
+                    error.includes('✅') ? 'text-green-200' :
+                    error.includes('제한') || error.includes('한도') || error.includes('⏰') ? 'text-yellow-200' :
+                    'text-red-200'
+                  }`}>
+                    {error}
                     
-                    {/* 낮 날씨 */}
-                    {weather.dayWeather && (
-                      <div className="text-center mb-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2">
-                        <div className="text-[10px] text-amber-700 dark:text-amber-300 font-medium mb-1">낮</div>
-                        <div className="text-2xl mb-1">
-                          {getWeatherIcon(weather.dayWeather?.icon as number, weather.dayWeather?.conditions as string)}
+                    {error.includes('제한') && (
+                      <div className="mt-3 p-3 bg-white/10 rounded-lg border border-white/20">
+                        <div className="text-xs text-white/80">
+                          💡 무료 API는 5일 예보만 지원됩니다. 더 긴 기간의 예보는 유료 플랜이 필요합니다.
                         </div>
-                         <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                            ☔ {(weather.dayWeather?.precipitationProbability as number) || 0}%
-                         </div>
                       </div>
                     )}
                     
-                    {/* 온도 막대그래프 */}
-                    <div className="flex-1 flex flex-col justify-center items-center my-3">
-                      {(() => {
-                        const { barHeight, topPosition } = calculateBarProperties(
-                          weather.highTemp, 
-                          weather.lowTemp, 
-                          minTemp, 
-                          maxTemp, 
-                          true
-                        );
-                        
-                        return (
-                          <div className="relative w-full flex flex-col items-center">
-                            {/* 최고 온도 표시 (컨테이너 위쪽 고정) */}
-                            <div className="font-bold text-sm text-red-600 dark:text-red-400 mb-2">
-                              {weather.highTemp}{getTemperatureUnit()}
-                            </div>
-                            
-                            {/* 온도 막대그래프 컨테이너 */}
-                            <div className="relative w-10 h-40 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                              {/* 단일 색상 온도 막대 */}
-                              <div 
-                                className="absolute w-8 left-1 bg-gradient-to-b from-blue-500 to-blue-600 dark:from-blue-400 dark:to-blue-500 rounded transition-all duration-300 hover:shadow-lg border border-blue-300 dark:border-blue-400"
-                                style={{
-                                  height: `${barHeight}px`,
-                                  top: `${topPosition}px`
-                                }}
-                              ></div>
-                            </div>
-                            
-                            {/* 최저 온도 표시 (컨테이너 아래쪽 고정) */}
-                            <div className="font-bold text-sm text-blue-600 dark:text-blue-400 mt-2">
-                              {weather.lowTemp}{getTemperatureUnit()}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
+                    {(error.includes('한도') || error.includes('API 호출 한도가 초과')) && (
+                      <div className="mt-3 p-3 bg-white/10 rounded-lg border border-white/20">
+                        <div className="text-xs text-white/80 space-y-1">
+                          <div>⏰ 잠시 후 다시 시도해주세요. 무료 API는 일일 호출 한도가 있습니다.</div>
+                          <div>💡 위치는 업데이트되었으니 나중에 날씨 새로고침 버튼을 이용해 주세요.</div>
+                        </div>
+                      </div>
+                    )}
                     
-                     {/* 밤 날씨 */}
-                     {weather.nightWeather && (
-                       <div className="text-center bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-2">
-                         <div className="text-[10px] text-indigo-700 dark:text-indigo-300 font-medium mb-1">밤</div>
-                         <div className="text-2xl mb-1">
-                           {getWeatherIcon(weather.nightWeather?.icon as number, weather.nightWeather?.conditions as string)}
-                         </div>
-                         <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                           ☔ {(weather.nightWeather?.precipitationProbability as number) || 0}%
-                         </div>
-                       </div>
-                     )}
+                    {error.includes('위치 접근 권한') && (
+                      <div className="mt-3 p-3 bg-white/10 rounded-lg border border-white/20">
+                        <div className="text-xs text-white/80">
+                          💡 브라우저 주소창 옆의 위치 아이콘을 클릭하여 위치 권한을 허용해 주세요.
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 시간별 날씨 - Premium Glass Design */}
+        {hourlyData.length > 0 && (
+          <div className="group relative">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 via-emerald-400 to-green-600 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl hover:shadow-emerald-500/25 transition-all duration-500 hover:scale-[1.02]">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                  ⏰
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">{location} - 시간별 날씨</h3>
+                  <p className="text-emerald-200 text-sm font-medium">24시간 시간별 예보</p>
                 </div>
               </div>
-              </CardContent>
-            </Card>
-          );
-        })()}
+              <div className="min-h-[300px]">
+                {/* 시간별 날씨를 한 행으로 표시하고 가로 스크롤 지원 */}
+                <div className="overflow-x-auto pb-4 h-[250px]">
+                  <div className="flex gap-2 min-w-max h-full"
+                       style={{ 
+                         scrollBehavior: 'smooth',
+                         cursor: 'grab'
+                       }}
+                       onMouseDown={(e) => {
+                         const startX = e.pageX;
+                         const container = e.currentTarget;
+                         const scrollLeft = container.scrollLeft;
+                         
+                         const handleMouseMove = (moveEvent: MouseEvent) => {
+                           const x = moveEvent.pageX - startX;
+                           container.scrollLeft = scrollLeft - x;
+                         };
+                         
+                         const handleMouseUp = () => {
+                           document.removeEventListener('mousemove', handleMouseMove);
+                           document.removeEventListener('mouseup', handleMouseUp);
+                           container.style.cursor = 'grab';
+                         };
+                         
+                         container.style.cursor = 'grabbing';
+                         document.addEventListener('mousemove', handleMouseMove);
+                         document.addEventListener('mouseup', handleMouseUp);
+                       }}>
+                    {hourlyData.slice(0, 24).map((weather, index) => (
+                      <div 
+                        key={index} 
+                        className="backdrop-blur-sm bg-white/10 border border-emerald-300/30 rounded-xl p-2.5 hover:shadow-lg hover:shadow-emerald-400/25 transition-all duration-300 hover:scale-105 flex flex-col flex-shrink-0 w-[70px] h-[220px] hover:border-emerald-400/50"
+                        style={{ userSelect: 'none' }}
+                      >
+                        {/* 시간 표시 */}
+                        <div className="text-center border-b border-emerald-300/30 mb-2 pb-1.5">
+                          <div className="font-bold text-emerald-100 text-xs">
+                            {weather.forecastHour}시
+                          </div>
+                        </div>
+                        
+                        {/* 날씨 아이콘 */}
+                        <div className="text-center mb-2">
+                          <div className="text-2xl mb-1">
+                            {getWeatherIcon(weather.weatherIcon, weather.conditions)}
+                          </div>
+                        </div>
+                        
+                        {/* 온도 */}
+                        <div className="text-center mb-2">
+                          <div className="font-bold text-base bg-gradient-to-r from-emerald-200 to-green-300 bg-clip-text text-transparent">
+                            {weather.temperature}{getTemperatureUnit()}
+                          </div>
+                        </div>
+                        
+                        {/* 강수 정보 */}
+                        <div className="text-center space-y-1 mt-auto">
+                          <div className="text-xs font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] bg-black/20 backdrop-blur-sm rounded px-1 py-0.5">
+                            💧 {typeof weather.precipitation === 'number' ? weather.precipitation.toFixed(1) : '0.0'}mm
+                          </div>
+                          <div className="text-xs font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] bg-black/20 backdrop-blur-sm rounded px-1 py-0.5">
+                            ☔ {weather.precipitationProbability || 0}%
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 일별 날씨 - Premium Glass Design */}
+        {dailyData.length > 0 && (
+          <div className="group relative">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-400 via-rose-400 to-pink-600 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl hover:shadow-pink-500/25 transition-all duration-500 hover:scale-[1.02]">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center shadow-lg">
+                  📅
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">{location} - 일별 날씨 ({dailyData.length}일간)</h3>
+                  <p className="text-pink-200 text-sm font-medium">
+                    {dailyData.length > 7 ? '장기 예보입니다. 날짜가 멀수록 정확도가 낮아질 수 있습니다.' : 'AccuWeather 제공 일별 예보'}
+                  </p>
+                  <div className="mt-1 text-xs text-white/70">
+                    온도 범위: {minTemp}{getTemperatureUnit()} ~ {maxTemp}{getTemperatureUnit()}
+                  </div>
+                </div>
+              </div>
+              
+              {/* AccuWeather 헤드라인 표시 - Enhanced */}
+              {weatherHeadline && weatherHeadline.text && (
+                <div className={`relative p-4 rounded-xl border backdrop-blur-sm mb-6 ${
+                  weatherHeadline.severity >= 7 ? 'bg-gradient-to-r from-red-500/20 to-pink-500/20 border-red-300/30' :
+                  weatherHeadline.severity >= 4 ? 'bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border-orange-300/30' :
+                  'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border-blue-300/30'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`px-3 py-1 rounded-xl text-sm font-bold shadow-lg ${
+                      weatherHeadline.severity >= 7 ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' :
+                      weatherHeadline.severity >= 4 ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white' :
+                      'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
+                    }`}>
+                      {weatherHeadline.category || '날씨 요약'}
+                    </div>
+                    <div className={`text-sm font-medium ${
+                      weatherHeadline.severity >= 7 ? 'text-red-200' :
+                      weatherHeadline.severity >= 4 ? 'text-orange-200' :
+                      'text-blue-200'
+                    }`}>
+                      {weatherHeadline.text}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="min-h-[650px]">
+                {/* 일별 날씨를 한 행으로 표시하고 가로 스크롤 지원 */}
+                <div className="overflow-x-auto pb-4 h-[600px]">
+                  <div className="flex gap-2 min-w-max h-full"
+                       style={{ 
+                         scrollBehavior: 'smooth',
+                         cursor: 'grab'
+                       }}
+                       onMouseDown={(e) => {
+                         const startX = e.pageX;
+                         const container = e.currentTarget;
+                         const scrollLeft = container.scrollLeft;
+                         
+                         const handleMouseMove = (moveEvent: MouseEvent) => {
+                           const x = moveEvent.pageX - startX;
+                           container.scrollLeft = scrollLeft - x;
+                         };
+                         
+                         const handleMouseUp = () => {
+                           document.removeEventListener('mousemove', handleMouseMove);
+                           document.removeEventListener('mouseup', handleMouseUp);
+                           container.style.cursor = 'grab';
+                         };
+                         
+                         container.style.cursor = 'grabbing';
+                         document.addEventListener('mousemove', handleMouseMove);
+                         document.addEventListener('mouseup', handleMouseUp);
+                       }}>
+                    {dailyData.map((weather, index) => (
+                      <div 
+                        key={index} 
+                        className="backdrop-blur-sm bg-white/10 border border-pink-300/30 rounded-xl p-3 hover:shadow-lg hover:shadow-pink-400/25 transition-all duration-300 hover:scale-105 flex flex-col flex-shrink-0 w-[120px] h-[570px] hover:border-pink-400/50"
+                        style={{ userSelect: 'none' }}
+                      >
+                        {/* 헤더: 날짜와 요일 */}
+                        <div className="text-center border-b border-pink-300/30 mb-2 pb-1.5">
+                          <div className="font-bold text-pink-100 text-xs">
+                            {weather.forecastDate}
+                          </div>
+                          <div className="text-[10px] text-pink-200/70">
+                            ({weather.dayOfWeek})
+                          </div>
+                        </div>
+                        
+                        {/* 낮 날씨 */}
+                        {weather.dayWeather && (
+                          <div className="text-center mb-3 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 backdrop-blur-sm border border-amber-300/30 rounded-lg p-2">
+                            <div className="text-[10px] text-amber-200 font-medium mb-1">낮</div>
+                            <div className="text-2xl mb-1">
+                              {getWeatherIcon(weather.dayWeather?.icon as number, weather.dayWeather?.conditions as string)}
+                            </div>
+                             <div className="text-sm font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] bg-black/20 backdrop-blur-sm rounded px-1.5 py-0.5">
+                                ☔ {(weather.dayWeather?.precipitationProbability as number) || 0}%
+                             </div>
+                          </div>
+                        )}
+                        
+                        {/* 온도 막대그래프 */}
+                        <div className="flex-1 flex flex-col justify-center items-center my-3">
+                          {(() => {
+                            const { barHeight, topPosition } = calculateBarProperties(
+                              weather.highTemp, 
+                              weather.lowTemp, 
+                              minTemp, 
+                              maxTemp, 
+                              true
+                            );
+                            
+                            return (
+                              <div className="relative w-full flex flex-col items-center">
+                                {/* 최고 온도 표시 (컨테이너 위쪽 고정) */}
+                                <div className="font-bold text-sm bg-gradient-to-r from-red-300 to-orange-400 bg-clip-text text-transparent mb-2">
+                                  {weather.highTemp}{getTemperatureUnit()}
+                                </div>
+                                
+                                {/* 온도 막대그래프 컨테이너 */}
+                                <div className="relative w-10 h-40 bg-white/20 backdrop-blur-sm rounded-lg border border-pink-300/30">
+                                  {/* 그라디언트 온도 막대 */}
+                                  <div 
+                                    className="absolute w-8 left-1 bg-gradient-to-b from-pink-400 via-rose-500 to-pink-600 rounded transition-all duration-300 hover:shadow-lg shadow-pink-500/25 border border-pink-300/50"
+                                    style={{
+                                      height: `${barHeight}px`,
+                                      top: `${topPosition}px`
+                                    }}
+                                  ></div>
+                                </div>
+                                
+                                {/* 최저 온도 표시 (컨테이너 아래쪽 고정) */}
+                                <div className="font-bold text-sm bg-gradient-to-r from-blue-300 to-cyan-400 bg-clip-text text-transparent mt-2">
+                                  {weather.lowTemp}{getTemperatureUnit()}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        
+                         {/* 밤 날씨 */}
+                         {weather.nightWeather && (
+                           <div className="text-center bg-gradient-to-r from-indigo-500/20 to-purple-500/20 backdrop-blur-sm border border-indigo-300/30 rounded-lg p-2">
+                             <div className="text-[10px] text-indigo-200 font-medium mb-1">밤</div>
+                             <div className="text-2xl mb-1">
+                               {getWeatherIcon(weather.nightWeather?.icon as number, weather.nightWeather?.conditions as string)}
+                             </div>
+                             <div className="text-sm font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] bg-black/20 backdrop-blur-sm rounded px-1.5 py-0.5">
+                               ☔ {(weather.nightWeather?.precipitationProbability as number) || 0}%
+                             </div>
+                           </div>
+                         )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div className="text-center py-8">
@@ -1103,5 +1027,3 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
     </div>
   );
 }
-
-

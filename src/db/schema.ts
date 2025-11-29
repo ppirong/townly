@@ -661,25 +661,19 @@ export const emailSendLogs = pgTable('email_send_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
   emailScheduleId: uuid('email_schedule_id').references(() => emailSchedules.id),
   emailType: text('email_type').notNull(), // scheduled_personalized, manual 등
-  clerkUserId: text('clerk_user_id'),
-  email: text('email'),
   subject: text('subject').notNull(),
-  content: text('content'),
   recipientCount: integer('recipient_count').default(0).notNull(), // 수신자 수
   successCount: integer('success_count').default(0).notNull(), // 성공 발송 수
   failureCount: integer('failure_count').default(0).notNull(), // 실패 발송 수
   weatherDataUsed: jsonb('weather_data_used'), // 사용된 날씨 데이터
   aiSummary: text('ai_summary'), // AI 생성 요약
   forecastPeriod: text('forecast_period'), // 예보 기간
-  isSuccessful: boolean('is_successful').default(false).notNull(), // 전체 발송 성공 여부
-  initiatedBy: text('initiated_by').notNull(), // 발송 주체 (cron_job, manual 등)
-  executionTime: integer('execution_time'), // 실행 시간 (밀리초)
-  failedEmails: jsonb('failed_emails'), // 실패한 이메일 목록
-  status: text('status').notNull(), // sent, failed, delivered, opened
-  errorMessage: text('error_message'),
   sentAt: timestamp('sent_at').defaultNow().notNull(),
-  deliveredAt: timestamp('delivered_at'),
-  openedAt: timestamp('opened_at'),
+  executionTime: integer('execution_time'), // 실행 시간 (밀리초)
+  isSuccessful: boolean('is_successful').default(true).notNull(), // 전체 발송 성공 여부
+  errorMessage: text('error_message'),
+  failedEmails: jsonb('failed_emails'), // 실패한 이메일 목록
+  initiatedBy: text('initiated_by').notNull(), // 발송 주체 (cron_job, manual 등)
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -689,14 +683,22 @@ export const emailSendLogs = pgTable('email_send_logs', {
  */
 export const individualEmailLogs = pgTable('individual_email_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
-  sendLogId: uuid('send_log_id').references(() => emailSendLogs.id),
+  emailSendLogId: uuid('email_send_log_id').references(() => emailSendLogs.id).notNull(),
   clerkUserId: text('clerk_user_id').notNull(),
-  email: text('email').notNull(),
-  emailType: text('email_type').notNull(), // weather, news, etc.
-  templateUsed: text('template_used'),
-  personalizedContent: jsonb('personalized_content'),
+  recipientEmail: text('recipient_email').notNull(),
+  subject: text('subject').notNull(),
+  emailContent: text('email_content'),
   status: text('status').notNull(),
-  errorDetails: text('error_details'),
+  sentAt: timestamp('sent_at'),
+  deliveredAt: timestamp('delivered_at'),
+  gmailMessageId: text('gmail_message_id'),
+  gmailThreadId: text('gmail_thread_id'),
+  errorCode: text('error_code'),
+  errorMessage: text('error_message'),
+  isOpened: boolean('is_opened').default(false),
+  openedAt: timestamp('opened_at'),
+  isClicked: boolean('is_clicked').default(false),
+  clickedAt: timestamp('clicked_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

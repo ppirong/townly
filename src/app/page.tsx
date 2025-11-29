@@ -2,6 +2,7 @@ import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import WelcomeDashboard from "@/components/WelcomeDashboard";
 import { clerkDarkAppearance } from "@/lib/clerk-appearance";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function Home() {
   
@@ -32,6 +33,9 @@ export default function Home() {
               </SignInButton>
               <p className="text-sm text-gray-500 mt-3">
                 30초만에 시작 • 무료 서비스 • 언제든 해지 가능
+              </p>
+              <p className="text-xs text-gray-600 mt-2">
+                가입 시 <Link href="/privacy-policy" className="text-blue-400 hover:text-blue-300 underline">개인정보처리방침</Link>에 동의하는 것으로 간주됩니다.
               </p>
             </div>
             
