@@ -659,7 +659,7 @@ export const chatGptConversations = pgTable('chatgpt_conversations', {
  */
 export const emailSendLogs = pgTable('email_send_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
-  scheduleId: uuid('schedule_id').references(() => emailSchedules.id),
+  emailScheduleId: uuid('email_schedule_id').references(() => emailSchedules.id),
   emailType: text('email_type').notNull(), // scheduled_personalized, manual 등
   clerkUserId: text('clerk_user_id'),
   email: text('email'),

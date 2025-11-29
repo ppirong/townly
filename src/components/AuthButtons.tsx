@@ -2,8 +2,8 @@
 
 import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { Shield, User } from "lucide-react";
 import { useEffect, useState } from "react";
+import { clerkDarkAppearance } from "@/lib/clerk-appearance";
 
 // 사용자 역할 정보 타입 정의
 type UserRoleInfo = {
@@ -64,6 +64,7 @@ export default function AuthButtons() {
   const { isSignedIn, user } = useUser();
   const { isAdmin, isLoading } = useUserRole();
   
+  
   // 회원가입 완료 시 관리자 등록 처리
   useEffect(() => {
     if (isSignedIn && user?.id) {
@@ -99,32 +100,28 @@ export default function AuthButtons() {
     return (
       <div className="flex items-center gap-2">
         <SignInButton mode="modal">
-          <Button variant="outline" size="sm">
+          <button className="bg-transparent border border-gray-600 hover:bg-gray-700 hover:text-white px-3 py-1 rounded text-sm">
             로그인
-          </Button>
+          </button>
         </SignInButton>
         
         <SignUpButton mode="modal">
-          <Button size="sm">
-            <User className="w-4 h-4 mr-1" />
-            회원가입
-          </Button>
+          <button className="bg-yellow-400 hover:bg-yellow-300 text-black px-3 py-1 rounded text-sm font-medium transition-colors">
+            👤 회원가입
+          </button>
         </SignUpButton>
         
         <SignUpButton mode="modal">
-          <Button 
-            variant="secondary" 
-            size="sm" 
-            className="bg-red-600 hover:bg-red-700 text-white"
+          <button 
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
             onClick={() => {
               console.log("🔴 관리자회원가입 버튼 클릭됨");
               // 관리자 회원가입 버튼 클릭 시 localStorage에 플래그 저장
               localStorage.setItem("registerAsAdmin", "true");
             }}
           >
-            <Shield className="w-4 h-4 mr-1" />
-            관리자회원가입
-          </Button>
+            🛡️ 관리자회원가입
+          </button>
         </SignUpButton>
       </div>
     );

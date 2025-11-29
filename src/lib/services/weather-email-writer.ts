@@ -49,27 +49,86 @@ export class WeatherEmailWriter {
    * 날씨 안내 이메일 내용을 작성합니다.
    */
   async writeEmail(weatherData: WeatherData, iteration: number): Promise<WriterResponse> {
-    const prompt = this.buildPrompt(weatherData, iteration);
+    try {
+      const prompt = this.buildPrompt(weatherData, iteration);
 
-    const message = await this.client.messages.create({
-      model: 'claude-3-7-sonnet-20250219',
-      max_tokens: 2000,
-      temperature: 0.7,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    });
+      const message = await this.client.messages.create({
+        model: 'claude-3-7-sonnet-20250219',
+        max_tokens: 2000,
+        temperature: 0.7,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      });
 
-    const content = message.content[0];
-    const emailContent = content.type === 'text' ? content.text : '';
+      const content = message.content[0];
+      const emailContent = content.type === 'text' ? content.text : '';
 
-    return {
-      emailContent,
-      tokensUsed: message.usage.input_tokens + message.usage.output_tokens,
-    };
+      return {
+        emailContent,
+        tokensUsed: message.usage.input_tokens + message.usage.output_tokens,
+      };
+    } catch (error) {
+      console.error('⚠️ Anthropic API 호출 실패, fallback 템플릿 사용:', error);
+      
+      // API 호출 실패 시 기본 템플릿 사용
+      const fallbackContent = this.generateFallbackEmail(weatherData);
+      
+      return {
+        emailContent: fallbackContent,
+        tokensUsed: 0, // API 사용하지 않았으므로 0
+      };
+    }
+  }
+
+  /**
+   * API 호출 실패 시 사용할 기본 이메일 템플릿을 생성합니다.
+   */
+  private generateFallbackEmail(weatherData: WeatherData): string {
+    const { locationName, sendTime, sendDate, minTemp, maxTemp, hourlyData } = weatherData;
+    
+    const timeOfDay = sendTime === 6 ? '아침' : '저녁';
+    const greeting = sendTime === 6 ? '좋은 아침입니다! ☀️' : '안녕하세요! 🌆';
+    
+    // 다음 12시간 날씨 정보
+    const next12Hours = hourlyData.slice(0, 12);
+    const rainHours = next12Hours.filter(h => h.rainProbability > 30);
+    const hasRain = rainHours.length > 0;
+    
+    return `
+${greeting}
+
+📍 ${locationName}의 ${timeOfDay} 날씨를 안내드립니다.
+
+🌡️ **오늘의 기온**
+- 최고: ${maxTemp}°C
+- 최저: ${minTemp}°C
+
+${hasRain ? 
+`🌧️ **비 예보**
+오늘 ${rainHours.map(h => `${h.hour}시`).join(', ')} 경 비가 올 가능성이 있습니다.
+우산을 챙겨주세요!` : 
+`☀️ **날씨 상태**
+대체로 맑은 날씨가 예상됩니다.`}
+
+📊 **시간대별 날씨**
+${next12Hours.slice(0, 6).map(h => 
+`${h.hour}시: ${h.temperature}°C, ${h.conditions}${h.rainProbability > 30 ? ` (비 ${h.rainProbability}%)` : ''}`
+).join('\n')}
+
+---
+💡 **생활 팁**
+${sendTime === 6 ? 
+'아침 출근/등교 시 적절한 옷차림으로 하루를 시작하세요!' : 
+'저녁 시간대 외출 시 참고해주세요!'}
+
+좋은 하루 보내세요! 🌈
+
+※ 이 메시지는 시스템 정비로 인해 간소화된 형태로 발송되었습니다.
+`;
   }
 
   /**

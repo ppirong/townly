@@ -5,9 +5,11 @@ import {
   SignedIn,
   SignedOut,
 } from "@clerk/nextjs";
+import { koKR } from "@clerk/localizations";
 import Link from "next/link";
 import RoleBasedNavigation from "@/components/RoleBasedNavigation";
 import AuthButtons from "@/components/AuthButtons";
+import { clerkDarkAppearance } from "@/lib/clerk-appearance";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,18 +33,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider 
+      appearance={clerkDarkAppearance}
+      localization={koKR}
+    >
       <html lang="ko">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#121212] text-white`}
         >
-          <header className="border-b bg-white shadow-sm">
+          <header className="border-b bg-[#1E1E1E] border-[#2D2D2D]">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center h-16">
                 <div className="flex items-center space-x-8">
                   <Link href="/" className="flex items-center">
                     <span className="text-2xl mr-2">🏘️</span>
-                    <h1 className="text-xl font-bold text-gray-900">Towny</h1>
+                    <h1 className="text-xl font-bold text-white">Towny</h1>
                   </Link>
                   
                   <SignedIn>
@@ -56,7 +61,7 @@ export default function RootLayout({
               </div>
             </div>
           </header>
-          <main className="min-h-screen bg-gray-50">
+          <main className="min-h-screen bg-[#121212]">
             {children}
           </main>
         </body>

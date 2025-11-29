@@ -201,7 +201,7 @@ export async function recalculateAllScheduleTimes() {
 /**
  * 크론잡 전용 이메일 발송 (인증 없이)
  */
-export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput) {
+export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput & { scheduleId?: string }) {
   const startTime = Date.now();
   
   try {
@@ -439,6 +439,7 @@ export async function sendScheduledEmailWithoutAuth(input: SendManualEmailInput)
     
     await db.insert(emailSendLogs).values({
       id: emailSendLogId,
+      emailScheduleId: input.scheduleId || null,
       emailType: 'scheduled_personalized',
       subject: personalizedEmails.length > 0 ? personalizedEmails[0].subject : '크론잡 개인화 이메일',
       recipientCount: recipients.length,
@@ -615,6 +616,7 @@ export async function sendManualEmailWithAgent(input: SendManualEmailInput, test
     
     await db.insert(emailSendLogs).values({
       id: emailSendLogId,
+      emailScheduleId: null, // 수동 발송이므로 스케줄 ID 없음
       emailType: validatedData.targetType === 'test' ? 'test' : 'manual_agent',
       subject: validatedData.subject || '에이전트 생성 이메일',
       recipientCount: recipients.length,
@@ -860,6 +862,7 @@ export async function sendManualEmail(input: SendManualEmailInput, testUserId?: 
     
     await db.insert(emailSendLogs).values({
       id: emailSendLogId,
+      emailScheduleId: null, // 수동 발송이므로 스케줄 ID 없음
       emailType: validatedData.targetType === 'test' ? 'test' : 'manual_personalized',
       subject: personalizedEmails.length > 0 ? personalizedEmails[0].subject : '개인화 이메일',
       recipientCount: recipients.length,
@@ -998,6 +1001,7 @@ export async function executeScheduledEmail(scheduleId: string) {
       targetUserIds: scheduleData.targetUserIds ? scheduleData.targetUserIds as string[] : undefined,
       forceRefreshWeather: true,
       useAgent: true, // 🤖 에이전트를 사용하여 고품질 날씨 이메일 생성
+      scheduleId: scheduleId, // 스케줄 ID 전달
     });
     
     // 스케줄 정보 업데이트
