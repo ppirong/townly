@@ -173,48 +173,6 @@ export default async function GoogleAirQualityPage() {
                 
                 <div className="space-y-6">
                   {/* 대기질 정보 종류 안내 */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-white/90 mb-4">✨ 제공되는 대기질 정보</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="backdrop-blur-sm bg-white/5 border border-white/10 p-4 rounded-xl hover:bg-white/10 transition-all duration-300 hover:scale-105">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">📊</div>
-                          <h4 className="font-semibold text-blue-300">현재 대기질</h4>
-                        </div>
-                        <p className="text-white/70 text-sm">실시간 PM10, PM2.5 농도 및 대기질 지수</p>
-                      </div>
-                      <div className="backdrop-blur-sm bg-white/5 border border-white/10 p-4 rounded-xl hover:bg-white/10 transition-all duration-300 hover:scale-105">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">🕐</div>
-                          <h4 className="font-semibold text-green-300">시간별 예보</h4>
-                        </div>
-                        <p className="text-white/70 text-sm">향후 12시간 시간별 대기질 변화 예측</p>
-                      </div>
-                      <div className="backdrop-blur-sm bg-white/5 border border-white/10 p-4 rounded-xl hover:bg-white/10 transition-all duration-300 hover:scale-105">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">📈</div>
-                          <h4 className="font-semibold text-purple-300">장기 예보</h4>
-                        </div>
-                        <p className="text-white/70 text-sm">향후 90시간(3.75일) 대기질 추세 그래프</p>
-                      </div>
-                      <div className="backdrop-blur-sm bg-white/5 border border-white/10 p-4 rounded-xl hover:bg-white/10 transition-all duration-300 hover:scale-105">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">❤️</div>
-                          <h4 className="font-semibold text-orange-300">건강 권고사항</h4>
-                        </div>
-                        <p className="text-white/70 text-sm">대기질에 따른 맞춤형 건강 가이드</p>
-                      </div>
-                    </div>
-                    
-                    <div className="backdrop-blur-sm bg-white/5 border border-white/10 p-4 rounded-xl mt-4">
-                      <div className="text-sm text-white/80 space-y-2">
-                        <div>💡 <strong className="text-white">현재 대기질:</strong> 실시간 PM10/PM2.5 농도와 CAI(KR), BreezoMeter AQI 지수</div>
-                        <div>🕐 <strong className="text-white">시간별 예보:</strong> 향후 12시간 동안의 시간별 대기질 변화</div>
-                        <div>📈 <strong className="text-white">장기 예보:</strong> 향후 90시간 대기질 추세를 그래프로 표시</div>
-                        <div>❤️ <strong className="text-white">건강 권고:</strong> 일반인 및 민감군을 위한 맞춤형 건강 가이드</div>
-                      </div>
-                    </div>
-                  </div>
 
                   {/* 대기질 농도 기준 */}
                   <div>
@@ -276,41 +234,6 @@ export default async function GoogleAirQualityPage() {
                           <li className="flex items-center gap-3"><span className="w-4 h-4 bg-purple-500 rounded-full"></span><span className="text-white/80">매우나쁨: 201~300</span></li>
                           <li className="flex items-center gap-3"><span className="w-4 h-4 bg-gray-600 rounded-full"></span><span className="text-white/80">위험: 301 이상</span></li>
                         </ul>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* API 정보 */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-white/90 mb-4">🚀 Google Air Quality API 특징</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="backdrop-blur-sm bg-white/5 border border-white/10 p-4 rounded-xl hover:bg-white/10 transition-all duration-300 hover:scale-105">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center text-white text-lg">✨</div>
-                          <h4 className="font-semibold text-blue-300">고정밀 데이터</h4>
-                        </div>
-                        <p className="text-white/70 text-sm">500x500m 해상도의 정밀한 대기질 데이터</p>
-                      </div>
-                      <div className="backdrop-blur-sm bg-white/5 border border-white/10 p-4 rounded-xl hover:bg-white/10 transition-all duration-300 hover:scale-105">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center text-white text-lg">🌍</div>
-                          <h4 className="font-semibold text-green-300">글로벌 커버리지</h4>
-                        </div>
-                        <p className="text-white/70 text-sm">100개 이상 국가의 대기질 정보 제공</p>
-                      </div>
-                      <div className="backdrop-blur-sm bg-white/5 border border-white/10 p-4 rounded-xl hover:bg-white/10 transition-all duration-300 hover:scale-105">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center text-white text-lg">🔮</div>
-                          <h4 className="font-semibold text-purple-300">예보 기능</h4>
-                        </div>
-                        <p className="text-white/70 text-sm">최대 90시간 장기 예보 그래프 제공</p>
-                      </div>
-                      <div className="backdrop-blur-sm bg-white/5 border border-white/10 p-4 rounded-xl hover:bg-white/10 transition-all duration-300 hover:scale-105">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center text-white text-lg">💡</div>
-                          <h4 className="font-semibold text-orange-300">건강 가이드</h4>
-                        </div>
-                        <p className="text-white/70 text-sm">대기질에 따른 맞춤형 건강 권고사항</p>
                       </div>
                     </div>
                   </div>

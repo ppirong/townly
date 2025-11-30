@@ -13,42 +13,6 @@ import type { ClientUserLocation } from '@/lib/dto/location-mappers';
 import { setUserLocation } from '@/actions/location';
 import { getUserLocationWeather, refreshWeatherFromAPI } from '@/actions/weather';
 
-interface WeatherApiStats {
-  today: {
-    date: string;
-    totalCalls: number;
-    successfulCalls: number;
-    failedCalls: number;
-    successRate: number;
-    avgResponseTime: number;
-    hourlyUsage: Array<{ hour: number; calls: number }>;
-    endpointUsage: Record<string, { calls: number; avgResponseTime: number }>;
-  };
-  limit: {
-    current: number;
-    limit: number;
-    remaining: number;
-    percentage: number;
-    canMakeRequest: boolean;
-    status: 'ok' | 'warning' | 'critical';
-  };
-  recent: {
-    days: number;
-    stats: Array<{
-      date: string;
-      totalCalls: number;
-      successRate: number;
-      avgResponseTime: number;
-    }>;
-    totalCalls: number;
-    averageDaily: number;
-  };
-  recommendations: {
-    shouldOptimizeCache: boolean;
-    shouldUpgradePlan: boolean;
-    peakHours: number[];
-  };
-}
 
 interface WeatherDashboardProps {
   className?: string;
@@ -66,7 +30,6 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
   const [userLocation, setUserLocationState] = useState<ClientUserLocation | null>(initialLocation || null);
   const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
-  const [apiStats, setApiStats] = useState<WeatherApiStats | null>(null);
   const [cacheClearing, setCacheClearing] = useState(false);
   const [apiRefreshing, setApiRefreshing] = useState(false);
 
@@ -161,8 +124,6 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
       await fetchWeatherData();
     } finally {
       setLoading(false);
-      // API 통계는 별도로 조회
-      await fetchApiStats();
     }
   }, [userLocation]);
 
@@ -193,25 +154,10 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
     
     await Promise.all([
       fetchHourlyWeather(targetLocation),
-      fetchDailyWeather(5, targetLocation),
-      fetchApiStats()
+      fetchDailyWeather(5, targetLocation)
     ]);
   };
 
-  const fetchApiStats = async () => {
-    try {
-      const response = await fetch('/api/weather/stats');
-      const result = await response.json();
-      
-      if (result.success) {
-        setApiStats(result.data);
-      } else {
-        console.error('API 통계 조회 실패:', result.error);
-      }
-    } catch (error) {
-      console.error('API 통계 조회 실패:', error);
-    }
-  };
 
   const fetchHourlyWeather = async (locationName: string) => {
     try {
@@ -481,134 +427,6 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
           </div>
         )}
 
-        {/* API 사용량 통계 - Premium Glass Design */}
-        {apiStats && (
-          <div className="group relative">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-400 via-violet-400 to-purple-600 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-            <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl hover:shadow-purple-500/25 transition-all duration-500 hover:scale-[1.02]">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-500 rounded-xl flex items-center justify-center shadow-lg">
-                  📊
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">AccuWeather API 사용량</h3>
-                  <p className="text-violet-200 text-sm font-medium">오늘의 API 호출 현황 및 한도 관리</p>
-                </div>
-              </div>
-              
-              <div className="space-y-6">
-                {/* 기본 통계 - Glass Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="backdrop-blur-sm bg-white/10 border border-purple-300/30 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-black bg-gradient-to-r from-blue-300 to-cyan-400 bg-clip-text text-transparent mb-1">
-                      {apiStats.limit.current}
-                    </div>
-                    <div className="text-sm text-white/70 font-medium">오늘 사용</div>
-                  </div>
-                  <div className="backdrop-blur-sm bg-white/10 border border-purple-300/30 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-black bg-gradient-to-r from-green-300 to-emerald-400 bg-clip-text text-transparent mb-1">
-                      {apiStats.limit.remaining}
-                    </div>
-                    <div className="text-sm text-white/70 font-medium">남은 횟수</div>
-                  </div>
-                  <div className="backdrop-blur-sm bg-white/10 border border-purple-300/30 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-black bg-gradient-to-r from-purple-300 to-violet-400 bg-clip-text text-transparent mb-1">
-                      {apiStats.today.successRate}%
-                    </div>
-                    <div className="text-sm text-white/70 font-medium">성공률</div>
-                  </div>
-                  <div className="backdrop-blur-sm bg-white/10 border border-purple-300/30 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-black bg-gradient-to-r from-orange-300 to-red-400 bg-clip-text text-transparent mb-1">
-                      {apiStats.today.avgResponseTime}ms
-                    </div>
-                    <div className="text-sm text-white/70 font-medium">평균 응답</div>
-                  </div>
-                </div>
-
-                {/* 사용량 진행바 - Enhanced */}
-                <div className="bg-gradient-to-r from-purple-500/20 to-violet-500/20 backdrop-blur-sm border border-purple-300/30 rounded-xl p-4">
-                  <div className="flex justify-between text-white mb-3">
-                    <span className="font-medium">일일 한도 사용률</span>
-                    <span className={`font-bold flex items-center gap-1 ${
-                      apiStats.limit.status === 'critical' ? 'text-red-300' :
-                      apiStats.limit.status === 'warning' ? 'text-yellow-300' :
-                      'text-green-300'
-                    }`}>
-                      <span className={`w-2 h-2 rounded-full animate-pulse ${
-                        apiStats.limit.status === 'critical' ? 'bg-red-400' :
-                        apiStats.limit.status === 'warning' ? 'bg-yellow-400' :
-                        'bg-green-400'
-                      }`}></span>
-                      {apiStats.limit.percentage}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-white/20 rounded-full h-3 shadow-inner">
-                    <div 
-                      className={`h-3 rounded-full transition-all duration-500 shadow-lg ${
-                        apiStats.limit.status === 'critical' ? 'bg-gradient-to-r from-red-500 to-red-600' :
-                        apiStats.limit.status === 'warning' ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
-                        'bg-gradient-to-r from-green-500 to-emerald-500'
-                      }`}
-                      style={{ width: `${Math.min(apiStats.limit.percentage, 100)}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-white/70 mt-2">
-                    {apiStats.limit.current} / {apiStats.limit.limit} 호출 사용
-                  </div>
-                </div>
-
-                {/* 상태 배지 및 권장사항 - Enhanced Badges */}
-                <div className="flex flex-wrap gap-3">
-                  <div className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg ${
-                    apiStats.limit.status === 'critical' ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' :
-                    apiStats.limit.status === 'warning' ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white' :
-                    'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                  }`}>
-                    {apiStats.limit.status === 'critical' ? '⚠️ 한도 임박' :
-                     apiStats.limit.status === 'warning' ? '⚡ 주의 필요' :
-                     '✅ 정상'}
-                  </div>
-                  
-                  {apiStats.recommendations.shouldOptimizeCache && (
-                    <div className="px-4 py-2 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 backdrop-blur-sm border border-blue-300/30 rounded-xl text-blue-200 font-medium text-sm">
-                      💾 캐시 최적화 권장
-                    </div>
-                  )}
-                  
-                  {apiStats.recommendations.shouldUpgradePlan && (
-                    <div className="px-4 py-2 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 backdrop-blur-sm border border-indigo-300/30 rounded-xl text-indigo-200 font-medium text-sm">
-                      ⬆️ 플랜 업그레이드 권장
-                    </div>
-                  )}
-                </div>
-
-                {/* 최근 7일 트렌드 - Enhanced Summary */}
-                {apiStats.recent.stats.length > 0 && (
-                  <div className="bg-gradient-to-r from-violet-500/20 to-purple-500/20 backdrop-blur-sm border border-violet-300/30 rounded-xl p-4">
-                    <div className="text-white font-bold mb-3 flex items-center gap-2">
-                      <span className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></span>
-                      최근 7일 평균
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-violet-200">
-                          {apiStats.recent.averageDaily}회
-                        </div>
-                        <div className="text-xs text-white/70">일평균 호출</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-violet-200">
-                          {apiStats.recent.totalCalls}회
-                        </div>
-                        <div className="text-xs text-white/70">총 호출</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* 검색 및 설정 - Premium Glass Design */}
         <div className="group relative">

@@ -11,7 +11,6 @@ import {
   getHourlyAirQuality,
   getDailyAirQuality,
   getUserLocationAirQuality,
-  getGoogleAirQualityApiUsage,
   refreshAirQualityData
 } from '@/actions/google-air-quality';
 import type { ProcessedAirQualityData } from '@/lib/services/google-air-quality';
@@ -21,15 +20,6 @@ interface GoogleAirQualityDashboardProps {
   initialLocation?: ClientUserLocation | null;
 }
 
-interface ApiUsageStats {
-  totalCalls: number;
-  successfulCalls: number;
-  failedCalls: number;
-  avgResponseTime: number;
-  dailyLimit: number;
-  remainingCalls: number;
-  usagePercentage: number;
-}
 
 export function GoogleAirQualityDashboard({ className, initialLocation }: GoogleAirQualityDashboardProps) {
   const [currentData, setCurrentData] = useState<ProcessedAirQualityData | null>(null);
@@ -39,7 +29,6 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocationState] = useState<ClientUserLocation | null>(initialLocation || null);
   const [locationRefreshing, setLocationRefreshing] = useState(false);
-  const [apiStats, setApiStats] = useState<ApiUsageStats | null>(null);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
 
   // 대기질 지수에 따른 색상 및 설명 반환
@@ -99,15 +88,6 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
     );
   };
 
-  // API 사용량 통계 조회
-  const fetchApiStats = async () => {
-    try {
-      const stats = await getGoogleAirQualityApiUsage();
-      setApiStats(stats);
-    } catch (error) {
-      console.error('API 사용량 조회 실패:', error);
-    }
-  };
 
   // 사용자별 대기질 데이터 조회
   const fetchUserAirQualityData = async () => {
@@ -135,7 +115,6 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
       setError('대기질 정보를 가져오는데 실패했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
-      await fetchApiStats();
     }
   };
 
@@ -175,7 +154,6 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
       setError('대기질 정보 새로고침에 실패했습니다.');
     } finally {
       setLocationRefreshing(false);
-      await fetchApiStats();
     }
   };
 
@@ -188,9 +166,6 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
     }
   }, [initialLocation]);
 
-  useEffect(() => {
-    fetchApiStats();
-  }, []);
 
   return (
     <div className={className}>
@@ -248,105 +223,6 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
           </Card>
         )}
 
-        {/* Google Air Quality API 사용량 통계 */}
-        {apiStats && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span>📊</span>
-                Google Air Quality API 사용량
-              </CardTitle>
-              <CardDescription>
-                오늘의 API 호출 현황 및 무료 한도 관리
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* 기본 통계 */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {apiStats.totalCalls}
-                    </div>
-                    <div className="text-sm text-muted-foreground">오늘 사용</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
-                      {apiStats.remainingCalls}
-                    </div>
-                    <div className="text-sm text-muted-foreground">남은 횟수</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {Math.round((apiStats.successfulCalls / Math.max(apiStats.totalCalls, 1)) * 100)}%
-                    </div>
-                    <div className="text-sm text-muted-foreground">성공률</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {apiStats.avgResponseTime}ms
-                    </div>
-                    <div className="text-sm text-muted-foreground">평균 응답</div>
-                  </div>
-                </div>
-
-                {/* 사용량 진행바 */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>일일 한도 사용률</span>
-                    <span className={`font-medium ${
-                      apiStats.usagePercentage >= 90 ? 'text-red-600' :
-                      apiStats.usagePercentage >= 70 ? 'text-yellow-600' :
-                      'text-green-600'
-                    }`}>
-                      {apiStats.usagePercentage}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div 
-                      className={`h-3 rounded-full transition-all duration-300 ${
-                        apiStats.usagePercentage >= 90 ? 'bg-red-500' :
-                        apiStats.usagePercentage >= 70 ? 'bg-yellow-500' :
-                        'bg-green-500'
-                      }`}
-                      style={{ width: `${Math.min(apiStats.usagePercentage, 100)}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {apiStats.totalCalls} / {apiStats.dailyLimit} 호출 사용 (무료 한도)
-                  </div>
-                </div>
-
-                {/* 상태 배지 */}
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant={
-                    apiStats.usagePercentage >= 90 ? 'destructive' :
-                    apiStats.usagePercentage >= 70 ? 'default' :
-                    'secondary'
-                  }>
-                    {apiStats.usagePercentage >= 90 ? '⚠️ 한도 임박' :
-                     apiStats.usagePercentage >= 70 ? '⚡ 주의 필요' :
-                     '✅ 정상'}
-                  </Badge>
-                  
-                  <Badge variant="outline">
-                    💰 무료 플랜 (월 10,000회)
-                  </Badge>
-                </div>
-
-                {/* 무료 한도 안내 */}
-                <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-lg">
-                  <p className="font-medium text-blue-800 mb-1">Google Air Quality API 무료 한도</p>
-                  <ul className="space-y-1 text-blue-700">
-                    <li>• 월 10,000회 무료 호출 (일 약 333회)</li>
-                    <li>• 초과 시 $5.00 per 1,000 calls</li>
-                    <li>• 분당 최대 6,000회 호출 제한</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* 현재 대기질 정보 */}
         {currentData && (
@@ -529,170 +405,7 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
           </Card>
         )}
 
-        {/* 일별 대기질 예보 */}
-        {dailyData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>일별 대기질 예보</CardTitle>
-              <CardDescription>
-                향후 2일간 일별 대기질 변화 예측 (12시간 데이터 기반)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="min-h-[450px]">
-              <div className="overflow-x-auto pb-4 h-[420px]">
-                <div className="flex gap-3 min-w-max h-full"
-                     style={{ 
-                       scrollBehavior: 'smooth',
-                       cursor: 'grab'
-                     }}
-                     onMouseDown={(e) => {
-                       const startX = e.pageX;
-                       const container = e.currentTarget;
-                       const scrollLeft = container.scrollLeft;
-                       
-                       const handleMouseMove = (moveEvent: MouseEvent) => {
-                         const x = moveEvent.pageX - startX;
-                         container.scrollLeft = scrollLeft - x;
-                       };
-                       
-                       const handleMouseUp = () => {
-                         document.removeEventListener('mousemove', handleMouseMove);
-                         document.removeEventListener('mouseup', handleMouseUp);
-                         container.style.cursor = 'grab';
-                       };
-                       
-                       container.style.cursor = 'grabbing';
-                       document.addEventListener('mousemove', handleMouseMove);
-                       document.addEventListener('mouseup', handleMouseUp);
-                     }}>
-                  {dailyData.slice(0, 2).map((data, index) => {
-                    const date = new Date(data.dateTime);
-                    const dateStr = date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
-                    const dayOfWeek = date.toLocaleDateString('ko-KR', { weekday: 'short' });
-                    const isToday = index === 0;
-                    
-                    return (
-                      <div 
-                        key={index} 
-                        className={`${
-                          isToday 
-                            ? 'bg-gradient-to-b from-blue-50 to-blue-100 border-blue-300 shadow-lg' 
-                            : 'bg-gradient-to-b from-blue-50 to-blue-100'
-                        } dark:from-gray-800 dark:to-gray-900 border rounded-xl p-5 hover:shadow-lg transition-all duration-200 flex flex-col flex-shrink-0 w-48 h-[390px]`}
-                        style={{ userSelect: 'none' }}
-                      >
-                        {/* 헤더: 날짜와 요일 */}
-                        <div className="text-center border-b border-blue-200 dark:border-gray-700 mb-4 pb-2">
-                          <div className="font-bold text-gray-800 dark:text-gray-200 text-sm">
-                            {dateStr}
-                            {isToday && <span className="text-xs text-blue-600 ml-1">오늘</span>}
-                          </div>
-                          <div className="text-xs text-gray-600 dark:text-gray-400">
-                            ({dayOfWeek})
-                          </div>
-                        </div>
-                        
-                        {/* PM10 */}
-                        <div className="text-center mb-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3">
-                          <div className="text-xs text-amber-700 dark:text-amber-300 font-medium mb-2">PM10</div>
-                          <ConcentrationDisplay value={data.pm10} type="pm10" />
-                        </div>
-                        
-                        {/* PM2.5 */}
-                        <div className="text-center mb-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3">
-                          <div className="text-xs text-indigo-700 dark:text-indigo-300 font-medium mb-2">PM2.5</div>
-                          <ConcentrationDisplay value={data.pm25} type="pm25" />
-                        </div>
-                        
-                        {/* 대기질 지수 */}
-                        {(data.caiKr || data.breezoMeterAqi) && (
-                          <div className="text-center bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mt-auto">
-                            <div className="text-xs text-purple-700 dark:text-purple-300 font-medium mb-2">
-                              {data.caiKr ? 'CAI (KR)' : 'BreezoMeter AQI'}
-                            </div>
-                            <div className="text-lg font-bold text-purple-600">
-                              {data.caiKr || data.breezoMeterAqi}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* 대기질 지수 설명 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>대기질 지수 설명</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* CAI (Korea) 설명 */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-lg">CAI (Korea) - 통합대기환경지수</h3>
-                <p className="text-sm text-muted-foreground">
-                  한국환경공단에서 개발한 대기질 지수로, PM10, PM2.5, O3, NO2, CO, SO2 등 6개 오염물질을 종합하여 산출합니다.
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-blue-500 rounded"></div>
-                    <span className="text-sm">0~50: 좋음 (외부활동 적합)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-green-500 rounded"></div>
-                    <span className="text-sm">51~100: 보통 (일반적인 외부활동 가능)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-orange-500 rounded"></div>
-                    <span className="text-sm">101~250: 나쁨 (민감군 주의)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-red-500 rounded"></div>
-                    <span className="text-sm">251+: 매우나쁨 (외출 자제)</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* BreezoMeter AQI 설명 */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-lg">BreezoMeter AQI - 국제 대기질 지수</h3>
-                <p className="text-sm text-muted-foreground">
-                  이스라엘 BreezoMeter사에서 개발한 실시간 대기질 지수로, 전 세계적으로 사용되는 표준화된 지수입니다.
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-blue-500 rounded"></div>
-                    <span className="text-sm">0~50: 좋음 (모든 사람에게 안전)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-green-500 rounded"></div>
-                    <span className="text-sm">51~100: 보통 (일반적으로 안전)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-orange-500 rounded"></div>
-                    <span className="text-sm">101~150: 민감군 주의</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-red-500 rounded"></div>
-                    <span className="text-sm">151~200: 나쁨 (모든 사람 주의)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-purple-500 rounded"></div>
-                    <span className="text-sm">201~300: 매우나쁨</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-gray-900 rounded"></div>
-                    <span className="text-sm">301+: 위험 (외출 금지)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {error && (
           <Alert variant={
