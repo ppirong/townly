@@ -14,7 +14,7 @@ type NavItem = {
 
 // 네비게이션 아이템 정의
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "대시보드" },
+  { href: "/", label: "대시보드" },
   { href: "/weather", label: "날씨" },
   { href: "/airquality-google", label: "미세먼지(구글)" },
   { href: "/admin/mart", label: "마트 관리", adminOnly: true },
@@ -79,10 +79,10 @@ export default function RoleBasedNavigation() {
             key={item.href}
             href={item.href}
             className={cn(
-              "text-sm font-medium transition-colors hover:text-primary",
+              "text-sm font-medium transition-colors duration-200 hover:text-yellow-400 px-3 py-2 rounded-md",
               pathname === item.href
-                ? "text-black dark:text-white"
-                : "text-muted-foreground"
+                ? "text-yellow-400 bg-[#2D2D2D]"
+                : "text-gray-300 hover:text-white hover:bg-[#2A2A2A]"
             )}
           >
             {item.label}

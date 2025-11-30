@@ -15,7 +15,7 @@ export default function PrivacyPolicyPage() {
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">개인정보처리방침</h1>
         <p className="text-gray-400">
-          Townly 서비스 이용 시 개인정보 처리에 관한 사항을 안내드립니다.
+          Towny 서비스 이용 시 개인정보 처리에 관한 사항을 안내드립니다.
         </p>
       </div>
 

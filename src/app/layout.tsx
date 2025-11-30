@@ -23,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Townly - 하이퍼 로컬 정보 에이전트",
+  title: "Towny - 하이퍼 로컬 정보 에이전트",
   description: "위치 기반 생활 밀착형 정보를 카카오톡으로 제공하는 서비스",
 };
 
@@ -41,11 +41,11 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#121212] text-white`}
         >
-          <header className="border-b bg-[#1E1E1E] border-[#2D2D2D]">
+          <header className="border-b bg-[#1E1E1E] border-[#2D2D2D] shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center h-16">
                 <div className="flex items-center space-x-8">
-                  <Link href="/" className="flex items-center">
+                  <Link href="/" className="flex items-center hover:opacity-80 transition-opacity duration-200">
                     <span className="text-2xl mr-2">🏘️</span>
                     <h1 className="text-xl font-bold text-white">Towny</h1>
                   </Link>
@@ -55,7 +55,7 @@ export default function RootLayout({
                   </SignedIn>
                 </div>
                 
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center">
                   <AuthButtons />
                 </div>
               </div>
@@ -69,17 +69,17 @@ export default function RootLayout({
               <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
                 <div className="flex items-center">
                   <span className="text-2xl mr-2">🏘️</span>
-                  <span className="text-lg font-semibold text-white">Townly</span>
+                  <span className="text-lg font-semibold text-white">Towny</span>
                 </div>
                 <div className="flex items-center space-x-6 text-sm">
                   <Link 
                     href="/privacy-policy" 
-                    className="text-gray-400 hover:text-white transition-colors duration-200"
+                    className="text-gray-400 hover:text-yellow-400 transition-colors duration-200 underline-offset-4 hover:underline"
                   >
                     개인정보처리방침
                   </Link>
                   <span className="text-gray-500">|</span>
-                  <span className="text-gray-500">© 2025 Townly. All rights reserved.</span>
+                  <span className="text-gray-500">© 2025 Towny. All rights reserved.</span>
                 </div>
               </div>
             </div>
