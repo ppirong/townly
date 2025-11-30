@@ -44,14 +44,22 @@ export default function RootLayout({
           <header className="border-b bg-[#1E1E1E] border-[#2D2D2D] shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center h-16">
-                <div className="flex items-center space-x-8">
+                <div className="flex items-center space-x-4 md:space-x-8">
+                  <SignedIn>
+                    <div className="md:hidden">
+                      <RoleBasedNavigation />
+                    </div>
+                  </SignedIn>
+                  
                   <Link href="/" className="flex items-center hover:opacity-80 transition-opacity duration-200">
                     <span className="text-2xl mr-2">🏘️</span>
                     <h1 className="text-xl font-bold text-white">Towny</h1>
                   </Link>
                   
                   <SignedIn>
-                    <RoleBasedNavigation />
+                    <div className="hidden md:block">
+                      <RoleBasedNavigation />
+                    </div>
                   </SignedIn>
                 </div>
                 
