@@ -631,12 +631,12 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                     {hourlyData.slice(0, 24).map((weather, index) => (
                       <div 
                         key={index} 
-                        className="backdrop-blur-sm bg-white/10 border border-emerald-300/30 rounded-xl p-2.5 hover:shadow-lg hover:shadow-emerald-400/25 transition-all duration-300 hover:scale-105 flex flex-col flex-shrink-0 w-[70px] h-[220px] hover:border-emerald-400/50"
+                        className="backdrop-blur-sm bg-gray-500/50 border border-emerald-300/30 rounded-xl p-2.5 hover:shadow-lg hover:shadow-emerald-400/25 transition-all duration-300 hover:scale-105 flex flex-col flex-shrink-0 w-[70px] h-[220px] hover:border-emerald-400/50"
                         style={{ userSelect: 'none' }}
                       >
                         {/* 시간 표시 */}
                         <div className="text-center border-b border-emerald-300/30 mb-2 pb-1.5">
-                          <div className="font-bold text-emerald-100 text-xs">
+                          <div className="font-bold text-white text-xs">
                             {weather.forecastHour}시
                           </div>
                         </div>
@@ -650,17 +650,17 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                         
                         {/* 온도 */}
                         <div className="text-center mb-2">
-                          <div className="font-bold text-base bg-gradient-to-r from-emerald-200 to-green-300 bg-clip-text text-transparent">
+                          <div className="font-bold text-base text-white">
                             {weather.temperature}{getTemperatureUnit()}
                           </div>
                         </div>
                         
                         {/* 강수 정보 */}
                         <div className="text-center space-y-1 mt-auto">
-                          <div className="text-xs font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] bg-black/20 backdrop-blur-sm rounded px-1 py-0.5">
+                          <div className="text-xs font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                             💧 {typeof weather.precipitation === 'number' ? weather.precipitation.toFixed(1) : '0.0'}mm
                           </div>
-                          <div className="text-xs font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] bg-black/20 backdrop-blur-sm rounded px-1 py-0.5">
+                          <div className="text-xs font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                             ☔ {weather.precipitationProbability || 0}%
                           </div>
                         </div>
@@ -750,15 +750,20 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                     {dailyData.map((weather, index) => (
                       <div 
                         key={index} 
-                        className="backdrop-blur-sm bg-white/10 border border-pink-300/30 rounded-xl p-3 hover:shadow-lg hover:shadow-pink-400/25 transition-all duration-300 hover:scale-105 flex flex-col flex-shrink-0 w-[120px] h-[570px] hover:border-pink-400/50"
+                        className="backdrop-blur-sm bg-gray-500/50 border border-pink-300/30 rounded-xl p-3 hover:shadow-lg hover:shadow-pink-400/25 transition-all duration-300 hover:scale-105 flex flex-col flex-shrink-0 w-[96px] h-[570px] hover:border-pink-400/50"
                         style={{ userSelect: 'none' }}
                       >
                         {/* 헤더: 날짜와 요일 */}
                         <div className="text-center border-b border-pink-300/30 mb-2 pb-1.5">
-                          <div className="font-bold text-pink-100 text-xs">
-                            {weather.forecastDate}
+                          <div className="font-bold text-white text-xs">
+                            {(() => {
+                              const date = new Date(weather.forecastDate);
+                              const month = String(date.getMonth() + 1).padStart(2, '0');
+                              const day = String(date.getDate()).padStart(2, '0');
+                              return `${month}-${day}`;
+                            })()}
                           </div>
-                          <div className="text-[10px] text-pink-200/70">
+                          <div className="text-[10px] text-white/70">
                             ({weather.dayOfWeek})
                           </div>
                         </div>
@@ -770,7 +775,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                             <div className="text-2xl mb-1">
                               {getWeatherIcon(weather.dayWeather?.icon as number, weather.dayWeather?.conditions as string)}
                             </div>
-                             <div className="text-sm font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] bg-black/20 backdrop-blur-sm rounded px-1.5 py-0.5">
+                             <div className="text-sm font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                                 ☔ {(weather.dayWeather?.precipitationProbability as number) || 0}%
                              </div>
                           </div>
@@ -790,7 +795,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                             return (
                               <div className="relative w-full flex flex-col items-center">
                                 {/* 최고 온도 표시 (컨테이너 위쪽 고정) */}
-                                <div className="font-bold text-sm bg-gradient-to-r from-red-300 to-orange-400 bg-clip-text text-transparent mb-2">
+                                <div className="font-bold text-sm text-white mb-2">
                                   {weather.highTemp}{getTemperatureUnit()}
                                 </div>
                                 
@@ -807,7 +812,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                                 </div>
                                 
                                 {/* 최저 온도 표시 (컨테이너 아래쪽 고정) */}
-                                <div className="font-bold text-sm bg-gradient-to-r from-blue-300 to-cyan-400 bg-clip-text text-transparent mt-2">
+                                <div className="font-bold text-sm text-white mt-2">
                                   {weather.lowTemp}{getTemperatureUnit()}
                                 </div>
                               </div>
@@ -822,7 +827,7 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                              <div className="text-2xl mb-1">
                                {getWeatherIcon(weather.nightWeather?.icon as number, weather.nightWeather?.conditions as string)}
                              </div>
-                             <div className="text-sm font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] bg-black/20 backdrop-blur-sm rounded px-1.5 py-0.5">
+                             <div className="text-sm font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                                ☔ {(weather.nightWeather?.precipitationProbability as number) || 0}%
                              </div>
                            </div>
