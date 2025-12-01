@@ -28,6 +28,15 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocationState] = useState<ClientUserLocation | null>(initialLocation || null);
+  
+  // 시간별 날씨 카드 수직 바 스타일 제어 state
+  const [hourlyBarWidth, setHourlyBarWidth] = useState(70); // 기본 너비 70px
+  const [hourlyBgOpacity, setHourlyBgOpacity] = useState(50); // 기본 50% 투명도
+  
+  // 일별 날씨 카드 수직 바 스타일 제어 state
+  const [dailyBarWidth, setDailyBarWidth] = useState(96); // 기본 너비 96px
+  const [dailyBgOpacity, setDailyBgOpacity] = useState(50); // 기본 50% 투명도
+  
   const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
   const [cacheClearing, setCacheClearing] = useState(false);
@@ -591,13 +600,69 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
           <div className="group relative">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 via-emerald-400 to-green-600 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
             <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl hover:shadow-emerald-500/25 transition-all duration-500 hover:scale-[1.02]">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
-                  ⏰
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                    ⏰
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">{location} - 시간별 날씨</h3>
+                    <p className="text-emerald-200 text-sm font-medium">24시간 시간별 예보</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">{location} - 시간별 날씨</h3>
-                  <p className="text-emerald-200 text-sm font-medium">24시간 시간별 예보</p>
+                
+                {/* 컨트롤 버튼들 */}
+                <div className="flex flex-col gap-3">
+                  {/* 너비 조절 */}
+                  <div className="flex items-center gap-2 bg-white/10 rounded-lg p-2 backdrop-blur-sm">
+                    <span className="text-xs text-white/80 font-medium">너비:</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                      onClick={() => setHourlyBarWidth(prev => Math.max(50, prev - 10))}
+                    >
+                      -
+                    </Button>
+                    <span className="text-xs text-white font-mono min-w-[60px] text-center">
+                      {hourlyBarWidth}px
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                      onClick={() => setHourlyBarWidth(prev => Math.min(150, prev + 10))}
+                    >
+                      +
+                    </Button>
+                  </div>
+                  
+                  {/* 배경 밝기 조절 */}
+                  <div 
+                    className="flex items-center gap-2 rounded-lg p-2 backdrop-blur-sm"
+                    style={{ backgroundColor: `rgba(255, 255, 255, ${hourlyBgOpacity / 400})` }}
+                  >
+                    <span className="text-xs text-white/80 font-medium">밝기:</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                      onClick={() => setHourlyBgOpacity(prev => Math.max(20, prev - 10))}
+                    >
+                      -
+                    </Button>
+                    <span className="text-xs text-white font-mono min-w-[60px] text-center">
+                      {hourlyBgOpacity}%
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                      onClick={() => setHourlyBgOpacity(prev => Math.min(90, prev + 10))}
+                    >
+                      +
+                    </Button>
+                  </div>
                 </div>
               </div>
               <div className="min-h-[300px]">
@@ -631,8 +696,12 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                     {hourlyData.slice(0, 24).map((weather, index) => (
                       <div 
                         key={index} 
-                        className="backdrop-blur-sm bg-gray-500/50 border border-emerald-300/30 rounded-xl p-2.5 hover:shadow-lg hover:shadow-emerald-400/25 transition-all duration-300 hover:scale-105 flex flex-col flex-shrink-0 w-[70px] h-[220px] hover:border-emerald-400/50"
-                        style={{ userSelect: 'none' }}
+                        className="backdrop-blur-sm border border-emerald-300/30 rounded-xl p-2.5 hover:shadow-lg hover:shadow-emerald-400/25 transition-all duration-300 hover:scale-105 flex flex-col flex-shrink-0 h-[220px] hover:border-emerald-400/50"
+                        style={{ 
+                          userSelect: 'none',
+                          width: `${hourlyBarWidth}px`,
+                          backgroundColor: `rgba(107, 114, 128, ${hourlyBgOpacity / 100})`
+                        }}
                       >
                         {/* 시간 표시 */}
                         <div className="text-center border-b border-emerald-300/30 mb-2 pb-1.5">
@@ -678,17 +747,73 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
           <div className="group relative">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-400 via-rose-400 to-pink-600 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
             <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl hover:shadow-pink-500/25 transition-all duration-500 hover:scale-[1.02]">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center shadow-lg">
-                  📅
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center shadow-lg">
+                    📅
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">{location} - 일별 날씨 ({dailyData.length}일간)</h3>
+                    <p className="text-pink-200 text-sm font-medium">
+                      {dailyData.length > 7 ? '장기 예보입니다. 날짜가 멀수록 정확도가 낮아질 수 있습니다.' : 'AccuWeather 제공 일별 예보'}
+                    </p>
+                    <div className="mt-1 text-xs text-white/70">
+                      온도 범위: {minTemp}{getTemperatureUnit()} ~ {maxTemp}{getTemperatureUnit()}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">{location} - 일별 날씨 ({dailyData.length}일간)</h3>
-                  <p className="text-pink-200 text-sm font-medium">
-                    {dailyData.length > 7 ? '장기 예보입니다. 날짜가 멀수록 정확도가 낮아질 수 있습니다.' : 'AccuWeather 제공 일별 예보'}
-                  </p>
-                  <div className="mt-1 text-xs text-white/70">
-                    온도 범위: {minTemp}{getTemperatureUnit()} ~ {maxTemp}{getTemperatureUnit()}
+                
+                {/* 컨트롤 버튼들 */}
+                <div className="flex flex-col gap-3">
+                  {/* 너비 조절 */}
+                  <div className="flex items-center gap-2 bg-white/10 rounded-lg p-2 backdrop-blur-sm">
+                    <span className="text-xs text-white/80 font-medium">너비:</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                      onClick={() => setDailyBarWidth(prev => Math.max(70, prev - 10))}
+                    >
+                      -
+                    </Button>
+                    <span className="text-xs text-white font-mono min-w-[60px] text-center">
+                      {dailyBarWidth}px
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                      onClick={() => setDailyBarWidth(prev => Math.min(200, prev + 10))}
+                    >
+                      +
+                    </Button>
+                  </div>
+                  
+                  {/* 배경 밝기 조절 */}
+                  <div 
+                    className="flex items-center gap-2 rounded-lg p-2 backdrop-blur-sm"
+                    style={{ backgroundColor: `rgba(255, 255, 255, ${dailyBgOpacity / 400})` }}
+                  >
+                    <span className="text-xs text-white/80 font-medium">밝기:</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                      onClick={() => setDailyBgOpacity(prev => Math.max(20, prev - 10))}
+                    >
+                      -
+                    </Button>
+                    <span className="text-xs text-white font-mono min-w-[60px] text-center">
+                      {dailyBgOpacity}%
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                      onClick={() => setDailyBgOpacity(prev => Math.min(90, prev + 10))}
+                    >
+                      +
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -750,8 +875,12 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
                     {dailyData.map((weather, index) => (
                       <div 
                         key={index} 
-                        className="backdrop-blur-sm bg-gray-500/50 border border-pink-300/30 rounded-xl p-3 hover:shadow-lg hover:shadow-pink-400/25 transition-all duration-300 hover:scale-105 flex flex-col flex-shrink-0 w-[96px] h-[570px] hover:border-pink-400/50"
-                        style={{ userSelect: 'none' }}
+                        className="backdrop-blur-sm border border-pink-300/30 rounded-xl p-3 hover:shadow-lg hover:shadow-pink-400/25 transition-all duration-300 hover:scale-105 flex flex-col flex-shrink-0 h-[570px] hover:border-pink-400/50"
+                        style={{ 
+                          userSelect: 'none',
+                          width: `${dailyBarWidth}px`,
+                          backgroundColor: `rgba(107, 114, 128, ${dailyBgOpacity / 100})`
+                        }}
                       >
                         {/* 헤더: 날짜와 요일 */}
                         <div className="text-center border-b border-pink-300/30 mb-2 pb-1.5">
