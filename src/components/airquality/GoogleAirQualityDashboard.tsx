@@ -30,11 +30,11 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
   const [userLocation, setUserLocationState] = useState<ClientUserLocation | null>(initialLocation || null);
   
   // 수직 바 스타일 제어 state
-  const [barWidth, setBarWidth] = useState(80); // 기본 너비 80px
-  const [backgroundOpacity, setBackgroundOpacity] = useState(40); // 기본 40% 투명도
+  const [barWidth, setBarWidth] = useState(90); // 기본 너비 90px
+  const [backgroundOpacity, setBackgroundOpacity] = useState(30); // 기본 30% 투명도
   
   // 현재 대기질 카드 배경 밝기 제어 state
-  const [currentAirBgOpacity, setCurrentAirBgOpacity] = useState(40); // 기본 40% 투명도
+  const [currentAirBgOpacity, setCurrentAirBgOpacity] = useState(30); // 기본 30% 투명도
   const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
 
@@ -295,7 +295,10 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
                   </div>
                   
                   {/* 배경 밝기 조절 컨트롤 */}
-                  <div className="flex items-center gap-2 bg-white/10 rounded-lg p-2 backdrop-blur-sm">
+                  <div 
+                    className="flex items-center gap-2 rounded-lg p-2 backdrop-blur-sm"
+                    style={{ backgroundColor: `rgba(255, 255, 255, ${currentAirBgOpacity / 400})` }}
+                  >
                     <span className="text-xs text-white/80 font-medium">밝기:</span>
                     <Button
                       size="sm"
@@ -455,7 +458,10 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
                     </div>
                     
                     {/* 배경 밝기 조절 */}
-                    <div className="flex items-center gap-2 bg-white/10 rounded-lg p-2 backdrop-blur-sm">
+                    <div 
+                      className="flex items-center gap-2 rounded-lg p-2 backdrop-blur-sm"
+                      style={{ backgroundColor: `rgba(255, 255, 255, ${backgroundOpacity / 400})` }}
+                    >
                       <span className="text-xs text-white/80 font-medium">밝기:</span>
                       <Button
                         size="sm"
