@@ -28,6 +28,13 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocationState] = useState<ClientUserLocation | null>(initialLocation || null);
+  
+  // 수직 바 스타일 제어 state
+  const [barWidth, setBarWidth] = useState(80); // 기본 너비 80px
+  const [backgroundOpacity, setBackgroundOpacity] = useState(40); // 기본 40% 투명도
+  
+  // 현재 대기질 카드 배경 밝기 제어 state
+  const [currentAirBgOpacity, setCurrentAirBgOpacity] = useState(40); // 기본 40% 투명도
   const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
 
@@ -272,22 +279,51 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
             <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-3xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
             <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl shadow-2xl hover:shadow-emerald-500/25 transition-all duration-500">
               <div className="p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-                    🌡️
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+                      🌡️
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold bg-gradient-to-r from-white via-emerald-200 to-emerald-400 bg-clip-text text-transparent">
+                        현재 대기질 정보
+                      </h3>
+                      <p className="text-emerald-200 mt-1 font-medium">
+                        Google Air Quality API를 통한 실시간 대기질 데이터
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-2xl font-bold bg-gradient-to-r from-white via-emerald-200 to-emerald-400 bg-clip-text text-transparent">
-                      현재 대기질 정보
-                    </h3>
-                    <p className="text-emerald-200 mt-1 font-medium">
-                      Google Air Quality API를 통한 실시간 대기질 데이터
-                    </p>
+                  
+                  {/* 배경 밝기 조절 컨트롤 */}
+                  <div className="flex items-center gap-2 bg-white/10 rounded-lg p-2 backdrop-blur-sm">
+                    <span className="text-xs text-white/80 font-medium">밝기:</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                      onClick={() => setCurrentAirBgOpacity(prev => Math.max(20, prev - 10))}
+                    >
+                      -
+                    </Button>
+                    <span className="text-xs text-white font-mono min-w-[60px] text-center">
+                      {currentAirBgOpacity}%
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                      onClick={() => setCurrentAirBgOpacity(prev => Math.min(90, prev + 10))}
+                    >
+                      +
+                    </Button>
                   </div>
                 </div>
                 
                 <div className="max-w-2xl mx-auto">
-                  <div className="backdrop-blur-lg bg-gray-700/60 border border-white/30 rounded-2xl p-6 shadow-xl">
+                  <div 
+                    className="backdrop-blur-lg border border-white/30 rounded-2xl p-6 shadow-xl"
+                    style={{ backgroundColor: `rgba(55, 65, 81, ${currentAirBgOpacity / 100})` }}
+                  >
                     <div className="space-y-6">
                       <div className="text-center border-b border-white/30 pb-4">
                         <h4 className="text-xl font-bold text-white">현재 대기질</h4>
@@ -377,17 +413,70 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
             <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-3xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
             <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl shadow-2xl hover:shadow-cyan-500/25 transition-all duration-500">
               <div className="p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-                    🌬️
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+                      🌬️
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
+                        시간별 대기질 예보
+                      </h3>
+                      <p className="text-cyan-200 mt-1 font-medium">
+                        향후 12시간 시간별 대기질 변화 예측
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-2xl font-bold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-                      시간별 대기질 예보
-                    </h3>
-                    <p className="text-cyan-200 mt-1 font-medium">
-                      향후 12시간 시간별 대기질 변화 예측
-                    </p>
+                  
+                  {/* 컨트롤 버튼들 */}
+                  <div className="flex flex-col gap-3">
+                    {/* 너비 조절 */}
+                    <div className="flex items-center gap-2 bg-white/10 rounded-lg p-2 backdrop-blur-sm">
+                      <span className="text-xs text-white/80 font-medium">너비:</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                        onClick={() => setBarWidth(prev => Math.max(60, prev - 10))}
+                      >
+                        -
+                      </Button>
+                      <span className="text-xs text-white font-mono min-w-[60px] text-center">
+                        {barWidth}px
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                        onClick={() => setBarWidth(prev => Math.min(200, prev + 10))}
+                      >
+                        +
+                      </Button>
+                    </div>
+                    
+                    {/* 배경 밝기 조절 */}
+                    <div className="flex items-center gap-2 bg-white/10 rounded-lg p-2 backdrop-blur-sm">
+                      <span className="text-xs text-white/80 font-medium">밝기:</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                        onClick={() => setBackgroundOpacity(prev => Math.max(20, prev - 10))}
+                      >
+                        -
+                      </Button>
+                      <span className="text-xs text-white font-mono min-w-[60px] text-center">
+                        {backgroundOpacity}%
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                        onClick={() => setBackgroundOpacity(prev => Math.min(90, prev + 10))}
+                      >
+                        +
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 
@@ -427,21 +516,19 @@ export function GoogleAirQualityDashboard({ className, initialLocation }: Google
                             key={index} 
                             className={`${
                               isNow 
-                                ? 'backdrop-blur-lg bg-gray-500/50 border border-yellow-300/40 shadow-xl hover:shadow-yellow-400/30' 
-                                : 'backdrop-blur-lg bg-gray-500/50 border border-white/30 hover:border-cyan-300/50'
-                            } rounded-2xl p-4 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] flex flex-col flex-shrink-0 w-[100px] h-[290px] group/card`}
-                            style={{ userSelect: 'none' }}
+                                ? 'backdrop-blur-lg border border-yellow-300/40 shadow-xl hover:shadow-yellow-400/30' 
+                                : 'backdrop-blur-lg border border-white/30 hover:border-cyan-300/50'
+                            } rounded-2xl p-4 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] flex flex-col flex-shrink-0 h-[350px] group/card`}
+                            style={{ 
+                              userSelect: 'none',
+                              width: `${barWidth}px`,
+                              backgroundColor: `rgba(107, 114, 128, ${backgroundOpacity / 100})`
+                            }}
                           >
                             {/* 시간 표시 */}
                             <div className={`text-center border-b ${isNow ? 'border-yellow-300/40' : 'border-white/30'} mb-3 pb-2`}>
                               <div className={`font-bold text-xs ${isNow ? 'text-yellow-100' : 'text-white'}`}>
                                 {hour}시
-                                {isNow && (
-                                  <div className="inline-flex items-center gap-1 ml-2">
-                                    <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
-                                    <span className="text-xs text-yellow-300">현재</span>
-                                  </div>
-                                )}
                               </div>
                             </div>
                             
