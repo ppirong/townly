@@ -67,28 +67,23 @@ export function AirQuality96HourChart({ data }: AirQuality96HourChartProps) {
     <Card>
       <CardHeader>
         <div className="flex flex-col gap-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                90시간 대기질 예보
-                {data.length < 90 && (
-                  <Badge variant="outline" className="text-xs">
-                    {data.length}시간 데이터
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription className="mt-1">
-                {format(new Date(data[0].dateTime), 'M월 d일 HH:mm', { locale: ko })} ~ 
-                {format(new Date(data[data.length - 1].dateTime), 'M월 d일 HH:mm', { locale: ko })}
-              </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Badge variant="secondary">
-                평균 PM2.5: {avgPm25}㎍/㎥
-              </Badge>
-              <Badge variant="secondary">
-                평균 PM10: {avgPm10}㎍/㎥
-              </Badge>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="flex-1">
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span>90시간 대기질 예보</span>
+                  {data.length < 90 && (
+                    <Badge variant="outline" className="text-xs w-fit">
+                      {data.length}시간 데이터
+                    </Badge>
+                  )}
+                </CardTitle>
+                <CardDescription className="mt-1 text-sm">
+                  {format(new Date(data[0].dateTime), 'M월 d일 HH:mm', { locale: ko })} ~ 
+                  {format(new Date(data[data.length - 1].dateTime), 'M월 d일 HH:mm', { locale: ko })}
+                </CardDescription>
+              </div>
+              
             </div>
           </div>
           
@@ -104,25 +99,25 @@ export function AirQuality96HourChart({ data }: AirQuality96HourChartProps) {
       </CardHeader>
       <CardContent>
         {/* 통계 요약 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-muted rounded-lg p-3">
-            <p className="text-xs text-muted-foreground">PM2.5 평균</p>
-            <p className="text-2xl font-bold">{avgPm25}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          <div className="bg-muted rounded-lg p-3 text-center">
+            <p className="text-xs text-muted-foreground mb-1">PM2.5 평균</p>
+            <p className="text-xl sm:text-2xl font-bold">{avgPm25}</p>
             <p className="text-xs text-muted-foreground">㎍/㎥</p>
           </div>
-          <div className="bg-muted rounded-lg p-3">
-            <p className="text-xs text-muted-foreground">PM2.5 최대</p>
-            <p className="text-2xl font-bold text-orange-600">{maxPm25}</p>
+          <div className="bg-muted rounded-lg p-3 text-center">
+            <p className="text-xs text-muted-foreground mb-1">PM2.5 최대</p>
+            <p className="text-xl sm:text-2xl font-bold text-orange-600">{maxPm25}</p>
             <p className="text-xs text-muted-foreground">㎍/㎥</p>
           </div>
-          <div className="bg-muted rounded-lg p-3">
-            <p className="text-xs text-muted-foreground">PM10 평균</p>
-            <p className="text-2xl font-bold">{avgPm10}</p>
+          <div className="bg-muted rounded-lg p-3 text-center">
+            <p className="text-xs text-muted-foreground mb-1">PM10 평균</p>
+            <p className="text-xl sm:text-2xl font-bold">{avgPm10}</p>
             <p className="text-xs text-muted-foreground">㎍/㎥</p>
           </div>
-          <div className="bg-muted rounded-lg p-3">
-            <p className="text-xs text-muted-foreground">PM10 최대</p>
-            <p className="text-2xl font-bold text-orange-600">{maxPm10}</p>
+          <div className="bg-muted rounded-lg p-3 text-center">
+            <p className="text-xs text-muted-foreground mb-1">PM10 최대</p>
+            <p className="text-xl sm:text-2xl font-bold text-orange-600">{maxPm10}</p>
             <p className="text-xs text-muted-foreground">㎍/㎥</p>
           </div>
         </div>
@@ -236,24 +231,24 @@ export function AirQuality96HourChart({ data }: AirQuality96HourChartProps) {
         </div>
 
         {/* 스크롤 안내 */}
-        <div className="flex items-center justify-center gap-2 mt-2 text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mt-2 text-xs sm:text-sm text-muted-foreground text-center">
           <div className="flex items-center gap-1">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
             </svg>
-            <span>좌우 스크롤하여 전체 90시간 데이터 확인</span>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span className="whitespace-nowrap">좌우 스크롤하여 전체 90시간 데이터 확인</span>
+            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
           </div>
         </div>
 
         {/* 범례 설명 */}
-        <div className="mt-4 text-xs text-muted-foreground space-y-1">
-          <p>• PM2.5: 지름 2.5㎛ 이하의 초미세먼지 (파란색 실선)</p>
-          <p>• PM10: 지름 10㎛ 이하의 미세먼지 (초록색 실선)</p>
-          <p>• AQI: 대기질 지수 (보라색 점선)</p>
-          <p>• 시간 축 표시: 날짜 변경 시 날짜 표시, 3시간마다 시간 표시</p>
+        <div className="mt-4 text-xs text-muted-foreground space-y-1 leading-relaxed">
+          <p>• <span className="font-medium">PM2.5:</span> 지름 2.5㎛ 이하의 초미세먼지 (파란색 실선)</p>
+          <p>• <span className="font-medium">PM10:</span> 지름 10㎛ 이하의 미세먼지 (초록색 실선)</p>
+          <p>• <span className="font-medium">AQI:</span> 대기질 지수 (보라색 점선)</p>
+          <p>• <span className="font-medium">시간 축:</span> 날짜 변경 시 날짜 표시, 3시간마다 시간 표시</p>
           <p>• 그래프 너비는 데이터 개수에 비례하여 자동 조정됩니다</p>
           <p>• Google API 제한으로 최대 90시간 데이터를 표시합니다</p>
         </div>
