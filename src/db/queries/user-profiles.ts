@@ -65,6 +65,7 @@ export async function updateUserProfile(
     name: string;
     mobilePhone: string;
     imageUrl: string;
+    signupMethod: 'email' | 'kakao';
     preferences: any;
   }>
 ) {

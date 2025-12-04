@@ -3,12 +3,12 @@ import { Geist, Geist_Mono } from "next/font/google";
 import {
   ClerkProvider,
   SignedIn,
-  SignedOut,
 } from "@clerk/nextjs";
 import { koKR } from "@clerk/localizations";
 import Link from "next/link";
 import RoleBasedNavigation from "@/components/RoleBasedNavigation";
 import AuthButtons from "@/components/AuthButtons";
+import { KakaoAccountDetector } from "@/components/KakaoAccountDetector";
 import { clerkDarkAppearance } from "@/lib/clerk-appearance";
 import "./globals.css";
 
@@ -92,6 +92,9 @@ export default function RootLayout({
               </div>
             </div>
           </footer>
+          
+          {/* 카카오 계정 자동 감지 및 signup_method 수정 */}
+          <KakaoAccountDetector />
         </body>
       </html>
     </ClerkProvider>

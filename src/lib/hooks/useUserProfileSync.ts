@@ -1,7 +1,7 @@
 'use client';
 
 import { useUser } from '@clerk/nextjs';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface ProfileSyncStatus {
   isChecking: boolean;
@@ -25,13 +25,7 @@ export function useUserProfileSync() {
     lastChecked: null
   });
 
-  useEffect(() => {
-    if (isLoaded && user) {
-      checkAndCreateUserProfile();
-    }
-  }, [isLoaded, user]);
-
-  const checkAndCreateUserProfile = async () => {
+  const checkAndCreateUserProfile = useCallback(async () => {
     if (!user) return;
 
     setStatus(prev => ({ ...prev, isChecking: true, error: null }));
@@ -59,7 +53,10 @@ export function useUserProfileSync() {
         let signupMethod: 'email' | 'kakao' = 'email';
         if (user.externalAccounts && user.externalAccounts.length > 0) {
           const kakaoAccount = user.externalAccounts.find(account => 
-            String(account.provider) === 'oauth_kakao' || String(account.provider) === 'kakao'
+            String(account.provider) === 'oauth_kakao' || 
+            String(account.provider) === 'kakao' ||
+            String(account.provider) === 'oauth_custom_kakao' ||
+            String(account.provider).includes('kakao')
           );
           if (kakaoAccount) {
             signupMethod = 'kakao';
@@ -105,14 +102,20 @@ export function useUserProfileSync() {
         lastChecked: new Date()
       }));
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      checkAndCreateUserProfile();
+    }
+  }, [isLoaded, user, checkAndCreateUserProfile]);
 
   // 수동 재시도 함수
-  const retry = () => {
+  const retry = useCallback(() => {
     if (user && !status.isChecking && !status.isCreating) {
       checkAndCreateUserProfile();
     }
-  };
+  }, [user, status.isChecking, status.isCreating, checkAndCreateUserProfile]);
 
   return {
     ...status,
@@ -128,13 +131,7 @@ export function useUserProfileCheck() {
   const [hasProfile, setHasProfile] = useState<boolean | null>(null);
   const [isChecking, setIsChecking] = useState(false);
 
-  useEffect(() => {
-    if (isLoaded && user) {
-      checkProfile();
-    }
-  }, [isLoaded, user]);
-
-  const checkProfile = async () => {
+  const checkProfile = useCallback(async () => {
     if (!user) return;
 
     setIsChecking(true);
@@ -147,7 +144,13 @@ export function useUserProfileCheck() {
     } finally {
       setIsChecking(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      checkProfile();
+    }
+  }, [isLoaded, user, checkProfile]);
 
   return { hasProfile, isChecking, checkProfile };
 }

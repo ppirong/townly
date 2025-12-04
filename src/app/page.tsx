@@ -54,7 +54,7 @@ export default function Home() {
                     <button className="group relative bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 hover:from-yellow-300 hover:via-orange-400 hover:to-yellow-300 text-black font-bold text-lg px-10 py-5 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-yellow-500/50 active:scale-95">
                       <span className="relative z-10 flex items-center gap-3">
                         <span className="text-2xl">🔑</span>
-                        카카오로 시작하기
+                        지금 시작하기
                       </span>
                       <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </button>

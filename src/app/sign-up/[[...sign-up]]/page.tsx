@@ -88,23 +88,101 @@ function SignUpWithRoleHandler() {
 
       {/* Clerk 회원가입 컴포넌트 */}
       <SignUp
+        appearance={{
+          elements: {
+            card: "shadow-none border-none",
+            headerTitle: "hidden",
+            headerSubtitle: "hidden",
+            socialButtonsBlockButton: {
+              backgroundColor: "#FEE500",
+              color: "#000000",
+              border: "none",
+              borderRadius: "12px",
+              fontSize: "16px",
+              fontWeight: "600",
+              padding: "14px 20px",
+              "&:hover": {
+                backgroundColor: "#FDD800",
+                transform: "translateY(-1px)"
+              }
+            },
+            formButtonPrimary: {
+              backgroundColor: "#FEE500",
+              color: "#000000",
+              border: "none",
+              borderRadius: "12px",
+              fontSize: "16px",
+              fontWeight: "600",
+              padding: "14px 20px",
+              "&:hover": {
+                backgroundColor: "#FDD800",
+                transform: "translateY(-1px)"
+              }
+            },
+            dividerRow: "my-4",
+            dividerText: "또는",
+            footer: "hidden",
+            socialButtonsBlockButtonText: "text-black font-semibold"
+          },
+          variables: {
+            colorPrimary: "#FEE500",
+            borderRadius: "12px"
+          }
+        }}
         path="/sign-up"
         routing="path"
         signInUrl="/sign-in"
         redirectUrl="/"
         afterSignUpUrl="/"
       />
+      
+      {/* Features Highlight */}
+      <div className="mt-6 space-y-3">
+        <div className="flex items-center text-sm text-gray-600">
+          <span className="text-green-500 mr-2">✓</span>
+          실시간 날씨 & 미세먼지 알림
+        </div>
+        <div className="flex items-center text-sm text-gray-600">
+          <span className="text-green-500 mr-2">✓</span>
+          우리 동네 마트 할인 정보
+        </div>
+        <div className="flex items-center text-sm text-gray-600">
+          <span className="text-green-500 mr-2">✓</span>
+          카카오톡으로 편리한 알림
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function SignUpPage() {
   return (
-    <div className="flex justify-center items-center min-h-screen py-12">
-      <div className="w-full max-w-lg">
-        <Suspense fallback={<div>로딩 중...</div>}>
-          <SignUpWithRoleHandler />
-        </Suspense>
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
+      <div className="flex items-center justify-center min-h-screen px-4 py-12">
+        <div className="max-w-md w-full space-y-8">
+          {/* Logo and Header */}
+          <div className="text-center">
+            <div className="mx-auto h-20 w-20 bg-yellow-400 rounded-full flex items-center justify-center mb-6">
+              <span className="text-3xl">🏘️</span>
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              Townly
+            </h1>
+            <h2 className="text-xl text-gray-700 mb-2">
+              새로운 여정을 시작하세요!
+            </h2>
+            <p className="text-gray-600">
+              카카오 계정 또는 이메일로 간편하게 가입하세요
+            </p>
+          </div>
+
+          {/* Signup Card */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <Suspense fallback={<div className="text-center">로딩 중...</div>}>
+              <SignUpWithRoleHandler />
+            </Suspense>
+          </div>
+        </div>
       </div>
     </div>
   );

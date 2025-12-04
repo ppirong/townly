@@ -18,7 +18,7 @@ export default function SignInPage() {
               다시 오신 것을 환영합니다!
             </h2>
             <p className="text-gray-600">
-              카카오 계정으로 간편하게 로그인하세요
+              카카오 계정 또는 이메일로 간편하게 로그인하세요
             </p>
           </div>
 
@@ -43,8 +43,21 @@ export default function SignInPage() {
                       transform: "translateY(-1px)"
                     }
                   },
-                  formButtonPrimary: "hidden",
-                  dividerRow: "hidden",
+                  formButtonPrimary: {
+                    backgroundColor: "#FEE500",
+                    color: "#000000",
+                    border: "none",
+                    borderRadius: "12px",
+                    fontSize: "16px",
+                    fontWeight: "600",
+                    padding: "14px 20px",
+                    "&:hover": {
+                      backgroundColor: "#FDD800",
+                      transform: "translateY(-1px)"
+                    }
+                  },
+                  dividerRow: "my-4",
+                  dividerText: "또는",
                   footer: "hidden",
                   socialButtonsBlockButtonText: "text-black font-semibold"
                 },

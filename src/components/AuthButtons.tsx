@@ -55,7 +55,7 @@ export default function AuthButtons() {
   if (!isSignedIn) {
     return (
       <div className="flex items-center gap-2">
-        {/* 카카오 세션 정리 버튼 (항상 표시) */}
+        {/* 카카오 세션 정리 버튼 (선택적 표시) */}
         <div className="relative">
           <KakaoLogoutButton className="text-xs text-gray-400 hover:text-gray-600 underline">
             다른 카카오 계정
@@ -65,36 +65,39 @@ export default function AuthButtons() {
         {/* 구분선 */}
         <div className="text-gray-400 text-xs">|</div>
         
-        {/* 로그인 버튼 */}
-        <div className="relative group">
-          <KakaoLoginButton 
-            mode="sign-in"
-            className="bg-transparent border border-gray-600 hover:bg-gray-700 hover:text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+        {/* 로그인 버튼 - Clerk 다이얼로그 */}
+        <SignInButton mode="modal">
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="bg-transparent border border-gray-600 hover:bg-gray-700 hover:text-white px-3 py-1 rounded text-sm"
           >
-            <span>로그인</span>
-          </KakaoLoginButton>
-        </div>
+            로그인
+          </Button>
+        </SignInButton>
         
-        {/* 회원가입 버튼 */}
-        <div className="relative group">
-          <KakaoLoginButton 
-            mode="sign-up"
-            className="bg-yellow-400 hover:bg-yellow-300 text-black px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1"
+        {/* 회원가입 버튼 - Clerk 다이얼로그 */}
+        <SignUpButton mode="modal">
+          <Button 
+            size="sm"
+            className="bg-yellow-400 hover:bg-yellow-300 text-black px-3 py-1 rounded text-sm font-medium transition-colors"
           >
-            <span>👤 회원가입</span>
-          </KakaoLoginButton>
-        </div>
+            👤 회원가입
+          </Button>
+        </SignUpButton>
         
-        {/* 관리자 회원가입 버튼 */}
-        <div className="relative group">
-          <KakaoLoginButton 
-            mode="sign-up"
-            isAdmin={true}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1"
-          >
-            <span>🛡️ 관리자회원가입</span>
-          </KakaoLoginButton>
-        </div>
+        {/* 관리자 회원가입 버튼 - 페이지 이동 */}
+        <Button 
+          size="sm"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+          onClick={() => {
+            // 관리자 회원가입 플래그 설정 후 회원가입 페이지로 이동
+            localStorage.setItem("registerAsAdmin", "true");
+            window.location.href = "/sign-up?role=admin";
+          }}
+        >
+          🛡️ 관리자회원가입
+        </Button>
       </div>
     );
   }

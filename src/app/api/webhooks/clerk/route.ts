@@ -91,13 +91,16 @@ export async function POST(req: NextRequest) {
         const kakaoAccount = external_accounts.find((account: any) => 
           String(account.provider) === 'oauth_kakao' || 
           String(account.provider) === 'kakao' ||
+          String(account.provider) === 'oauth_custom_kakao' ||
           String(account.provider_slug) === 'oauth_kakao' ||
-          String(account.provider_slug) === 'kakao'
+          String(account.provider_slug) === 'kakao' ||
+          String(account.provider_slug) === 'oauth_custom_kakao' ||
+          String(account.provider).includes('kakao')
         );
         
         if (kakaoAccount) {
           signupMethod = 'kakao';
-          console.log('카카오 회원가입 감지됨');
+          console.log('카카오 회원가입 감지됨:', kakaoAccount.provider);
         }
       }
       
