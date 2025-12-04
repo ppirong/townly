@@ -5,6 +5,7 @@ import WelcomeDashboard from "@/components/WelcomeDashboard";
 import { clerkDarkAppearance } from "@/lib/clerk-appearance";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { KakaoLogoutButton } from "@/components/KakaoLoginButton";
 
 export default function Home() {
   
@@ -59,7 +60,7 @@ export default function Home() {
                     </button>
                   </SignInButton>
                   
-                  <div className="mt-6 space-y-2">
+                  <div className="mt-6 space-y-4">
                     <p className="text-sm text-white/70 font-medium flex items-center justify-center gap-4">
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
@@ -74,6 +75,19 @@ export default function Home() {
                         언제든 해지 가능
                       </span>
                     </p>
+                    
+                    {/* 카카오 계정 변경 안내 */}
+                    <div className="backdrop-blur-sm bg-yellow-500/20 border border-yellow-400/30 rounded-xl p-4 max-w-md mx-auto">
+                      <div className="text-center space-y-2">
+                        <p className="text-sm text-yellow-200 font-medium">
+                          🔄 다른 카카오 계정으로 로그인하시나요?
+                        </p>
+                        <KakaoLogoutButton className="text-xs text-yellow-300 hover:text-yellow-100 underline underline-offset-2 transition-colors">
+                          먼저 여기를 클릭하여 카카오에서 로그아웃하세요
+                        </KakaoLogoutButton>
+                      </div>
+                    </div>
+                    
                     <p className="text-xs text-white/60">
                       가입 시 <Link href="/privacy-policy" className="text-blue-300 hover:text-blue-200 underline underline-offset-2 transition-colors">개인정보처리방침</Link>에 동의하는 것으로 간주됩니다.
                     </p>

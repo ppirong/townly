@@ -2,16 +2,23 @@
 
 import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { clerkDarkAppearance } from "@/lib/clerk-appearance";
 import { useUserRole } from "@/hooks/useUserRole";
+import { KakaoLoginButton, KakaoLogoutButton } from "@/components/KakaoLoginButton";
+import { KakaoLogoutMenu } from "@/components/KakaoLogoutMenu";
 
 /**
  * 로그인/회원가입/관리자회원가입 버튼 컴포넌트
+ * 
+ * 🔧 2024-12 업데이트: 카카오 자동 로그인 문제 해결
+ * - 기존 Clerk 기본 버튼 대신 커스텀 카카오 로그인 버튼 사용
+ * - 카카오 세션 정리 기능 추가
  */
 export default function AuthButtons() {
   const { user } = useUser();
   const { isAdmin, isLoading, isSignedIn } = useUserRole();
+  const [showKakaoLogout, setShowKakaoLogout] = useState(false);
   
   
   // 회원가입 완료 시 관리자 등록 처리
@@ -48,30 +55,46 @@ export default function AuthButtons() {
   if (!isSignedIn) {
     return (
       <div className="flex items-center gap-2">
-        <SignInButton mode="modal">
-          <button className="bg-transparent border border-gray-600 hover:bg-gray-700 hover:text-white px-3 py-1 rounded text-sm">
-            로그인
-          </button>
-        </SignInButton>
+        {/* 카카오 세션 정리 버튼 (항상 표시) */}
+        <div className="relative">
+          <KakaoLogoutButton className="text-xs text-gray-400 hover:text-gray-600 underline">
+            다른 카카오 계정
+          </KakaoLogoutButton>
+        </div>
         
-        <SignUpButton mode="modal">
-          <button className="bg-yellow-400 hover:bg-yellow-300 text-black px-3 py-1 rounded text-sm font-medium transition-colors">
-            👤 회원가입
-          </button>
-        </SignUpButton>
+        {/* 구분선 */}
+        <div className="text-gray-400 text-xs">|</div>
         
-        <SignUpButton mode="modal">
-          <button 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-            onClick={() => {
-              console.log("🔴 관리자회원가입 버튼 클릭됨");
-              // 관리자 회원가입 버튼 클릭 시 localStorage에 플래그 저장
-              localStorage.setItem("registerAsAdmin", "true");
-            }}
+        {/* 로그인 버튼 */}
+        <div className="relative group">
+          <KakaoLoginButton 
+            mode="sign-in"
+            className="bg-transparent border border-gray-600 hover:bg-gray-700 hover:text-white px-3 py-1 rounded text-sm flex items-center gap-1"
           >
-            🛡️ 관리자회원가입
-          </button>
-        </SignUpButton>
+            <span>로그인</span>
+          </KakaoLoginButton>
+        </div>
+        
+        {/* 회원가입 버튼 */}
+        <div className="relative group">
+          <KakaoLoginButton 
+            mode="sign-up"
+            className="bg-yellow-400 hover:bg-yellow-300 text-black px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1"
+          >
+            <span>👤 회원가입</span>
+          </KakaoLoginButton>
+        </div>
+        
+        {/* 관리자 회원가입 버튼 */}
+        <div className="relative group">
+          <KakaoLoginButton 
+            mode="sign-up"
+            isAdmin={true}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1"
+          >
+            <span>🛡️ 관리자회원가입</span>
+          </KakaoLoginButton>
+        </div>
       </div>
     );
   }
@@ -79,7 +102,7 @@ export default function AuthButtons() {
   // 로그인한 경우 사용자 버튼 표시
   return (
     <div className="flex items-center gap-2">
-      <UserButton afterSignOutUrl="/">
+      <UserButton afterSignOutUrl="/" appearance={{ elements: { userButtonTrigger: "hidden" } }}>
         <UserButton.MenuItems>
           {isAdmin && (
             <UserButton.Action
@@ -90,6 +113,23 @@ export default function AuthButtons() {
           )}
         </UserButton.MenuItems>
       </UserButton>
+      
+      {/* 커스텀 사용자 메뉴 */}
+      <div className="relative">
+        <KakaoLogoutMenu>
+          <button className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+            <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center text-xs font-bold text-black">
+              {user?.firstName?.[0] || user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() || "U"}
+            </div>
+            <span className="hidden sm:inline">
+              {user?.firstName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || "사용자"}
+            </span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </KakaoLogoutMenu>
+      </div>
     </div>
   );
 }

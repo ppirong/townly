@@ -36,7 +36,10 @@ export async function getUserRole(userId: string) {
  * @param userId Clerk 사용자 ID
  * @param role 역할 ('customer' 또는 'admin')
  */
-export async function setUserRole(userId: string, role: "customer" | "admin") {
+export async function setUserRole(
+  userId: string, 
+  role: "customer" | "admin"
+) {
   console.log("🟠 setUserRole 함수 호출됨:", { userId, role });
   
   if (!userId) {

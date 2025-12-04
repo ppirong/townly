@@ -9,6 +9,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { SignInButton } from '@clerk/nextjs';
 import { ChevronDown, LogIn, UserPlus, ShieldCheck } from 'lucide-react';
+import { clearKakaoSessionForSignup } from '@/lib/utils/kakao-session-cleaner';
 
 export function AuthMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -44,7 +45,11 @@ export function AuthMenu() {
               <button
                 className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 role="menuitem"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={async () => {
+                  console.log("👤 회원가입 메뉴 클릭됨 - 카카오 세션 자동 정리 시작");
+                  await clearKakaoSessionForSignup();
+                  setIsMenuOpen(false);
+                }}
               >
                 <UserPlus className="mr-2 h-4 w-4" />
                 회원가입
@@ -55,7 +60,11 @@ export function AuthMenu() {
               <button
                 className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 role="menuitem"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={async () => {
+                  console.log("🛡️ 관리자회원가입 메뉴 클릭됨 - 카카오 세션 자동 정리 시작");
+                  await clearKakaoSessionForSignup();
+                  setIsMenuOpen(false);
+                }}
               >
                 <ShieldCheck className="mr-2 h-4 w-4" />
                 관리자 회원가입

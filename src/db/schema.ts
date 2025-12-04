@@ -58,9 +58,10 @@ export const userProfiles = pgTable('user_profiles', {
   id: uuid('id').defaultRandom().primaryKey(),
   clerkUserId: text('clerk_user_id').notNull().unique(),
   email: text('email').notNull(),
-  firstName: text('first_name'),
-  lastName: text('last_name'),
+  name: text('name'), // first_name, last_name을 통합한 이름 필드
+  mobilePhone: text('mobile_phone'), // 휴대폰 번호
   imageUrl: text('image_url'),
+  signupMethod: text('signup_method').default('email').notNull(), // 'email' 또는 'kakao'
   preferences: jsonb('preferences'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -382,7 +383,7 @@ export const vectorStore = pgTable('vector_store', {
 export const userRoles = pgTable('user_roles', {
   id: uuid('id').defaultRandom().primaryKey(),
   clerkUserId: text('clerk_user_id').notNull().unique(),
-  role: text('role').default('user').notNull(), // user, admin, superadmin
+  role: text('role').default('customer').notNull(), // customer, admin
   permissions: jsonb('permissions'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
