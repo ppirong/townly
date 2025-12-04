@@ -202,8 +202,8 @@ export async function POST(req: NextRequest) {
       console.error('❌ 사용자 역할 설정 실패:', error);
       console.error('오류 상세:', {
         userId,
-        error: error.message,
-        stack: error.stack
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
       });
       
       // Debug logging removed for production

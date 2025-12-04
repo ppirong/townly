@@ -93,20 +93,21 @@ export async function getClaudeResponse(userMessage: string, systemPrompt?: stri
     console.error('Claude API 호출 중 오류:', error);
     
     // 에러 유형별 처리
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     if (error instanceof Error) {
-      if (error.message.includes('API key') || error.message.includes('authentication')) {
+      if (errorMessage.includes('API key') || errorMessage.includes('authentication')) {
         return '죄송합니다. 현재 AI 서비스 설정에 문제가 있습니다. 관리자에게 문의해주세요.';
       }
       
-      if (error.message.includes('rate limit') || error.message.includes('quota')) {
+      if (errorMessage.includes('rate limit') || errorMessage.includes('quota')) {
         return '죄송합니다. 현재 AI 서비스 사용량이 초과되었습니다. 잠시 후 다시 시도해주세요.';
       }
       
-      if (error.message.includes('timeout')) {
+      if (errorMessage.includes('timeout')) {
         return '응답 처리 시간이 초과되었습니다. 좀 더 간단한 질문으로 다시 시도해주세요.';
       }
 
-      if (error.message.includes('overloaded')) {
+      if (errorMessage.includes('overloaded')) {
         return '죄송합니다. 현재 AI 서비스가 과부하 상태입니다. 잠시 후 다시 시도해주세요.';
       }
     }

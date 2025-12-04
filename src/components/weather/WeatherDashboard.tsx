@@ -263,10 +263,11 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
     } catch (error: any) {
       console.error('API 새로고침 실패:', error);
       
-      if (error.message?.includes('한도')) {
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+      if (errorMessage.includes('한도')) {
         setError('⏰ API 호출 한도가 초과되었습니다. 잠시 후 다시 시도해주세요.');
       } else {
-        setError(`날씨 데이터 새로고침에 실패했습니다: ${error.message}`);
+        setError(`날씨 데이터 새로고침에 실패했습니다: ${errorMessage}`);
       }
     } finally {
       setApiRefreshing(false);
