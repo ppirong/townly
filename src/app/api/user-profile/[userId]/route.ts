@@ -50,7 +50,7 @@ export async function GET(
     console.error('❌ 사용자 프로필 조회 실패:', error);
     return NextResponse.json({
       error: 'Internal server error',
-      message: error.message
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
     }, { status: 500 });
   }
 }
