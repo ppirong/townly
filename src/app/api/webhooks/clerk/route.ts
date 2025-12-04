@@ -89,10 +89,10 @@ export async function POST(req: NextRequest) {
       // 회원가입 방법 감지
       if (external_accounts && external_accounts.length > 0) {
         const kakaoAccount = external_accounts.find((account: any) => 
-          account.provider === 'oauth_kakao' || 
-          account.provider === 'kakao' ||
-          account.provider_slug === 'oauth_kakao' ||
-          account.provider_slug === 'kakao'
+          String(account.provider) === 'oauth_kakao' || 
+          String(account.provider) === 'kakao' ||
+          String(account.provider_slug) === 'oauth_kakao' ||
+          String(account.provider_slug) === 'kakao'
         );
         
         if (kakaoAccount) {

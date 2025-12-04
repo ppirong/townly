@@ -59,7 +59,7 @@ export function useUserProfileSync() {
         let signupMethod: 'email' | 'kakao' = 'email';
         if (user.externalAccounts && user.externalAccounts.length > 0) {
           const kakaoAccount = user.externalAccounts.find(account => 
-            account.provider === 'oauth_kakao' || account.provider === 'kakao'
+            String(account.provider) === 'oauth_kakao' || String(account.provider) === 'kakao'
           );
           if (kakaoAccount) {
             signupMethod = 'kakao';
