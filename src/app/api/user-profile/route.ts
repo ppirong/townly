@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       console.log('✅ 기본 역할(customer) 설정 완료');
     } catch (roleError) {
       // 이미 역할이 있는 경우 무시
-      console.log('ℹ️ 역할 설정 건너뜀 (이미 존재하거나 오류):', roleError.message);
+      console.log('ℹ️ 역할 설정 건너뜀 (이미 존재하거나 오류):', roleError instanceof Error ? roleError.message : 'Unknown error');
     }
 
     console.log('✅ 클라이언트에서 사용자 프로필 생성 완료:', profile.id);
@@ -70,7 +70,12 @@ export async function POST(req: NextRequest) {
     console.error('❌ 클라이언트 프로필 생성 실패:', error);
     
     // 중복 키 오류 처리
-    if (error.message?.includes('duplicate key') || error.code === '23505') {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorCode = error && typeof error === 'object' && 'code' in error 
+      ? (error as Record<string, unknown>).code 
+      : null;
+    
+    if (errorMessage.includes('duplicate key') || errorCode === '23505') {
       return NextResponse.json({
         error: 'Profile already exists',
         message: '이미 프로필이 존재합니다'
@@ -79,7 +84,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       error: 'Internal server error',
-      message: error.message
+      message: errorMessage
     }, { status: 500 });
   }
 }
