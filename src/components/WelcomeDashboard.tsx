@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { setUserLocation, getUserLocation } from '@/actions/location';
 import type { ClientUserLocation } from '@/lib/dto/location-mappers';
+import { env } from '@/lib/env';
 
 export default function WelcomeDashboard() {
   const { user } = useUser();
@@ -113,17 +114,15 @@ export default function WelcomeDashboard() {
   };
 
   const handleKakaoConnect = () => {
-    // 카카오톡 채널 연결 로직
-    window.open('https://pf.kakao.com/_your_channel_id', '_blank');
+    // 카카오톡 채널 연결 로직 - 환경변수에서 URL 가져오기
+    const kakaoChannelUrl = env.NEXT_PUBLIC_KAKAO_CHANNEL_URL;
+    window.open(kakaoChannelUrl, '_blank');
   };
 
   const handleWeatherClick = () => {
     router.push('/weather');
   };
 
-  const handleAirQualityClick = () => {
-    router.push('/airquality');
-  };
 
   const handleGoogleAirQualityClick = () => {
     router.push('/airquality-google');
@@ -289,7 +288,7 @@ export default function WelcomeDashboard() {
         </div>
 
         {/* Information Cards - Premium Glass Design */}
-        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
           {/* Weather Card */}
           <div 
             className="group relative cursor-pointer"
@@ -328,40 +327,6 @@ export default function WelcomeDashboard() {
             </div>
           </div>
           
-          {/* Air Quality Card */}
-          <div 
-            className="group relative cursor-pointer"
-            onClick={handleAirQualityClick}
-          >
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 via-emerald-400 to-green-600 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-            <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-2xl hover:shadow-emerald-500/25 transition-all duration-500 transform hover:scale-[1.03] hover:-translate-y-1">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-1">미세먼지</h3>
-                  <p className="text-emerald-200 text-sm font-medium">에어코리아 API</p>
-                </div>
-                <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl flex items-center justify-center text-2xl shadow-lg">
-                  😷
-                </div>
-              </div>
-              
-              <div className="text-center py-6 space-y-2">
-                <div className="text-4xl font-black bg-gradient-to-r from-green-300 to-emerald-400 bg-clip-text text-transparent mb-2">좋음</div>
-                <p className="text-white/80 font-medium">PM2.5: 15㎍/㎥</p>
-                <p className="text-white/60 text-sm">PM10: 25㎍/㎥</p>
-              </div>
-              
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm border border-green-300/30 rounded-xl p-4">
-                <p className="text-emerald-200 flex items-center justify-between font-medium">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-                    ✅ 마스크 없이 외출 가능
-                  </span>
-                  <span className="text-emerald-300 group-hover:translate-x-1 transition-transform">→</span>
-                </p>
-              </div>
-            </div>
-          </div>
           
           {/* Google Air Quality Card */}
           <div 
@@ -462,7 +427,7 @@ export default function WelcomeDashboard() {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
               <button 
                 onClick={handleWeatherClick}
                 className="group relative bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/20 p-5 rounded-2xl hover:from-blue-500/20 hover:to-cyan-500/20 hover:border-blue-400/50 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 active:scale-95"
@@ -475,17 +440,6 @@ export default function WelcomeDashboard() {
                 </div>
               </button>
               
-              <button 
-                onClick={handleAirQualityClick}
-                className="group relative bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/20 p-5 rounded-2xl hover:from-green-500/20 hover:to-emerald-500/20 hover:border-green-400/50 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 active:scale-95"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-green-400/0 to-emerald-400/0 group-hover:from-green-400/10 group-hover:to-emerald-400/10 rounded-2xl transition-all duration-300"></div>
-                <div className="relative">
-                  <div className="text-3xl mb-3 transform group-hover:scale-110 transition-transform duration-300">😷</div>
-                  <div className="text-sm font-bold text-white group-hover:text-green-200 transition-colors">미세먼지</div>
-                  <div className="text-xs text-white/60 mt-1">에어코리아</div>
-                </div>
-              </button>
               
               <button 
                 onClick={handleGoogleAirQualityClick}

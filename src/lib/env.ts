@@ -41,6 +41,7 @@ export const env = {
   
   // 클라이언트 사이드용 환경변수
   NEXT_PUBLIC_GMAIL_CLIENT_ID: process.env.NEXT_PUBLIC_GMAIL_CLIENT_ID!,
+  NEXT_PUBLIC_KAKAO_CHANNEL_URL: process.env.NEXT_PUBLIC_KAKAO_CHANNEL_URL || 'https://pf.kakao.com/_ZeUTxl',
   
   // 크론 작업 보안
   CRON_SECRET: process.env.CRON_SECRET || 'cron-secret-key',

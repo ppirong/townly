@@ -298,21 +298,64 @@ export function WeatherDashboard({ className, initialLocation }: WeatherDashboar
 
       const { latitude, longitude, accuracy } = position.coords;
       
-      // 역지오코딩을 통해 주소 가져오기 (Kakao API 사용)
+      // 기존 위치와 비교하여 큰 변화가 없으면 역지오코딩 생략
       let address = '';
       let cityName = '';
+      let shouldGeocode = true;
       
-      try {
-        const geocodeResponse = await fetch(`/api/kakao/geocode?lat=${latitude}&lng=${longitude}`);
-        if (geocodeResponse.ok) {
-          const geocodeData = await geocodeResponse.json();
-          if (geocodeData.success && geocodeData.data) {
-            address = geocodeData.data.address;
-            cityName = geocodeData.data.city;
+      // 기존 위치 정보가 있고, 좌표 변화가 미미한 경우 (100m 이내) 역지오코딩 생략
+      if (initialLocation?.latitude && initialLocation?.longitude) {
+        const existingLat = parseFloat(initialLocation.latitude);
+        const existingLng = parseFloat(initialLocation.longitude);
+        const distance = Math.sqrt(
+          Math.pow(latitude - existingLat, 2) + Math.pow(longitude - existingLng, 2)
+        ) * 111000; // 대략적인 미터 변환
+        
+        if (distance < 100) { // 100m 이내면 기존 주소 정보 재사용
+          address = initialLocation.address || '';
+          cityName = initialLocation.cityName || '';
+          shouldGeocode = false;
+          console.log('위치 변화 미미함 - 기존 주소 정보 재사용:', address);
+        }
+      }
+      
+      // 필요한 경우에만 역지오코딩 수행
+      if (shouldGeocode) {
+        try {
+          console.log('🌍 새로운 위치 감지 - Kakao 역지오코딩 API 호출');
+          console.log('📍 호출할 좌표:', { latitude, longitude });
+          
+          const geocodeResponse = await fetch(`/api/kakao/geocode?lat=${latitude}&lng=${longitude}`);
+          console.log('📡 Kakao API 응답 상태:', geocodeResponse.status);
+          
+          if (geocodeResponse.ok) {
+            const geocodeData = await geocodeResponse.json();
+            console.log('✅ Kakao API 응답 성공:', geocodeData);
+            
+            if (geocodeData.success && geocodeData.data) {
+              address = geocodeData.data.address;
+              cityName = geocodeData.data.city;
+              console.log('🏠 주소 변환 완료:', { address, cityName });
+            } else {
+              console.warn('⚠️ Kakao API 응답에 데이터가 없음:', geocodeData);
+            }
+          } else {
+            const errorText = await geocodeResponse.text();
+            console.error('❌ Kakao API 응답 오류:', {
+              status: geocodeResponse.status,
+              statusText: geocodeResponse.statusText,
+              body: errorText
+            });
+          }
+        } catch (geocodeError) {
+          console.error('❌ 역지오코딩 네트워크 오류:', geocodeError);
+          // 실패 시 기존 주소 정보가 있다면 사용
+          if (initialLocation?.address) {
+            address = initialLocation.address;
+            cityName = initialLocation.cityName || '';
+            console.log('🔄 기존 주소 정보 사용:', { address, cityName });
           }
         }
-      } catch (geocodeError) {
-        console.warn('역지오코딩 실패:', geocodeError);
       }
       
       // 서버에 위치 정보 저장
